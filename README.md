@@ -6,6 +6,10 @@ Este repo implementa la **Fase 1** de [la especificación](especificaciones_del_
 
 ## Demo
 
+Online: **https://germantes.github.io/vibedom/**
+
+En local:
+
 ```bash
 npm run dev        # http://localhost:5173
 ```
