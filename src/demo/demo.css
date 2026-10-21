@@ -1,0 +1,177 @@
+:root {
+  --bg: #111;
+  --accent: #888;
+  --text: #eee;
+  --font: system-ui, sans-serif;
+  color-scheme: light dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  line-height: 1.55;
+  transition: background 0.8s ease, color 0.8s ease;
+}
+
+.hero,
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem 0;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--accent);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+}
+
+h1 {
+  margin: 0.3rem 0 0.6rem;
+  font-size: clamp(2rem, 6vw, 3.4rem);
+  line-height: 1.1;
+}
+
+.lead {
+  opacity: 0.8;
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 1.8rem 0 1.2rem;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.preset {
+  padding: 0.6rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--text) 30%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+}
+
+.preset[aria-checked="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.player {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 1.3rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--bg);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.toggle:disabled {
+  opacity: 0.4;
+  cursor: progress;
+}
+
+.bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+}
+
+.bars i {
+  width: 3px;
+  height: 4px;
+  background: currentColor;
+  border-radius: 1px;
+}
+
+.toggle[aria-pressed="true"] .bars i {
+  animation: bar 0.9s ease-in-out infinite alternate;
+}
+
+.toggle[aria-pressed="true"] .bars i:nth-child(2) { animation-delay: -0.3s; }
+.toggle[aria-pressed="true"] .bars i:nth-child(3) { animation-delay: -0.6s; }
+.toggle[aria-pressed="true"] .bars i:nth-child(4) { animation-delay: -0.15s; }
+
+@keyframes bar {
+  from { height: 3px; }
+  to { height: 14px; }
+}
+
+#scope {
+  flex: 1;
+  min-width: 0;
+  height: 48px;
+}
+
+.status {
+  min-height: 1.5em;
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.card {
+  margin: 1.5rem 0;
+  padding: 1.4rem 1.6rem;
+  border: 1px solid color-mix(in srgb, var(--text) 15%, transparent);
+  border-radius: 16px;
+}
+
+.card h2 {
+  margin-top: 0;
+  font-size: 1.15rem;
+}
+
+a {
+  color: var(--accent);
+}
+
+.params {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.6rem 1rem;
+  margin: 1rem 0 0;
+}
+
+.params dt {
+  font-size: 0.75rem;
+  opacity: 0.6;
+}
+
+.params dd {
+  margin: 0;
+  font-family: ui-monospace, monospace;
+}
+
+pre {
+  overflow-x: auto;
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.spacer {
+  height: 160vh;
+}

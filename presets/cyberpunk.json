@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "url": "https://neon-grid.example",
+    "detectedVibe": "Cyberpunk: técnico, nocturno y neón",
+    "explanation": "Fondo negro puro, acentos verde neón y tipografía monospace traducidos a Re frigio grave, sierras desafinadas tras un filtro cerrado y un arpegio de eco que recuerda a datos fluyendo."
+  },
+  "uiTheme": {
+    "backgroundColor": "#0A0A0A",
+    "accentColor": "#00FF66",
+    "textColor": "#E6FFE9",
+    "fontFamily": "monospace"
+  },
+  "musicalParams": {
+    "bpm": 84,
+    "rootNote": "D",
+    "scale": "phrygian",
+    "octave": 3
+  },
+  "synthConfig": {
+    "pad": {
+      "waveform": "sawtooth",
+      "attack": 2.5,
+      "release": 4.0,
+      "filterFreq": 520
+    },
+    "arp": {
+      "enabled": true,
+      "waveform": "square",
+      "density": 0.45,
+      "delayWet": 0.55
+    },
+    "effects": {
+      "reverbDecay": 5.5,
+      "reverbWet": 0.55,
+      "chorusDepth": 0.25
+    },
+    "interactivity": {
+      "scrollTarget": "filterFreq",
+      "scrollMultiplier": 3.5,
+      "hoverNoteTrigger": true
+    }
+  }
+}

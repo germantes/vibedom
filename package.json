@@ -1,0 +1,16 @@
+{
+  "name": "vibedom",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Atmósferas sonoras procedurales a partir de la estética de una web (Tone.js)",
+  "type": "module",
+  "license": "MIT",
+  "author": "German <gtorrestendero@gmail.com>",
+  "scripts": {
+    "dev": "npx --yes serve -l 5173 .",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

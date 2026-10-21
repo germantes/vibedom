@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "url": "https://maison-editorial.example",
+    "detectedVibe": "Editorial elegante: sereno, luminoso y espacioso",
+    "explanation": "Mucho espacio en blanco, serif clásica y tonos marfil traducidos a Fa lidio lento con pads de seno muy suaves, reverb de catedral y notas aisladas como pinceladas."
+  },
+  "uiTheme": {
+    "backgroundColor": "#F7F3EC",
+    "accentColor": "#8C6A43",
+    "textColor": "#1E1B16",
+    "fontFamily": "serif"
+  },
+  "musicalParams": {
+    "bpm": 56,
+    "rootNote": "F",
+    "scale": "lydian",
+    "octave": 3
+  },
+  "synthConfig": {
+    "pad": {
+      "waveform": "sine",
+      "attack": 5.0,
+      "release": 8.0,
+      "filterFreq": 2200
+    },
+    "arp": {
+      "enabled": true,
+      "waveform": "sine",
+      "density": 0.18,
+      "delayWet": 0.35
+    },
+    "effects": {
+      "reverbDecay": 11.0,
+      "reverbWet": 0.75,
+      "chorusDepth": 0.15
+    },
+    "interactivity": {
+      "scrollTarget": "reverbWet",
+      "scrollMultiplier": 2.0,
+      "hoverNoteTrigger": true
+    }
+  }
+}

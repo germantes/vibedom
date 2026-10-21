@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "url": "https://soft-studio.example",
+    "detectedVibe": "Indie pastel: cálido, juguetón y lo-fi",
+    "explanation": "Colores pastel, esquinas redondeadas y una display amable traducidos a Sol pentatónico con triángulos cálidos, chorus marcado tipo cinta y un arpegio inquieto que crece al hacer scroll."
+  },
+  "uiTheme": {
+    "backgroundColor": "#FFE8F0",
+    "accentColor": "#7C9CFF",
+    "textColor": "#3B2E4A",
+    "fontFamily": "display"
+  },
+  "musicalParams": {
+    "bpm": 92,
+    "rootNote": "G",
+    "scale": "pentatonic",
+    "octave": 3
+  },
+  "synthConfig": {
+    "pad": {
+      "waveform": "triangle",
+      "attack": 1.2,
+      "release": 3.0,
+      "filterFreq": 1400
+    },
+    "arp": {
+      "enabled": true,
+      "waveform": "triangle",
+      "density": 0.55,
+      "delayWet": 0.4
+    },
+    "effects": {
+      "reverbDecay": 3.5,
+      "reverbWet": 0.4,
+      "chorusDepth": 0.7
+    },
+    "interactivity": {
+      "scrollTarget": "arpDensity",
+      "scrollMultiplier": 3.0,
+      "hoverNoteTrigger": true
+    }
+  }
+}
