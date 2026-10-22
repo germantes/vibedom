@@ -1,12 +1,11 @@
 // Motor procedural: interpreta una Semilla Sonora y la convierte en un soundscape infinito.
 //
-// Grafo de audio:
+// Grafo de audio (optimizado para CPUs modestas):
 //
 //   drone (sine) ───────────────┐
-//   pad (PolySynth fat*) → padFilter ─┤
-//                               ├→ chorus → reverb → limiter → master → destination
-//   arp (Synth) → arpFilter → delay ┘                                 └→ analyser
-//   aire (ruido rosa) → airFilter ─────────→ reverb
+//   pad (PolySynth fat*×2) → padFilter ─┤
+//                                  ├→ chorus → reverb (Freeverb) → limiter → master → destination
+//   arp (Synth) → arpFilter → delay ┘                                        └→ analyser
 //
 // Tone.js se inyecta (no se importa) para que el widget pueda cargarlo bajo demanda.
 
@@ -21,12 +20,21 @@ const FADE_OUT_S = 1.2;
 /** Envolvente fat* para el pad: varias voces desafinadas = pad ancho y vivo. */
 const fatWave = (waveform) => `fat${waveform}`;
 
+let contextConfigured = false;
+
 export async function createSoundscape(Tone, rawSeed, { rng = Math.random } = {}) {
   const seed = normalizeSeed(rawSeed);
   const { musicalParams: music, synthConfig: cfg } = seed;
   const { scale, rootNote, octave } = music;
   const scaleLength = SCALES[scale].length;
   const rootMidi = noteToMidi(pitchClass(rootNote), octave);
+
+  // ---- Contexto optimizado para reproducción continua ----------------------
+  if (!contextConfigured) {
+    Tone.setContext(new Tone.Context({ latencyHint: "playback" }));
+    Tone.getContext().lookAhead = 0.3; // margen amplio de scheduling: menos dropouts
+    contextConfigured = true;
+  }
 
   const transport = Tone.getTransport();
   transport.cancel();
@@ -37,20 +45,19 @@ export async function createSoundscape(Tone, rawSeed, { rng = Math.random } = {}
   const analyser = new Tone.Analyser("waveform", 512);
   master.connect(analyser);
   const limiter = new Tone.Limiter(-2).connect(master);
-  const reverb = new Tone.Reverb({ decay: cfg.effects.reverbDecay, preDelay: 0.03, wet: cfg.effects.reverbWet }).connect(limiter);
+  // Freeverb (Schroeder): órdenes de magnitud más ligero que convolución (Tone.Reverb).
+  const roomSize = 0.3 + 0.65 * (1 - Math.exp(-cfg.effects.reverbDecay / 6));
+  const reverb = new Tone.Freeverb({ roomSize, dampening: 4000, wet: cfg.effects.reverbWet }).connect(limiter);
   const chorus = new Tone.Chorus({ frequency: 0.3, delayTime: 4, depth: cfg.effects.chorusDepth, spread: 180, wet: 0.5 })
     .connect(reverb)
     .start();
-  await reverb.ready; // el impulso se genera de forma asíncrona
 
   // ---- Capa 1: Pad + drone -------------------------------------------------
   const padFilter = new Tone.Filter({ type: "lowpass", frequency: cfg.pad.filterFreq, Q: 0.7, rolloff: -24 }).connect(chorus);
-  // Respiración lenta del filtro en cents para no pelear con la modulación por scroll (que mueve frequency).
-  const padBreath = new Tone.LFO({ frequency: 0.04 + rng() * 0.03, min: -500, max: 500 }).connect(padFilter.detune).start();
   const pad = new Tone.PolySynth(Tone.Synth, {
-    maxPolyphony: 16,
+    maxPolyphony: 8,
     volume: -16,
-    oscillator: { type: fatWave(cfg.pad.waveform), count: 3, spread: 24 },
+    oscillator: { type: fatWave(cfg.pad.waveform), count: 2, spread: 20 },
     envelope: { attack: cfg.pad.attack, decay: 1, sustain: 0.8, release: cfg.pad.release, attackCurve: "sine", releaseCurve: "exponential" },
   }).connect(padFilter);
 
@@ -59,10 +66,6 @@ export async function createSoundscape(Tone, rawSeed, { rng = Math.random } = {}
     oscillator: { type: "sine" },
     envelope: { attack: Math.max(2, cfg.pad.attack), decay: 0, sustain: 1, release: cfg.pad.release },
   }).connect(padFilter);
-
-  // Capa de "aire": ruido rosa muy bajo y filtrado, da cuerpo y continuidad entre acordes.
-  const airFilter = new Tone.AutoFilter({ frequency: 0.05, baseFrequency: 300, octaves: 3, depth: 0.8, wet: 1 }).connect(reverb).start();
-  const air = new Tone.Noise({ type: "pink", volume: -44 }).connect(airFilter);
 
   // ---- Capa 2: Arpegio generativo -----------------------------------------
   const delay = new Tone.FeedbackDelay({ delayTime: "8n.", feedback: 0.38, wet: cfg.arp.delayWet }).connect(chorus);
@@ -75,7 +78,6 @@ export async function createSoundscape(Tone, rawSeed, { rng = Math.random } = {}
 
   // ---- Secuenciación ------------------------------------------------------
   const secondsPerBar = (60 / music.bpm) * 4;
-  // Cada acorde dura lo bastante para que el ataque complete y el pad "respire".
   const barsPerChord = Math.max(2, Math.ceil((cfg.pad.attack * 1.5 + 3) / secondsPerBar));
   const chordSeconds = barsPerChord * secondsPerBar;
 
@@ -87,20 +89,18 @@ export async function createSoundscape(Tone, rawSeed, { rng = Math.random } = {}
     voicing = padVoicing(rootNote, scale, octave, degree, voicing);
     chordSteps = [0, 2, 4, 6].map((i) => (degree + i) % scaleLength);
     const velocity = 0.45 + rng() * 0.2;
-    // Las notas se escalonan unos ms (strum lento) para que no ataquen como un bloque.
     voicing.forEach((midi, i) => {
       pad.triggerAttackRelease(midiToNoteName(midi), chordSeconds * 0.95, time + i * 0.06 * (1 + rng()), velocity);
     });
     degree = nextDegree(degree, scale, rng);
   }, `${barsPerChord}m`);
 
-  // El drone cambia cada 4 acordes entre tónica y quinta, una octava por debajo del pad.
   const droneLoop = new Tone.Loop((time) => {
     const step = rng() < 0.7 ? 0 : 4;
     drone.triggerAttackRelease(midiToNoteName(scaleStepToMidi(rootMidi - 12, scale, step)), chordSeconds * 4 * 0.98, time, 0.6);
   }, `${barsPerChord * 4}m`);
 
-  const arpRange = { scale, minStep: scaleLength, maxStep: scaleLength * 3 - 1 }; // una y dos octavas sobre el pad
+  const arpRange = { scale, minStep: scaleLength, maxStep: scaleLength * 3 - 1 };
   let arpStep = scaleLength + Math.floor(rng() * scaleLength);
   let arpDensity = cfg.arp.density;
 
@@ -111,7 +111,7 @@ export async function createSoundscape(Tone, rawSeed, { rng = Math.random } = {}
     const length = rng() < 0.25 ? "4n" : "16n";
     arp.triggerAttackRelease(note, length, time, 0.25 + rng() * 0.45);
   }, "8n");
-  arpLoop.humanize = "64n"; // micro-desplazamientos: suena tocado, no cuantizado
+  arpLoop.humanize = "64n";
 
   // ---- Reactividad --------------------------------------------------------
   const scrollTargets = {
@@ -135,7 +135,7 @@ export async function createSoundscape(Tone, rawSeed, { rng = Math.random } = {}
   let lastHoverAt = 0;
   let playing = false;
 
-  const nodes = [pad, drone, arp, air, airFilter, padBreath, padFilter, arpFilter, delay, chorus, reverb, limiter, analyser, master];
+  const nodes = [pad, drone, arp, padFilter, arpFilter, delay, chorus, reverb, limiter, analyser, master];
   const loops = [padLoop, droneLoop, arpLoop];
 
   return {
@@ -152,9 +152,8 @@ export async function createSoundscape(Tone, rawSeed, { rng = Math.random } = {}
       playing = true;
       padLoop.start(0);
       droneLoop.start(0);
-      if (cfg.arp.enabled) arpLoop.start(`${barsPerChord}m`); // el arpegio entra cuando el pad ya ha florecido
-      air.start();
-      transport.position = 0; // reanudar siempre desde el inicio: el pad entra de inmediato
+      if (cfg.arp.enabled) arpLoop.start(`${barsPerChord}m`);
+      transport.position = 0;
       transport.start("+0.05");
       master.volume.rampTo(MASTER_DB, FADE_IN_S);
     },
@@ -164,12 +163,11 @@ export async function createSoundscape(Tone, rawSeed, { rng = Math.random } = {}
       playing = false;
       master.volume.rampTo(-Infinity, FADE_OUT_S);
       await new Promise((resolve) => setTimeout(resolve, FADE_OUT_S * 1000));
-      if (playing) return; // se reanudó durante el fade
+      if (playing) return;
       transport.stop();
       loops.forEach((loop) => loop.stop());
       pad.releaseAll();
       drone.triggerRelease();
-      air.stop();
     },
 
     /** intensity 0-1 (0 = reposo). */
