@@ -11,9 +11,9 @@ La interfaz está disponible en **español e inglés** mediante rutas estáticas
 
 ## Demo
 
-Online (presets): **https://germantes.github.io/vibedom/**
+Online: **https://germantes.github.io/vibedom/**
 
-> GitHub Pages solo sirve archivos estáticos. Los presets y el audio funcionan online. El escaneo necesita un backend: o el local (`npm start`), o uno desplegado en Render declarado con `<meta name="vibedom-api">`. Si no hay ninguno configurado, la landing lo explica sin lanzar peticiones inútiles.
+> El escaneo funciona online: la landing de GitHub Pages llama al backend desplegado en Render (`https://vibedom.onrender.com`). Ese servicio se duerme tras 15 minutos sin uso y la página lo despierta con `GET /api/health`, así que el primer análisis del día puede tardar unos segundos más.
 
 ```bash
 # Crea .env en la raíz con GEMINI_KEY=...

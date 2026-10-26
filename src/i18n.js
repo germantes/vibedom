@@ -118,7 +118,7 @@ const DICTS = {
     "status.staticHint":
       "Estás en la demo estática: los presets suenan aquí. Para escanear tu web, arranca el backend con `npm start` y abre http://localhost:3000.",
     "status.remoteHint":
-      "El escaneo usa un backend externo. Si el servicio estaba dormido, el primer análisis puede tardar unos segundos.",
+      "El análisis tarda unos segundos. Si es el primero del día, puede tardar un poco más mientras arranca el servicio.",
     "status.backendUnreachable":
       "No se pudo conectar con el analizador. Puede estar arrancando: espera unos segundos e inténtalo de nuevo.",
     "status.scanError": "No se pudo analizar: {message}",
@@ -349,7 +349,7 @@ const DICTS = {
     "status.staticHint":
       "You're on the static demo: presets play here. To scan your site, start the backend with `npm start` and open http://localhost:3000.",
     "status.remoteHint":
-      "Scanning uses an external backend. If the service was asleep, the first analysis may take a few seconds.",
+      "Analysis takes a few seconds. If it's the first of the day, it may take a little longer while the service wakes up.",
     "status.backendUnreachable":
       "Couldn't reach the analyser. It may be waking up: wait a few seconds and try again.",
     "status.scanError": "Couldn't analyse: {message}",

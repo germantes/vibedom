@@ -127,7 +127,7 @@ Commits: `f64aec3` (Fase 2).
   - Playground ES/EN: rutas, barra superior, idioma, sliders, JSON, audio y pausa.
 - Consola sin errores propios; solo el warning conocido de Tone.js y los 404 esperados del test de error.
 
-### 🚧 FASE 3.6: Despliegue del analizador (PREPARADO)
+### ✅ FASE 3.6: Despliegue del analizador (COMPLETADA)
 
 - **`render.yaml`**: Blueprint de Render con runtime Node 22, plan free, health check en `/api/health`, `SCAN_RATE_LIMIT=10` y `GEMINI_KEY` como secreto solicitado al crear el servicio.
 - **`GET /api/health`**: respuesta `{ ok: true, service: "vibedom" }` sin caché, útil como health check y para despertar el plan gratuito.
@@ -137,7 +137,17 @@ Commits: `f64aec3` (Fase 2).
 - **Script de configuración** (`scripts/set-api.mjs`): `npm run set-api -- https://...` declara el backend externo en las cuatro páginas y valida la URL; `--clear` lo quita. Sustituye al `sed` del README.
 - **Documentación**: botón *Deploy to Render*, variables de entorno, aviso de spin-down del plan free, comando `npm run set-api` y nota sobre dominio propio/canonical.
 
-**Pendiente**: crear el servicio en Render con la cuenta de GitHub, introducir `GEMINI_KEY`, copiar la URL resultante y rellenar `vibedom-api`. Después hay que repetir el E2E cross-origin contra esa URL.
+**Desplegado**: `https://vibedom.onrender.com` (servicio `vibedom`, plan free, Frankfurt, Node 22). Las cuatro páginas declaran ese origen en `<meta name="vibedom-api">` y GitHub Pages escanea contra él.
+
+Verificación en producción (2026-10-26, commit `34d7512`):
+
+- `GET /api/health` → `200 {"ok":true,"service":"vibedom"}` en 0,43 s, con `Access-Control-Allow-Origin: *` y `Cache-Control: no-store`.
+- Preflight `OPTIONS /api/scan` → `204` con los encabezados CORS correctos.
+- Escaneo real desde la landing publicada: `example.com` en **3,4 s** (`X-Vibedom-Cache: MISS`), autoplay correcto, enlace a la fuente y panel oculto.
+- Segundo escaneo de la misma URL: **0,2 s** con `X-Vibedom-Cache: HIT`, sin volver a llamar a Gemini.
+- Sin errores de consola propios en el flujo completo.
+
+**Nota conocida**: si el modelo principal falla y entra el de respaldo, `metadata.detectedVibe` puede volver en inglés aunque la página esté en español (el modelo imita el idioma del sitio analizado). Los presets también llevan la etiqueta en español en la versión EN.
 
 ---
 
@@ -156,10 +166,11 @@ Commits: `f64aec3` (Fase 2).
   - Componente nativo para Framer (`framer-code-components`).
 
 ### Mejoras opcionales
-- **Desplegar el backend** (Render, Railway, Fly.io…) y apuntar la constante `API_URL` de `src/landing/main.js` y `src/demo/main.js` a ese origen para habilitar el escaneo en la demo online.
+- Dominio propio (`vibedom.dev`): CNAME en Pages y actualización de `canonical`, `og:url`, `sitemap.xml` y `robots.txt`.
+- Alta en Search Console, envío del sitemap y una página dedicada a «what does my website sound like».
+- Unificar el idioma de `detectedVibe` con el de la página (parámetro `lang` en `/api/scan`) y localizar las etiquetas de los presets.
 - Historial de escaneos recientes (localStorage) y compartir semilla por URL.
 - Exportar/importar Semilla Sonora.
-- Rate limiting por IP en `/api/scan` si se despliega públicamente.
 - Tests de UI automatizados estables (los actuales son verificación manual con Playwright en `/tmp`).
 
 ---
