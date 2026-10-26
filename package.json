@@ -10,7 +10,8 @@
     "start": "node src/backend/server.js",
     "dev": "node --watch src/backend/server.js",
     "test": "node --test",
-    "set-api": "node scripts/set-api.mjs"
+    "set-api": "node scripts/set-api.mjs",
+    "set-domain": "node scripts/set-domain.mjs"
   },
   "engines": {
     "node": ">=20"
