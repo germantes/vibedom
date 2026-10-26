@@ -13,13 +13,13 @@ const DICTS = {
     "nav.langSwitch": "EN",
     "nav.langSwitchAria": "Ver esta página en inglés",
 
-    "landing.title": "vibedom · Tu web ya tiene una banda sonora",
+    "landing.title": "vibedom · ¿A qué suena tu web?",
     "landing.description":
-      "Pega una URL y escucha su atmósfera sonora. vibedom lee la paleta, la tipografía y el movimiento de tu web y los convierte en música generativa en tu navegador.",
+      "¿A qué suena tu web? Pega una URL y escucha su atmósfera sonora: vibedom lee su paleta, tipografía y movimiento y los convierte en música generativa en tu navegador.",
     "landing.eyebrow": "Web → música · en tu navegador",
-    "landing.h1": "Tu web ya tiene una banda sonora. Solo faltaba escucharla.",
+    "landing.h1": "¿A qué suena tu web?",
     "landing.lead":
-      "Pega una URL. vibedom lee su paleta, su tipografía y su movimiento, y los convierte en una atmósfera sonora única. Sin samples, sin registro, sin subir nada.",
+      "Toda web ya tiene una banda sonora: está en su paleta, su tipografía y su movimiento. Pega una URL y vibedom la convierte en música generativa. Sin samples, sin registro, sin subir nada.",
     "landing.form.label": "URL de tu web",
     "landing.form.placeholder": "https://tuweb.com",
     "landing.form.button": "Escuchar mi web",
@@ -239,13 +239,13 @@ const DICTS = {
     "nav.langSwitch": "ES",
     "nav.langSwitchAria": "View this page in Spanish",
 
-    "landing.title": "vibedom · Your website already has a soundtrack",
+    "landing.title": "vibedom · What does your website sound like?",
     "landing.description":
-      "Paste a URL and listen to its soundscape. vibedom reads your site's palette, typography and motion, then turns them into generative music in your browser.",
+      "What does your website sound like? Paste a URL and hear its soundscape: vibedom reads its palette, typography and motion, then turns them into generative music in your browser.",
     "landing.eyebrow": "Web → music · in your browser",
-    "landing.h1": "Your website already has a soundtrack. It just needed someone to listen.",
+    "landing.h1": "What does your website sound like?",
     "landing.lead":
-      "Paste a URL. vibedom reads its palette, typography and motion, then turns them into a one-of-a-kind soundscape. No samples, no sign-up, no uploads.",
+      "Every site already has a soundtrack: it's in its palette, its typography and its motion. Paste a URL and vibedom turns it into generative music. No samples, no sign-up, no uploads.",
     "landing.form.label": "Your website URL",
     "landing.form.placeholder": "https://yoursite.com",
     "landing.form.button": "Hear my site",
