@@ -4,6 +4,7 @@ import { request } from "node:http";
 import { readFileSync } from "node:fs";
 
 import { startServer } from "../src/backend/server.js";
+import { createScanCache } from "../src/backend/scan-cache.js";
 import { UnsafeUrlError } from "../src/backend/url-guard.js";
 
 const SEED = JSON.parse(readFileSync(new URL("../presets/editorial.json", import.meta.url), "utf8"));
@@ -33,6 +34,7 @@ before(async () => {
       return SEED;
     },
     rateLimit: () => ({ ok: true, remaining: 99, retryAfter: 0 }),
+    cache: createScanCache({ ttlMs: 0 }),
   });
   base = `http://127.0.0.1:${server.address().port}`;
 });

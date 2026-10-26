@@ -13,6 +13,7 @@ import { scrapeUrl } from "./scraper.js";
 import { translate } from "./translator.js";
 import { assertPublicUrl, UnsafeUrlError } from "./url-guard.js";
 import { createRateLimiter } from "./rate-limit.js";
+import { cacheKey, createScanCache } from "./scan-cache.js";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 export const DEFAULT_ROOT = resolve(HERE, "../..");
@@ -78,7 +79,7 @@ async function readJsonBody(req) {
 
 // ---- POST /api/scan --------------------------------------------------------
 
-function makeScanHandler({ scrape, translateSeed, validateUrl, logger }) {
+function makeScanHandler({ scrape, translateSeed, validateUrl, logger, cache }) {
   return async function handleScan(req, res) {
     let body;
     try {
@@ -96,6 +97,14 @@ function makeScanHandler({ scrape, translateSeed, validateUrl, logger }) {
     } catch (err) {
       if (err instanceof UnsafeUrlError) return json(res, 400, { error: err.message });
       return json(res, 400, { error: "URL inválida" });
+    }
+
+    // Repetir un escaneo reciente no vuelve a llamar a Gemini.
+    const key = cacheKey(target);
+    const cached = cache.get(key);
+    if (cached) {
+      logger.log(`[scan] ♻ ${target} (caché)`);
+      return json(res, 200, cached, { "X-Vibedom-Cache": "HIT" });
     }
 
     // Si el navegador cancela el análisis, se aborta la descarga y la llamada a Gemini.
@@ -120,7 +129,8 @@ function makeScanHandler({ scrape, translateSeed, validateUrl, logger }) {
       logger.log(
         `[scan] ✔ ${seed.metadata.detectedVibe} — ${seed.musicalParams.rootNote} ${seed.musicalParams.scale} ${seed.musicalParams.bpm} BPM`,
       );
-      return json(res, 200, seed);
+      cache.set(key, seed);
+      return json(res, 200, seed, { "X-Vibedom-Cache": "MISS" });
     } catch (err) {
       if (clientGone || controller.signal.aborted) return;
       const status = err instanceof UnsafeUrlError ? 400 : 502;
@@ -188,9 +198,10 @@ export function createVibedomServer({
   translateSeed = translate,
   validateUrl = assertPublicUrl,
   rateLimit = createRateLimiter(),
+  cache = createScanCache(),
   logger = console,
 } = {}) {
-  const handleScan = makeScanHandler({ scrape, translateSeed, validateUrl, logger });
+  const handleScan = makeScanHandler({ scrape, translateSeed, validateUrl, cache, logger });
   const handleStatic = makeStaticHandler(root);
 
   return createServer(async (req, res) => {

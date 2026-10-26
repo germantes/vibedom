@@ -91,7 +91,7 @@ Commits: `f64aec3` (Fase 2).
 
 #### Verificación realizada
 
-- **58 tests** en verde (`npm test`), incluidos los de rutas estáticas ES/EN, health y rate limit.
+- **58 → 63 tests** en verde (`npm test`), incluidos los de rutas estáticas ES/EN, health, rate limit y caché.
 - E2E real en navegador con Playwright: `example.com` analizado en **~3,0 s**, autoplay correcto, tema claro aplicado, sin errores de consola.
 - `stripe.com` verificado en backend en **~6,3 s**; SSRF a `localhost` devuelve 400.
 - Flujo mockeado verificado: análisis visible, cancelación, error 502, reintento, sliders (incluidos extremos de brillo), regeneración, cambio de preset con audio activo, pausa, espectro con píxeles, responsive.
@@ -133,7 +133,9 @@ Commits: `f64aec3` (Fase 2).
 - **`GET /api/health`**: respuesta `{ ok: true, service: "vibedom" }` sin caché, útil como health check y para despertar el plan gratuito.
 - **Rate limit por IP** (`src/backend/rate-limit.js`): ventana de 60 s, 10 escaneos/min por defecto, `SCAN_RATE_LIMIT=0` lo desactiva, usa la última IP de `X-Forwarded-For` (la que añade el proxy) y devuelve `429` + `Retry-After` antes de llamar a Gemini.
 - **Backend externo configurable** (`src/api.js` + `<meta name="vibedom-api">`): permite que la landing de GitHub Pages escanee contra Render sin CORS adicional (el servidor ya envía `Access-Control-Allow-Origin: *`). Al cargar, la landing hace un `GET /api/health` para despertar el servicio.
-- **Documentación**: botón *Deploy to Render*, variables de entorno, aviso de spin-down del plan free, comando `sed` para declarar la URL en los cuatro HTML y nota sobre dominio propio/canonical.
+- **Caché de semillas** (`src/backend/scan-cache.js`): guarda en memoria el resultado de cada URL una hora (`SCAN_CACHE_TTL`, `0` lo desactiva), con tope de 500 entradas y desalojo LRU. Repetir un escaneo responde al instante y no vuelve a llamar a Gemini; la cabecera `X-Vibedom-Cache` indica `HIT`/`MISS`.
+- **Script de configuración** (`scripts/set-api.mjs`): `npm run set-api -- https://...` declara el backend externo en las cuatro páginas y valida la URL; `--clear` lo quita. Sustituye al `sed` del README.
+- **Documentación**: botón *Deploy to Render*, variables de entorno, aviso de spin-down del plan free, comando `npm run set-api` y nota sobre dominio propio/canonical.
 
 **Pendiente**: crear el servicio en Render con la cuenta de GitHub, introducir `GEMINI_KEY`, copiar la URL resultante y rellenar `vibedom-api`. Después hay que repetir el E2E cross-origin contra esa URL.
 

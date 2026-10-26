@@ -73,6 +73,8 @@ const DICTS = {
     "landing.privacy.item1": "Sin cuentas ni registro.",
     "landing.privacy.item2": "Sin cookies de seguimiento ni analytics de terceros.",
     "landing.privacy.item3": "Sin audio pregrabado ni streaming: cero samples.",
+    "landing.privacy.item4":
+      "La semilla se cachea en memoria una hora; ni tu URL ni el HTML tocan el disco.",
 
     "landing.cta.eyebrow": "Modo laboratorio",
     "landing.cta.title": "¿Quieres abrir la cabina?",
@@ -92,7 +94,7 @@ const DICTS = {
       "Con cualquier URL http(s) pública. Algunas webs bloquean a los bots o dependen de JavaScript para pintar su estilo; en esos casos el análisis puede quedarse corto.",
     "landing.faq.q4": "¿Guardáis mi URL?",
     "landing.faq.a4":
-      "No la almacenamos. La petición se usa para descargar la página, extraer señales y devolver la semilla. Si arrancas el backend tú mismo, los registros son los de tu propia consola.",
+      "No la guardamos en ninguna base de datos. El resultado del análisis queda en memoria hasta una hora para no repetir la consulta, y después desaparece.",
     "landing.faq.q5": "¿Necesito registrarme o pagar?",
     "landing.faq.a5":
       "No. La demo es abierta. El único requisito es que el backend esté disponible para escanear URLs nuevas; los presets funcionan sin él.",
@@ -302,6 +304,8 @@ const DICTS = {
     "landing.privacy.item1": "No accounts or sign-up.",
     "landing.privacy.item2": "No tracking cookies or third-party analytics.",
     "landing.privacy.item3": "No pre-recorded audio or streaming: zero samples.",
+    "landing.privacy.item4":
+      "The seed is cached in memory for an hour; neither your URL nor the HTML touches disk.",
 
     "landing.cta.eyebrow": "Lab mode",
     "landing.cta.title": "Want to open the console?",
@@ -321,7 +325,7 @@ const DICTS = {
       "With any public http(s) URL. Some sites block bots or rely on JavaScript to paint their style; in those cases the analysis may fall short.",
     "landing.faq.q4": "Do you store my URL?",
     "landing.faq.a4":
-      "We don't store it. The request is used to fetch the page, extract signals and return the seed. If you run the backend yourself, the logs are your own console's.",
+      "We don't store it in any database. The analysis stays in memory for up to an hour so we don't repeat the request, then it's gone.",
     "landing.faq.q5": "Do I need an account or payment?",
     "landing.faq.a5":
       "No. The demo is open. The only requirement for scanning new URLs is a running backend; presets work without it.",

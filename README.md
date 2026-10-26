@@ -91,6 +91,7 @@ src/backend/scraper.js       extracción HTML/CSS sin dependencias
 src/backend/translator.js    Gemini + reintentos, fallback, timeout y schema
 src/backend/url-guard.js     validación anti-SSRF (DNS, IPs privadas, redirects)
 src/backend/rate-limit.js    cuota de escaneos por IP
+src/backend/scan-cache.js    caché en memoria de semillas por URL
 src/backend/server.js        servidor node:http (estáticos + /api/scan + health)
 src/demo/main.js             orquestación del playground
 src/demo/analysis.js         estados y animación del panel de análisis
@@ -103,6 +104,7 @@ src/engine/generative.js     Markov armónico, voice leading, arpegio, scroll
 src/engine/soundscape.js     motor Tone.js (grafo de audio y secuenciación)
 src/engine/reactivity.js     DOM → motor (scroll y hover)
 presets/*.json               semillas de ejemplo
+scripts/set-api.mjs          declara el backend externo en las 4 páginas
 test/                        tests unitarios con node:test
 ```
 
@@ -136,14 +138,14 @@ El esquema es el de la spec (sección 4). `normalizeSeed()` aplica dos política
 
 ## Backend
 
-- `POST /api/scan` con `{ "url": "https://..." }` → `200` con la Semilla Sonora, o `400`/`422`/`429`/`502`/`504` con `{ error }`.
+- `POST /api/scan` con `{ "url": "https://..." }` → `200` con la Semilla Sonora, o `400`/`422`/`429`/`502`/`504` con `{ error }`. La cabecera `X-Vibedom-Cache` indica `HIT` o `MISS`.
 - `GET /api/health` → `200` con `{ ok: true }`; sirve de health check y despierta el servicio en Render.
 - Archivos estáticos del repositorio en el resto de rutas.
 - **Sin dependencias npm**: `node:http`, `fetch` nativo y regex. Node ≥ 20.
-- Variables: `GEMINI_KEY` (obligatoria para escanear), `PORT` (3000 por defecto), `SCAN_RATE_LIMIT` (10 escaneos/min por IP; `0` lo desactiva) y `VIBEDOM_ALLOW_PRIVATE=1` (solo desarrollo, permite escanear hosts privados).
+- Variables: `GEMINI_KEY` (obligatoria para escanear), `PORT` (3000 por defecto), `SCAN_RATE_LIMIT` (10 escaneos/min por IP; `0` lo desactiva), `SCAN_CACHE_TTL` (segundos que se recuerda una semilla; 3600 por defecto, `0` desactiva la caché) y `VIBEDOM_ALLOW_PRIVATE=1` (solo desarrollo, permite escanear hosts privados).
 - El servidor valida cada salto de redirección y cada hoja de estilos para evitar SSRF, bloquea dotfiles y *path traversal*, limita el cuerpo de las peticiones a 16 KB y aplica la cuota antes de llamar a Gemini.
+- La semilla de cada URL se guarda en memoria una hora (`SCAN_CACHE_TTL`): repetir un escaneo no vuelve a llamar a Gemini.
 - Modelos: `gemini-3.5-flash` → `gemini-3.5-flash-lite` → `gemini-3.6-flash`. No uses `gemini-2.x` (retirado para esta clave) ni `gemini-3.8-flash` (latencia inaceptable).
-- El servidor valida cada salto de redirección y cada hoja de estilos para evitar SSRF, bloquea dotfiles y *path traversal*, y limita el cuerpo de las peticiones a 16 KB.
 
 ### Despliegue
 
@@ -161,11 +163,10 @@ La combinación recomendada es **GitHub Pages para la landing** y **Render para 
 4. Declara ese origen en las cuatro páginas:
 
 ```bash
-sed -i 's|<meta name="vibedom-api" content="" />|<meta name="vibedom-api" content="https://TU-SERVICIO.onrender.com" />|' \
-  index.html en/index.html playground/index.html playground/en/index.html
+npm run set-api -- https://TU-SERVICIO.onrender.com
 ```
 
-Sin ese `meta`, GitHub Pages sigue mostrando el aviso estático y los presets. Con él, el escaneo funciona también online. El plan gratuito de Render duerme tras unos minutos de inactividad: la landing hace un `GET /api/health` al cargar para despertarlo, pero el primer análisis puede tardar algo más.
+Para quitarlo: `npm run set-api -- --clear`. Sin ese `meta`, GitHub Pages sigue mostrando el aviso estático y los presets. Con él, el escaneo funciona también online. El plan gratuito de Render duerme tras unos minutos de inactividad: la landing hace un `GET /api/health` al cargar para despertarlo, pero el primer análisis puede tardar algo más.
 
 También puedes abrir directamente la URL de Render: el mismo servidor sirve landing, playground y `/api/scan` en un solo origen, sin configurar nada. Es la opción más simple, aunque cada visita en frío espera a que arranque el servicio.
 
@@ -176,6 +177,7 @@ También puedes abrir directamente la URL de Render: el mismo servidor sirve lan
 | `GEMINI_KEY` | Sí | Clave de Google AI Studio para traducir la estética a la semilla. |
 | `PORT` | No | Render la inyecta; en local es 3000. |
 | `SCAN_RATE_LIMIT` | No | Escaneos por minuto y por IP. Por defecto 10; `0` desactiva el límite. |
+| `SCAN_CACHE_TTL` | No | Segundos que se recuerda la semilla de una URL. Por defecto 3600; `0` desactiva la caché. |
 | `VIBEDOM_ALLOW_PRIVATE` | No | Solo desarrollo: permite escanear hosts privados. No usar en producción. |
 
 #### Dominio propio
@@ -196,7 +198,7 @@ Para añadir uno, crea el JSON en `presets/` y regístralo en `PRESET_IDS` (`src
 npm test
 ```
 
-**58 tests** con `node:test`, sin dependencias:
+**63 tests** con `node:test`, sin dependencias:
 
 * escalas, acordes y conversión MIDI;
 * validación de la semilla y presets reales;
@@ -205,7 +207,8 @@ npm test
 * traductor con `fetch` falso (reintentos, fallback de modelos, timeout, errores);
 * guard anti-SSRF (IPs privadas, redirects, DNS);
 * servidor (rutas estáticas ES/EN y playground, `/api/scan`, health, 405/413/404/429, path traversal y cancelación);
-* limitador de peticiones por IP (`X-Forwarded-For`, ventana deslizante y cuota).
+* limitador de peticiones por IP (`X-Forwarded-For`, ventana deslizante y cuota);
+* caché de semillas por URL (normalización, TTL, desalojo y acierto sin volver a llamar a Gemini).
 
 El flujo real se validó en navegador con Playwright (fuera del repo): landing ES/EN, presets, play/pausa, espectro, escaneo mockeado, error de backend, responsive a 390 px, playground ES/EN, sliders, JSON y cambio de idioma. También se validó un escaneo real de `example.com` (~3 s).
 
