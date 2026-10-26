@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import { scrapeUrl } from "./scraper.js";
 import { translate } from "./translator.js";
 import { assertPublicUrl, UnsafeUrlError } from "./url-guard.js";
+import { createRateLimiter } from "./rate-limit.js";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 export const DEFAULT_ROOT = resolve(HERE, "../..");
@@ -39,13 +40,14 @@ const MIME = {
 
 // ---- Helpers ---------------------------------------------------------------
 
-function json(res, status, body) {
+function json(res, status, body, headers = {}) {
   const payload = JSON.stringify(body);
   res.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
     "Content-Length": Buffer.byteLength(payload),
     "Cache-Control": "no-store",
     "Access-Control-Allow-Origin": "*",
+    ...headers,
   });
   res.end(payload);
 }
@@ -185,6 +187,7 @@ export function createVibedomServer({
   scrape = scrapeUrl,
   translateSeed = translate,
   validateUrl = assertPublicUrl,
+  rateLimit = createRateLimiter(),
   logger = console,
 } = {}) {
   const handleScan = makeScanHandler({ scrape, translateSeed, validateUrl, logger });
@@ -202,7 +205,23 @@ export function createVibedomServer({
       return res.end();
     }
 
-    if (req.method === "POST" && req.url === "/api/scan") return handleScan(req, res);
+    if (req.method === "GET" && req.url === "/api/health") {
+      return json(res, 200, { ok: true, service: "vibedom" });
+    }
+
+    if (req.method === "POST" && req.url === "/api/scan") {
+      const quota = rateLimit(req);
+      if (!quota.ok) {
+        return json(
+          res,
+          429,
+          { error: "Demasiadas peticiones. Espera un momento e inténtalo de nuevo." },
+          { "Retry-After": String(quota.retryAfter) },
+        );
+      }
+      return handleScan(req, res);
+    }
+
     if (req.method === "GET" || req.method === "HEAD") return handleStatic(req, res);
 
     res.writeHead(405, { Allow: "GET, POST, OPTIONS" }).end();

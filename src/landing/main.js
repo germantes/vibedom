@@ -1,22 +1,24 @@
 import { attachReactivity } from "../engine/reactivity.js";
 import { configureContext, createSoundscape } from "../engine/soundscape.js";
 import { analysisCopy, applyI18n, t } from "../i18n.js";
+import { API_URL, CAN_SCAN, STATIC_HOST, warmApi } from "../api.js";
 import { createAnalysis } from "../demo/analysis.js";
 import { createVisualizer } from "../demo/visualizer.js";
 
 applyI18n();
 
 const TONE_URL = "https://cdn.jsdelivr.net/npm/tone@15.1.22/+esm";
-const API_URL = new URL("../../api/scan", import.meta.url);
 const PRESET_IDS = ["cyberpunk", "editorial", "indie-pastel"];
 const BRAND_ACCENT = "#d8ff4f";
 const BRAND_TEXT = "#f4f1e8";
-const STATIC_HOST =
-  location.protocol === "file:" || /(^|\.)github\.io$/.test(location.hostname);
 
-if (STATIC_HOST) {
+if (STATIC_HOST && !CAN_SCAN) {
   const hint = document.querySelector(".hint");
   if (hint) hint.textContent = t("status.staticHint");
+} else if (STATIC_HOST) {
+  const hint = document.querySelector(".hint");
+  if (hint) hint.textContent = t("status.remoteHint");
+  warmApi();
 }
 
 const $ = (id) => document.getElementById(id);
@@ -259,7 +261,7 @@ scanForm.addEventListener("submit", async (event) => {
   }
   urlInput.value = target;
 
-  if (STATIC_HOST) {
+  if (!CAN_SCAN) {
     const message = t("status.backendMissingStatic");
     analysis.fail(message);
     setStatus(message);
@@ -292,7 +294,7 @@ scanForm.addEventListener("submit", async (event) => {
     if (!res.ok) {
       const fallback =
         res.status === 404 || res.status === 405
-          ? t(STATIC_HOST ? "status.backendMissingStatic" : "status.backendMissing")
+          ? t(CAN_SCAN ? "status.backendMissing" : "status.backendMissingStatic")
           : `Error ${res.status}`;
       throw new Error(data.error ?? fallback);
     }

@@ -13,7 +13,7 @@ La interfaz está disponible en **español e inglés** mediante rutas estáticas
 
 Online (presets): **https://germantes.github.io/vibedom/**
 
-> GitHub Pages solo sirve archivos estáticos. Los presets y el audio funcionan online, pero **el escaneo de URLs necesita el backend local**. La landing detecta `github.io` y muestra un aviso claro; también ofrece el enlace al playground.
+> GitHub Pages solo sirve archivos estáticos. Los presets y el audio funcionan online. El escaneo necesita un backend: o el local (`npm start`), o uno desplegado en Render declarado con `<meta name="vibedom-api">`. Si no hay ninguno configurado, la landing lo explica sin lanzar peticiones inútiles.
 
 ```bash
 # Crea .env en la raíz con GEMINI_KEY=...
@@ -82,13 +82,16 @@ favicon.svg
 .nojekyll                    evita el procesado de Jekyll en GitHub Pages
 sitemap.xml                  sitemap bilingüe con hreflang
 robots.txt                   crawl abierto + referencia al sitemap
+render.yaml                  Blueprint de Render (servicio + env)
 src/i18n.js                  diccionarios ES/EN y utilidades
+src/api.js                   resolución de /api/scan y backend externo
 src/landing/main.js          demo, escaneo y audio de la landing
 src/landing/landing.css      tema comercial de la landing
 src/backend/scraper.js       extracción HTML/CSS sin dependencias
 src/backend/translator.js    Gemini + reintentos, fallback, timeout y schema
 src/backend/url-guard.js     validación anti-SSRF (DNS, IPs privadas, redirects)
-src/backend/server.js        servidor node:http (estáticos + /api/scan)
+src/backend/rate-limit.js    cuota de escaneos por IP
+src/backend/server.js        servidor node:http (estáticos + /api/scan + health)
 src/demo/main.js             orquestación del playground
 src/demo/analysis.js         estados y animación del panel de análisis
 src/demo/controls.js         sliders y mapeo logarítmico de brillo
@@ -133,16 +136,51 @@ El esquema es el de la spec (sección 4). `normalizeSeed()` aplica dos política
 
 ## Backend
 
-- `POST /api/scan` con `{ "url": "https://..." }` → `200` con la Semilla Sonora, o `400`/`422`/`502`/`504` con `{ error }`.
+- `POST /api/scan` con `{ "url": "https://..." }` → `200` con la Semilla Sonora, o `400`/`422`/`429`/`502`/`504` con `{ error }`.
+- `GET /api/health` → `200` con `{ ok: true }`; sirve de health check y despierta el servicio en Render.
 - Archivos estáticos del repositorio en el resto de rutas.
 - **Sin dependencias npm**: `node:http`, `fetch` nativo y regex. Node ≥ 20.
-- Variables: `GEMINI_KEY` (obligatoria para escanear), `PORT` (3000 por defecto) y `VIBEDOM_ALLOW_PRIVATE=1` (solo desarrollo, permite escanear hosts privados).
+- Variables: `GEMINI_KEY` (obligatoria para escanear), `PORT` (3000 por defecto), `SCAN_RATE_LIMIT` (10 escaneos/min por IP; `0` lo desactiva) y `VIBEDOM_ALLOW_PRIVATE=1` (solo desarrollo, permite escanear hosts privados).
+- El servidor valida cada salto de redirección y cada hoja de estilos para evitar SSRF, bloquea dotfiles y *path traversal*, limita el cuerpo de las peticiones a 16 KB y aplica la cuota antes de llamar a Gemini.
 - Modelos: `gemini-3.5-flash` → `gemini-3.5-flash-lite` → `gemini-3.6-flash`. No uses `gemini-2.x` (retirado para esta clave) ni `gemini-3.8-flash` (latencia inaceptable).
 - El servidor valida cada salto de redirección y cada hoja de estilos para evitar SSRF, bloquea dotfiles y *path traversal*, y limita el cuerpo de las peticiones a 16 KB.
 
 ### Despliegue
 
-GitHub Pages sirve la landing y el playground como demo estática. Para que el escaneo funcione online hay que desplegar el backend (Render, Railway, Fly.io o similar) y apuntar la fetch de `/api/scan` a ese origen. Mientras no exista ese despliegue, la demo online mantiene los presets y deriva el escaneo a `npm start` en local.
+La combinación recomendada es **GitHub Pages para la landing** y **Render para el analizador**:
+
+- La landing y los presets cargan al instante desde Pages.
+- Solo el escaneo viaja al backend de Render, que tiene la `GEMINI_KEY` y acceso a Gemini.
+- El servidor ya envía CORS y un limitador por IP (`SCAN_RATE_LIMIT`, 10/min por defecto) para proteger la clave.
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/germantes/vibedom)
+
+1. Pulsa el botón, conecta GitHub y crea el servicio desde `render.yaml`.
+2. Introduce `GEMINI_KEY` cuando Render la pida.
+3. Copia la URL del servicio (por ejemplo `https://vibedom-api.onrender.com`).
+4. Declara ese origen en las cuatro páginas:
+
+```bash
+sed -i 's|<meta name="vibedom-api" content="" />|<meta name="vibedom-api" content="https://TU-SERVICIO.onrender.com" />|' \
+  index.html en/index.html playground/index.html playground/en/index.html
+```
+
+Sin ese `meta`, GitHub Pages sigue mostrando el aviso estático y los presets. Con él, el escaneo funciona también online. El plan gratuito de Render duerme tras unos minutos de inactividad: la landing hace un `GET /api/health` al cargar para despertarlo, pero el primer análisis puede tardar algo más.
+
+También puedes abrir directamente la URL de Render: el mismo servidor sirve landing, playground y `/api/scan` en un solo origen, sin configurar nada. Es la opción más simple, aunque cada visita en frío espera a que arranque el servicio.
+
+#### Variables de entorno
+
+| Variable | Obligatoria | Uso |
+| --- | --- | --- |
+| `GEMINI_KEY` | Sí | Clave de Google AI Studio para traducir la estética a la semilla. |
+| `PORT` | No | Render la inyecta; en local es 3000. |
+| `SCAN_RATE_LIMIT` | No | Escaneos por minuto y por IP. Por defecto 10; `0` desactiva el límite. |
+| `VIBEDOM_ALLOW_PRIVATE` | No | Solo desarrollo: permite escanear hosts privados. No usar en producción. |
+
+#### Dominio propio
+
+Si usas un dominio propio, actualiza también `canonical`, `og:url`, `sitemap.xml` y `robots.txt`, que hoy apuntan a `https://germantes.github.io/vibedom/`.
 
 ## Presets
 
@@ -158,7 +196,7 @@ Para añadir uno, crea el JSON en `presets/` y regístralo en `PRESET_IDS` (`src
 npm test
 ```
 
-**53 tests** con `node:test`, sin dependencias:
+**58 tests** con `node:test`, sin dependencias:
 
 * escalas, acordes y conversión MIDI;
 * validación de la semilla y presets reales;
@@ -166,14 +204,15 @@ npm test
 * scraper con HTML/CSS simulado (paleta, tipografía, colores con alfa, entidades, límites);
 * traductor con `fetch` falso (reintentos, fallback de modelos, timeout, errores);
 * guard anti-SSRF (IPs privadas, redirects, DNS);
-* servidor (rutas estáticas ES/EN y playground, `/api/scan`, 405/413/404, path traversal y cancelación).
+* servidor (rutas estáticas ES/EN y playground, `/api/scan`, health, 405/413/404/429, path traversal y cancelación);
+* limitador de peticiones por IP (`X-Forwarded-For`, ventana deslizante y cuota).
 
 El flujo real se validó en navegador con Playwright (fuera del repo): landing ES/EN, presets, play/pausa, espectro, escaneo mockeado, error de backend, responsive a 390 px, playground ES/EN, sliders, JSON y cambio de idioma. También se validó un escaneo real de `example.com` (~3 s).
 
 ## Roadmap
 
 * **Fase 4**: widget embebible < 5 KB con Shadow DOM, Tone.js bajo demanda y generador de snippet para Framer/Webflow.
-* Desplegar el backend para habilitar el escaneo en la demo online.
+* Desplegar el backend en Render y declarar su URL en `<meta name="vibedom-api">` para habilitar el escaneo en Pages.
 * Historial de escaneos recientes y compartir semilla por URL.
 
 > El snippet deberá apuntar al origen desplegado (`location.origin`) en lugar de una URL fija.

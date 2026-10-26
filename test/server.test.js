@@ -32,6 +32,7 @@ before(async () => {
       calls.translate.push({ signals, signal: options?.signal });
       return SEED;
     },
+    rateLimit: () => ({ ok: true, remaining: 99, retryAfter: 0 }),
   });
   base = `http://127.0.0.1:${server.address().port}`;
 });
@@ -174,6 +175,36 @@ test("no sirve dotfiles ni permite directory traversal", async () => {
   const traversal = await rawRequest("/%2e%2e%2fpackage.json");
   assert.equal(traversal.status, 403);
   assert.doesNotMatch(traversal.body, /"name": "vibedom"/);
+});
+
+test("GET /api/health responde sin caché y con CORS", async () => {
+  const res = await fetch(`${base}/api/health`);
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get("content-type"), /application\/json/);
+  assert.equal(res.headers.get("cache-control"), "no-store");
+  assert.equal(res.headers.get("access-control-allow-origin"), "*");
+  assert.deepEqual(await res.json(), { ok: true, service: "vibedom" });
+});
+
+test("el rate limit devuelve 429 con Retry-After antes de procesar el escaneo", async () => {
+  const limited = await startServer({
+    port: 0,
+    logger: silent,
+    rateLimit: () => ({ ok: false, remaining: 0, retryAfter: 7 }),
+  });
+  const limitedBase = `http://127.0.0.1:${limited.address().port}`;
+  try {
+    const res = await fetch(`${limitedBase}/api/scan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: "https://example.com" }),
+    });
+    assert.equal(res.status, 429);
+    assert.equal(res.headers.get("retry-after"), "7");
+    assert.match((await res.json()).error, /Demasiadas peticiones/);
+  } finally {
+    await new Promise((resolve) => limited.close(resolve));
+  }
 });
 
 test("responde al preflight CORS y a HEAD", async () => {

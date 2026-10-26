@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: vibedom
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: SCAN_RATE_LIMIT
+        value: "10"
+      # Se pide al crear el servicio desde el Blueprint; nunca se guarda en el repo.
+      - key: GEMINI_KEY
+        sync: false

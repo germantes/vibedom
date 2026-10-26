@@ -107,13 +107,15 @@ const DICTS = {
     "status.audioBlocked": "El navegador ha bloqueado el audio. Pulsa play para activarlo.",
     "status.analysisReady": "Análisis listo. Pulsa play para escuchar tu web.",
     "status.backendMissing":
-      "El analizador no está disponible en esta demo estática. Prueba un preset o arranca el backend con npm start.",
+      "El analizador no está disponible ahora mismo. Prueba un preset o inténtalo de nuevo en unos segundos.",
     "status.backendMissingStatic":
       "Esta demo está alojada en GitHub Pages, que solo sirve archivos estáticos. Para escanear URLs, arranca el backend en local con `npm start` y abre http://localhost:3000. Mientras tanto, prueba un preset.",
     "status.staticHint":
       "Estás en la demo estática: los presets suenan aquí. Para escanear tu web, arranca el backend con `npm start` y abre http://localhost:3000.",
+    "status.remoteHint":
+      "El escaneo usa un backend externo. Si el servicio estaba dormido, el primer análisis puede tardar unos segundos.",
     "status.backendUnreachable":
-      "No se pudo conectar con el backend. Comprueba que el servidor esté arrancado con `npm start`.",
+      "No se pudo conectar con el analizador. Puede estar arrancando: espera unos segundos e inténtalo de nuevo.",
     "status.scanError": "No se pudo analizar: {message}",
     "status.cancelled": "Análisis cancelado.",
     "status.presetsError": "No se pudieron cargar las demos. Recarga la página.",
@@ -198,8 +200,6 @@ const DICTS = {
     "playground.status.audioError": "Semilla lista, pero no se pudo iniciar el audio: {message}",
     "playground.status.regenerate": "Pulsa Reproducir para escuchar la variación.",
     "playground.status.variation": "Nueva variación · grado {degree} de la escala.",
-    "playground.status.backendMissing":
-      "El backend no está disponible. Arranca el servidor con `npm start`.",
 
     "param.mode": "Modo",
     "param.key": "Tonalidad",
@@ -333,13 +333,15 @@ const DICTS = {
     "status.audioBlocked": "The browser blocked audio. Press play to enable it.",
     "status.analysisReady": "Analysis ready. Press play to hear your site.",
     "status.backendMissing":
-      "The analyser isn't available in this static demo. Try a preset or start the backend with npm start.",
+      "The analyser isn't available right now. Try a preset or try again in a few seconds.",
     "status.backendMissingStatic":
       "This demo is hosted on GitHub Pages, which only serves static files. To scan URLs, start the backend locally with `npm start` and open http://localhost:3000. In the meantime, try a preset.",
     "status.staticHint":
       "You're on the static demo: presets play here. To scan your site, start the backend with `npm start` and open http://localhost:3000.",
+    "status.remoteHint":
+      "Scanning uses an external backend. If the service was asleep, the first analysis may take a few seconds.",
     "status.backendUnreachable":
-      "Couldn't reach the backend. Check that the server is running with `npm start`.",
+      "Couldn't reach the analyser. It may be waking up: wait a few seconds and try again.",
     "status.scanError": "Couldn't analyse: {message}",
     "status.cancelled": "Analysis cancelled.",
     "status.presetsError": "Couldn't load the demos. Reload the page.",
@@ -423,8 +425,6 @@ const DICTS = {
     "playground.status.audioError": "Seed ready, but audio couldn't start: {message}",
     "playground.status.regenerate": "Press Play to hear the variation.",
     "playground.status.variation": "New variation · degree {degree} of the scale.",
-    "playground.status.backendMissing":
-      "The backend isn't available. Start the server with `npm start`.",
 
     "param.mode": "Mode",
     "param.key": "Key",

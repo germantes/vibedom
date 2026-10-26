@@ -91,7 +91,7 @@ Commits: `f64aec3` (Fase 2).
 
 #### Verificación realizada
 
-- **53 tests** en verde (`npm test`), incluidos los nuevos tests de rutas estáticas ES/EN y playground.
+- **58 tests** en verde (`npm test`), incluidos los de rutas estáticas ES/EN, health y rate limit.
 - E2E real en navegador con Playwright: `example.com` analizado en **~3,0 s**, autoplay correcto, tema claro aplicado, sin errores de consola.
 - `stripe.com` verificado en backend en **~6,3 s**; SSRF a `localhost` devuelve 400.
 - Flujo mockeado verificado: análisis visible, cancelación, error 502, reintento, sliders (incluidos extremos de brillo), regeneración, cambio de preset con audio activo, pausa, espectro con píxeles, responsive.
@@ -112,6 +112,7 @@ Commits: `f64aec3` (Fase 2).
   - Tema comercial estable; la semilla solo tiñe el acento, la paleta y el visualizador de la demo.
 - **Playground movido** a `/playground/` y `/playground/en/` con barra superior, enlace de vuelta, selector de idioma y todos los textos traducidos (incluidos parámetros, estados y nombres de onda/escala).
 - **Aviso de backend estático**: si `location.hostname` termina en `github.io` (o el protocolo es `file:`), el escaneo no hace una petición inútil; muestra una explicación específica y sugiere `npm start` o los presets. También se añadió un mensaje para fallos de red del backend.
+- **Backend externo opcional** (`src/api.js`): si la página declara `<meta name="vibedom-api" content="https://...">`, el escaneo usa ese origen incluso en GitHub Pages; si no, mantiene el aviso estático. Los cuatro HTML incluyen el meta vacío listo para rellenar.
 - **Panel de análisis** (`src/demo/analysis.js`): acepta copia externa, manteniendo compatibilidad con los textos por defecto en español.
 - **Controles** (`src/demo/controls.js`): acepta copia para el estado “arpegio off”.
 - **`.nojekyll`** para que GitHub Pages sirva todos los archivos sin procesado de Jekyll.
@@ -125,6 +126,16 @@ Commits: `f64aec3` (Fase 2).
   - Error de backend: panel en estado `is-error` y mensaje claro.
   - Playground ES/EN: rutas, barra superior, idioma, sliders, JSON, audio y pausa.
 - Consola sin errores propios; solo el warning conocido de Tone.js y los 404 esperados del test de error.
+
+### 🚧 FASE 3.6: Despliegue del analizador (PREPARADO)
+
+- **`render.yaml`**: Blueprint de Render con runtime Node 22, plan free, health check en `/api/health`, `SCAN_RATE_LIMIT=10` y `GEMINI_KEY` como secreto solicitado al crear el servicio.
+- **`GET /api/health`**: respuesta `{ ok: true, service: "vibedom" }` sin caché, útil como health check y para despertar el plan gratuito.
+- **Rate limit por IP** (`src/backend/rate-limit.js`): ventana de 60 s, 10 escaneos/min por defecto, `SCAN_RATE_LIMIT=0` lo desactiva, usa la última IP de `X-Forwarded-For` (la que añade el proxy) y devuelve `429` + `Retry-After` antes de llamar a Gemini.
+- **Backend externo configurable** (`src/api.js` + `<meta name="vibedom-api">`): permite que la landing de GitHub Pages escanee contra Render sin CORS adicional (el servidor ya envía `Access-Control-Allow-Origin: *`). Al cargar, la landing hace un `GET /api/health` para despertar el servicio.
+- **Documentación**: botón *Deploy to Render*, variables de entorno, aviso de spin-down del plan free, comando `sed` para declarar la URL en los cuatro HTML y nota sobre dominio propio/canonical.
+
+**Pendiente**: crear el servicio en Render con la cuenta de GitHub, introducir `GEMINI_KEY`, copiar la URL resultante y rellenar `vibedom-api`. Después hay que repetir el E2E cross-origin contra esa URL.
 
 ---
 
@@ -160,6 +171,7 @@ Commits: `f64aec3` (Fase 2).
 ├── .nojekyll                                  # GitHub Pages sin Jekyll
 ├── sitemap.xml                                # Sitemap bilingüe con hreflang
 ├── robots.txt                                 # Crawl abierto + sitemap
+├── render.yaml                                # Blueprint de Render
 ├── LICENSE                                    # Licencia MIT (German)
 ├── README.md                                  # Documentación general y demo
 ├── especificaciones_del_proyecto_web_to_audio.md # Spec funcional y técnico
@@ -179,9 +191,11 @@ Commits: `f64aec3` (Fase 2).
 │   └── indie-pastel.json
 ├── src/
 │   ├── i18n.js                                # Diccionarios ES/EN y applyI18n
+│   ├── api.js                                 # /api/scan y backend externo
 │   ├── backend/
 │   │   ├── scraper.js                         # Extracción HTML/CSS sin dependencias
-│   │   ├── server.js                          # node:http + API /api/scan
+│   │   ├── server.js                          # node:http + API /api/scan + health
+│   │   ├── rate-limit.js                      # Cuota de escaneos por IP
 │   │   ├── translator.js                      # Gemini con retries/fallback/timeout
 │   │   └── url-guard.js                       # Validación anti-SSRF
 │   ├── landing/
