@@ -152,7 +152,7 @@ El esquema es el de la spec (sección 4). `normalizeSeed()` aplica dos política
 
 ## Backend
 
-- `POST /api/scan` con `{ "url": "https://..." }` → `200` con la Semilla Sonora, o `400`/`422`/`429`/`502`/`504` con `{ error }`. La cabecera `X-Vibedom-Cache` indica `HIT` o `MISS`.
+- `POST /api/scan` con `{ "url": "https://...", "lang": "es" }` → `200` con la Semilla Sonora, o `400`/`422`/`429`/`502`/`504` con `{ error }`. `lang` (`es` o `en`) controla el idioma de `detectedVibe` y `explanation`; la caché guarda una entrada por idioma y la cabecera `X-Vibedom-Cache` indica `HIT` o `MISS`.
 - `GET /api/health` → `200` con `{ ok: true }`; sirve de health check y despierta el servicio en Render.
 - Archivos estáticos del repositorio en el resto de rutas.
 - **Sin dependencias npm**: `node:http`, `fetch` nativo y regex. Node ≥ 20.
@@ -218,7 +218,7 @@ Para añadir uno, crea el JSON en `presets/` y regístralo en `PRESET_IDS` (`src
 npm test
 ```
 
-**82 tests** con `node:test`, sin dependencias:
+**85 tests** con `node:test`, sin dependencias:
 
 * escalas, acordes y conversión MIDI;
 * validación de la semilla y presets reales;
@@ -230,14 +230,15 @@ npm test
 * limitador de peticiones por IP (`X-Forwarded-For`, ventana deslizante y cuota);
 * caché de semillas por URL (normalización, TTL, desalojo y acierto sin volver a llamar a Gemini);
 * tema dinámico (normalización de hex, luminancia, contraste WCAG, texto y acento corregidos, mezclas y `rgba()`);
-* detección de host estático (Pages, dominio propio, `file:` y API externa).
+* detección de host estático (Pages, dominio propio, `file:` y API externa);
+* idioma de salida del traductor y separación de la caché por idioma.
 
 El flujo real se validó en navegador con Playwright (fuera del repo): landing ES/EN, presets, play/pausa, espectro, escaneo mockeado, error de backend, responsive a 390 px, playground ES/EN, sliders, JSON y cambio de idioma. También se validó un escaneo real de `example.com` (~3 s). El tema dinámico se comprobó con escaneos mockeados (sitio claro, oscuro y un caso hostil blanco sobre blanco) y una auditoría de contraste de 26 elementos en ambos esquemas: 26/26 en claro y 26/26 en oscuro.
 
 ## Roadmap
 
 * **Fase 4**: widget embebible < 5 KB con Shadow DOM, Tone.js bajo demanda y generador de snippet para Framer/Webflow.
-* Desplegar el backend en Render y declarar su URL en `<meta name="vibedom-api">` para habilitar el escaneo en Pages.
+* Imagen Open Graph, verificación en Search Console y página dedicada a «what does my website sound like».
 * Historial de escaneos recientes y compartir semilla por URL.
 
 > El snippet deberá apuntar al origen desplegado (`location.origin`) en lugar de una URL fija.

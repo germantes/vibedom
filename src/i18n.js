@@ -162,6 +162,16 @@ const DICTS = {
     "playground.preset.cyberpunk": "Preset Cyberpunk",
     "playground.preset.editorial": "Preset Editorial Elegante",
     "playground.preset.indie": "Preset Indie Pastel",
+
+    "preset.cyberpunk.vibe": "Cyberpunk: técnico, nocturno y neón",
+    "preset.cyberpunk.explanation":
+      "Fondo negro puro, acentos verde neón y tipografía monospace traducidos a Re frigio grave, sierras desafinadas tras un filtro cerrado y un arpegio de eco que recuerda a datos fluyendo.",
+    "preset.editorial.vibe": "Editorial elegante: sereno, luminoso y espacioso",
+    "preset.editorial.explanation":
+      "Mucho espacio en blanco, serif clásica y tonos marfil traducidos a Fa lidio lento con pads de seno muy suaves, reverb de catedral y notas aisladas como pinceladas.",
+    "preset.indie-pastel.vibe": "Indie pastel: cálido, juguetón y lo-fi",
+    "preset.indie-pastel.explanation":
+      "Colores pastel, esquinas redondeadas y una display amable traducidos a Sol pentatónico con triángulos cálidos, chorus marcado tipo cinta y un arpegio inquieto que crece al hacer scroll.",
     "playground.play": "Reproducir",
     "playground.pause": "Pausar",
     "playground.status.loadingPresets": "Cargando presets…",
@@ -393,6 +403,16 @@ const DICTS = {
     "playground.preset.cyberpunk": "Cyberpunk preset",
     "playground.preset.editorial": "Elegant Editorial preset",
     "playground.preset.indie": "Indie Pastel preset",
+
+    "preset.cyberpunk.vibe": "Cyberpunk: technical, nocturnal and neon",
+    "preset.cyberpunk.explanation":
+      "A pure black background, neon green accents and monospace type translated into a low D phrygian, detuned saws behind a closed filter and an echo arpeggio that recalls flowing data.",
+    "preset.editorial.vibe": "Elegant editorial: serene, luminous and spacious",
+    "preset.editorial.explanation":
+      "Lots of white space, classic serif and ivory tones translated into a slow F lydian with very soft sine pads, cathedral reverb and isolated notes like brushstrokes.",
+    "preset.indie-pastel.vibe": "Indie pastel: warm, playful and lo-fi",
+    "preset.indie-pastel.explanation":
+      "Pastel colours, rounded corners and a friendly display face translated into G pentatonic with warm triangles, tape-like chorus and a restless arpeggio that grows as you scroll.",
     "playground.play": "Play",
     "playground.pause": "Pause",
     "playground.status.loadingPresets": "Loading presets…",
@@ -470,6 +490,20 @@ const lang = (document.documentElement.lang || "es").toLowerCase().startsWith("e
 /** Idioma activo de la página, deducido de <html lang>. */
 export function getLang() {
   return lang;
+}
+
+const PRESET_COPY_IDS = ["cyberpunk", "editorial", "indie-pastel"];
+
+/**
+ * Copia localizada de un preset. Los presets son estáticos y sus JSON guardan
+ * la versión en español; aquí se traduce solo lo que se muestra al usuario.
+ */
+export function presetCopy(id) {
+  if (!PRESET_COPY_IDS.includes(id)) return null;
+  return {
+    detectedVibe: t(`preset.${id}.vibe`),
+    explanation: t(`preset.${id}.explanation`),
+  };
 }
 
 /** Traduce una clave y sustituye marcadores `{nombre}`. */

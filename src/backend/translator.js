@@ -20,6 +20,16 @@ const DEFAULT_RETRY_DELAY_MS = 700;
 const DEFAULT_ATTEMPT_TIMEOUT_MS = 20_000;
 const DEFAULT_TOTAL_TIMEOUT_MS = 50_000;
 
+/** Idiomas admitidos para la copia generada. Cualquier otro valor cae en español. */
+const OUTPUT_LANGUAGES = {
+  es: "español",
+  en: "inglés",
+};
+
+export function resolveLang(value) {
+  return value === "en" ? "en" : "es";
+}
+
 // 404: la API a veces responde 404 con cuerpo vacío por throttling (no porque falte el modelo).
 const RETRYABLE_STATUS = new Set([404, 408, 429, 500, 502, 503, 504]);
 
@@ -76,6 +86,20 @@ Interactividad:
 El campo explanation debe ser UNA frase concisa explicando la conexión entre la estética detectada y la elección musical. detectedVibe es un resumen de 3-5 palabras de la identidad visual.
 
 uiTheme debe reflejar los colores reales de la web escaneada (fondo, acento y texto).`;
+
+/**
+ * El sitio analizado puede estar en cualquier idioma: la copia visible
+ * (detectedVibe y explanation) debe seguir el idioma de la página que pidió el
+ * escaneo, no el del sitio escaneado.
+ */
+function systemPrompt(lang) {
+  const language = OUTPUT_LANGUAGES[resolveLang(lang)];
+  return `${SYSTEM_PROMPT}
+
+IDIOMA DE SALIDA:
+• Escribe "detectedVibe" y "explanation" en ${language}, aunque el sitio analizado esté en otro idioma.
+• No traduzcas los valores técnicos ni los nombres de escala/onda: solo la copia visible.`;
+}
 
 // ---- Schema para structured output (formato Gemini) ------------------------
 
@@ -244,6 +268,7 @@ export async function translate(signals, options = {}) {
     attemptTimeoutMs = DEFAULT_ATTEMPT_TIMEOUT_MS,
     totalTimeoutMs = DEFAULT_TOTAL_TIMEOUT_MS,
     signal,
+    lang = "es",
     logger = console,
   } = options;
 
@@ -252,7 +277,7 @@ export async function translate(signals, options = {}) {
   const failures = [];
 
   const body = {
-    system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+    system_instruction: { parts: [{ text: systemPrompt(lang) }] },
     contents: [
       {
         parts: [{ text: `Analiza esta web y genera la Semilla Sonora:\n\n${JSON.stringify(signals, null, 2)}` }],

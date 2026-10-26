@@ -1,6 +1,6 @@
 import { attachReactivity } from "../engine/reactivity.js";
 import { configureContext, createSoundscape } from "../engine/soundscape.js";
-import { analysisCopy, applyI18n, t } from "../i18n.js";
+import { analysisCopy, applyI18n, getLang, presetCopy, t } from "../i18n.js";
 import { API_URL, CAN_SCAN, STATIC_HOST, warmApi } from "../api.js";
 import { createAnalysis } from "./analysis.js";
 import { createControls, formatHz } from "./controls.js";
@@ -43,6 +43,7 @@ const root = document.documentElement;
 let Tone = null;
 let presets = {};
 let activeSeed = null;
+let activePreset = null;
 let engine = null;
 let detach = null;
 let busy = false;
@@ -112,6 +113,15 @@ function applyTheme(seed) {
 
 // ---- Render de la semilla --------------------------------------------------
 
+/** Copia visible: los presets se traducen; los escaneos ya llegan en su idioma. */
+function seedCopy(seed) {
+  const preset = presetCopy(activePreset);
+  return {
+    vibe: preset?.detectedVibe ?? seed.metadata.detectedVibe,
+    explanation: preset?.explanation ?? seed.metadata.explanation,
+  };
+}
+
 function renderParams(seed) {
   const { musicalParams: m, synthConfig: s, uiTheme } = seed;
   const WAVES = {
@@ -160,10 +170,11 @@ function renderParams(seed) {
 }
 
 function renderSeed(seed, { showSource = true } = {}) {
-  $("vibe").textContent = seed.metadata.detectedVibe;
-  $("explanation").textContent = seed.metadata.explanation;
+  const copy = seedCopy(seed);
+  $("vibe").textContent = copy.vibe;
+  $("explanation").textContent = copy.explanation;
   $("json").textContent = JSON.stringify(seed, null, 2);
-  document.title = `vibedom · ${seed.metadata.detectedVibe}`;
+  document.title = `vibedom · ${copy.vibe}`;
 
   const source = $("source-url");
   const sourceLine = source.closest(".source");
@@ -231,7 +242,7 @@ async function play() {
 
   controls.setPlaying(true);
   window.__vibedom = engine;
-  setStatus(t("playground.status.playing", { vibe: activeSeed.metadata.detectedVibe }));
+  setStatus(t("playground.status.playing", { vibe: seedCopy(activeSeed).vibe }));
   renderToggle();
   return true;
 }
@@ -269,6 +280,7 @@ async function withBusy(fn) {
 async function loadSeed(seed, { autoplay = false, presetId = null } = {}) {
   const wasPlaying = Boolean(engine?.isPlaying);
   activeSeed = structuredClone(seed);
+  activePreset = presetId;
   presetButtons.forEach((button) => button.setAttribute("aria-checked", String(button.dataset.preset === presetId)));
   applyTheme(activeSeed);
   renderSeed(activeSeed, { showSource: !presetId });
@@ -373,7 +385,7 @@ scanForm.addEventListener("submit", async (event) => {
     const res = await fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: target }),
+      body: JSON.stringify({ url: target, lang: getLang() }),
       signal: scanController.signal,
     });
 

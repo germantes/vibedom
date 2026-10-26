@@ -49,6 +49,17 @@ test("translate llama a Gemini 3.5 Flash con schema, thinking bajo y devuelve la
   assert.equal(body.generationConfig.thinkingConfig.thinkingLevel, "low");
   assert.ok(body.generationConfig.responseSchema);
   assert.match(body.contents[0].parts[0].text, /studio\.test/);
+  assert.match(body.system_instruction.parts[0].text, /español/);
+});
+
+test("translate escribe la copia en el idioma de la página", async () => {
+  const fetchImpl = fakeFetch(() => geminiOk());
+  await translate(SIGNALS, { fetchImpl, key: "k", lang: "en", logger: silent });
+  assert.match(fetchImpl.calls[0].body.system_instruction.parts[0].text, /inglés/);
+
+  const fallback = fakeFetch(() => geminiOk());
+  await translate(SIGNALS, { fetchImpl: fallback, key: "k", lang: "fr", logger: silent });
+  assert.match(fallback.calls[0].body.system_instruction.parts[0].text, /español/);
 });
 
 test("translate reintenta un 503 y termina con éxito", async () => {

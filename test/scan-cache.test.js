@@ -94,3 +94,43 @@ test("un escaneo repetido sale de caché y no vuelve a llamar a Gemini", async (
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+test("la caché distingue el idioma de la copia", async () => {
+  let translations = 0;
+  const server = await startServer({
+    port: 0,
+    logger: silent,
+    validateUrl: async (url) => url,
+    scrape: async (url) => ({ url, colors: { all: ["#111111"], isDark: true }, fonts: { families: [] } }),
+    translateSeed: async (_signals, { lang }) => {
+      translations += 1;
+      return { ...SEED, metadata: { ...SEED.metadata, detectedVibe: lang } };
+    },
+    rateLimit: () => ({ ok: true, remaining: 99, retryAfter: 0 }),
+  });
+  const base = `http://127.0.0.1:${server.address().port}`;
+
+  const scan = (lang) =>
+    fetch(`${base}/api/scan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: "https://lang.cache.test/", lang }),
+    });
+
+  try {
+    const es = await scan("es");
+    assert.equal(es.headers.get("x-vibedom-cache"), "MISS");
+    assert.equal((await es.json()).metadata.detectedVibe, "es");
+
+    const en = await scan("en");
+    assert.equal(en.headers.get("x-vibedom-cache"), "MISS");
+    assert.equal((await en.json()).metadata.detectedVibe, "en");
+
+    const again = await scan("es");
+    assert.equal(again.headers.get("x-vibedom-cache"), "HIT");
+    assert.equal((await again.json()).metadata.detectedVibe, "es");
+    assert.equal(translations, 2);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});

@@ -30,7 +30,7 @@ before(async () => {
       return { url, title: "Studio", colors: { all: ["#111111"], background: "#111111", isDark: true } };
     },
     translateSeed: async (signals, options) => {
-      calls.translate.push({ signals, signal: options?.signal });
+      calls.translate.push({ signals, signal: options?.signal, lang: options?.lang });
       return SEED;
     },
     rateLimit: () => ({ ok: true, remaining: 99, retryAfter: 0 }),
@@ -78,6 +78,27 @@ test("POST /api/scan ejecuta scraper + traductor y devuelve la semilla", async (
   assert.equal(calls.translate.length, 1);
   assert.ok(calls.scrape[0].signal instanceof AbortSignal);
   assert.ok(calls.translate[0].signal instanceof AbortSignal);
+  assert.equal(calls.translate[0].lang, "es");
+});
+
+test("POST /api/scan pasa el idioma pedido al traductor", async () => {
+  resetCalls();
+  const res = await fetch(`${base}/api/scan`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url: "https://studio.test/en/", lang: "en" }),
+  });
+  assert.equal(res.status, 200);
+  assert.equal(calls.translate[0].lang, "en");
+
+  resetCalls();
+  const invalid = await fetch(`${base}/api/scan`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url: "https://studio.test/fr/", lang: "fr" }),
+  });
+  assert.equal(invalid.status, 200);
+  assert.equal(calls.translate[0].lang, "es");
 });
 
 test("POST /api/scan valida el cuerpo y la URL", async () => {

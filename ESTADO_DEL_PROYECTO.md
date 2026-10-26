@@ -91,7 +91,7 @@ Commits: `f64aec3` (Fase 2).
 
 #### Verificación realizada
 
-- **58 → 82 tests** en verde (`npm test`), incluidos los de rutas estáticas ES/EN, health, rate limit, caché, detección de host estático y tema dinámico.
+- **58 → 85 tests** en verde (`npm test`), incluidos los de rutas estáticas ES/EN, health, rate limit, caché, detección de host estático, tema dinámico e idioma de la copia.
 - E2E real en navegador con Playwright: `example.com` analizado en **~3,0 s**, autoplay correcto, tema claro aplicado, sin errores de consola.
 - `stripe.com` verificado en backend en **~6,3 s**; SSRF a `localhost` devuelve 400.
 - Flujo mockeado verificado: análisis visible, cancelación, error 502, reintento, sliders (incluidos extremos de brillo), regeneración, cambio de preset con audio activo, pausa, espectro con píxeles, responsive.
@@ -147,7 +147,7 @@ Verificación en producción (2026-10-26, commit `34d7512`):
 - Segundo escaneo de la misma URL: **0,2 s** con `X-Vibedom-Cache: HIT`, sin volver a llamar a Gemini.
 - Sin errores de consola propios en el flujo completo.
 
-**Nota conocida**: si el modelo principal falla y entra el de respaldo, `metadata.detectedVibe` puede volver en inglés aunque la página esté en español (el modelo imita el idioma del sitio analizado). Los presets también llevan la etiqueta en español en la versión EN.
+**Idioma de la copia**: resuelto. La landing y el playground envían `lang` (`es`/`en`) en `POST /api/scan`; el traductor lo añade al prompt y la caché usa una clave por idioma. Los presets tienen su copia ES/EN en `src/i18n.js`, así que también se traducen `detectedVibe` y `explanation` en el playground.
 
 ### ✅ Dominio propio `vibedom.dev` (COMPLETADO)
 
@@ -169,6 +169,14 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **Integración** (`src/landing/main.js`): `applyTheme(seed)` al escanear, `resetTheme()` al elegir preset; se actualizan `color-scheme`, `<meta name="theme-color">` y los colores del visualizador. El playground conserva su tema propio pero reutiliza `textFor`/`accentFor`/`onColorFor`.
 - **Verificación**: escaneos mockeados de sitio claro (`#F7F3EC`), oscuro (`#0A0A0A`) y caso hostil blanco sobre blanco con acento pálido; preset devuelve la marca. Auditoría de contraste de 26 elementos: **26/26 en tema claro y 26/26 en oscuro**, incluido el texto del badge y los botones.
 
+### ✅ FASE 3.8: Idioma de la copia (COMPLETADA)
+
+- **`lang` en la API**: la landing y el playground envían `{ url, lang }` con el idioma de `<html lang>`. El servidor normaliza a `es`/`en` y lo pasa al traductor.
+- **Prompt**: `detectedVibe` y `explanation` se escriben en el idioma de la página, no en el del sitio escaneado; los valores técnicos (escala, onda, BPM) no se traducen.
+- **Caché por idioma**: la clave incluye `lang` para no devolver una semilla en español a una página EN. Repetir el escaneo en el mismo idioma sigue siendo `HIT`.
+- **Presets traducidos**: `src/i18n.js` incluye `preset.*.vibe` y `preset.*.explanation` en ES/EN. La landing y el playground muestran la copia localizada sin tocar el JSON de la semilla (el panel técnico sigue mostrando el dato original).
+- **Verificación**: 85 tests y E2E que comprueba `lang=en`/`lang=es` en la petición, las etiquetas de presets en ambas rutas y el estado «Now playing» traducido.
+
 ---
 
 ## 4. Lo que queda por hacer (Roadmap)
@@ -188,7 +196,6 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 ### Mejoras opcionales
 - Verificar `vibedom.dev` en GitHub Pages con el TXT `_github-pages-challenge-germantes` (protección contra *takeover*) y añadir los `AAAA` de GitHub para IPv6.
 - Alta en Search Console, envío del sitemap y una página dedicada a «what does my website sound like».
-- Unificar el idioma de `detectedVibe` con el de la página (parámetro `lang` en `/api/scan`) y localizar las etiquetas de los presets.
 - Historial de escaneos recientes (localStorage) y compartir semilla por URL.
 - Exportar/importar Semilla Sonora.
 - Tests de UI automatizados estables (los actuales son verificación manual con Playwright en `/tmp`).

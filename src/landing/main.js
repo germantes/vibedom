@@ -1,6 +1,6 @@
 import { attachReactivity } from "../engine/reactivity.js";
 import { configureContext, createSoundscape } from "../engine/soundscape.js";
-import { analysisCopy, applyI18n, t } from "../i18n.js";
+import { analysisCopy, applyI18n, getLang, presetCopy, t } from "../i18n.js";
 import { API_URL, CAN_SCAN, STATIC_HOST, warmApi } from "../api.js";
 import { createAnalysis } from "../demo/analysis.js";
 import { createVisualizer } from "../demo/visualizer.js";
@@ -76,6 +76,11 @@ function seedAccent(seed) {
   const accent = normalizeHex(seed.uiTheme?.accentColor);
   if (!accent) return BRAND_ACCENT;
   return relativeLuminance(accent) > 0.16 ? accent : BRAND_ACCENT;
+}
+
+/** Copia visible: los presets se traducen; los escaneos ya llegan en su idioma. */
+function seedVibe(seed) {
+  return presetCopy(activePreset)?.detectedVibe ?? seed.metadata.detectedVibe;
 }
 
 // ---- Tema de la página -----------------------------------------------------
@@ -164,7 +169,7 @@ function renderPalette(seed) {
 }
 
 function renderSeedMeta(seed, { showSource = false, themed = false } = {}) {
-  demoVibe.textContent = seed.metadata.detectedVibe;
+  demoVibe.textContent = seedVibe(seed);
   renderPalette(seed);
 
   const accent = seedAccent(seed);
@@ -242,7 +247,7 @@ async function play() {
   }
 
   window.__vibedom = engine;
-  setStatus(t("status.playing", { vibe: activeSeed.metadata.detectedVibe }));
+  setStatus(t("status.playing", { vibe: seedVibe(activeSeed) }));
   renderToggle();
   return true;
 }
@@ -344,7 +349,7 @@ scanForm.addEventListener("submit", async (event) => {
     const res = await fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: target }),
+      body: JSON.stringify({ url: target, lang: getLang() }),
       signal: scanController.signal,
     });
 

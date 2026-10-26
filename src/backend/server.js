@@ -10,7 +10,7 @@ import { extname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { scrapeUrl } from "./scraper.js";
-import { translate } from "./translator.js";
+import { resolveLang, translate } from "./translator.js";
 import { assertPublicUrl, UnsafeUrlError } from "./url-guard.js";
 import { createRateLimiter } from "./rate-limit.js";
 import { cacheKey, createScanCache } from "./scan-cache.js";
@@ -90,6 +90,7 @@ function makeScanHandler({ scrape, translateSeed, validateUrl, logger, cache }) 
 
     const url = typeof body?.url === "string" ? body.url.trim() : "";
     if (!url) return json(res, 400, { error: 'Falta el campo "url"' });
+    const lang = resolveLang(body?.lang);
 
     let target;
     try {
@@ -99,8 +100,9 @@ function makeScanHandler({ scrape, translateSeed, validateUrl, logger, cache }) 
       return json(res, 400, { error: "URL inválida" });
     }
 
-    // Repetir un escaneo reciente no vuelve a llamar a Gemini.
-    const key = cacheKey(target);
+    // Repetir un escaneo reciente no vuelve a llamar a Gemini. La copia cambia
+    // con el idioma de la página, así que cada idioma tiene su propia entrada.
+    const key = `${lang}:${cacheKey(target)}`;
     const cached = cache.get(key);
     if (cached) {
       logger.log(`[scan] ♻ ${target} (caché)`);
@@ -125,7 +127,7 @@ function makeScanHandler({ scrape, translateSeed, validateUrl, logger, cache }) 
         `[scan] Señales: ${signals.colors?.all?.length ?? 0} colores, ${signals.fonts?.families?.length ?? 0} fuentes, dark=${signals.colors?.isDark ?? false}`,
       );
       logger.log("[scan] Llamando a Gemini…");
-      const seed = await translateSeed(signals, { signal: controller.signal, logger });
+      const seed = await translateSeed(signals, { signal: controller.signal, lang, logger });
       logger.log(
         `[scan] ✔ ${seed.metadata.detectedVibe} — ${seed.musicalParams.rootNote} ${seed.musicalParams.scale} ${seed.musicalParams.bpm} BPM`,
       );
