@@ -5,6 +5,7 @@ import { API_URL, CAN_SCAN, STATIC_HOST, warmApi } from "../api.js";
 import { createAnalysis } from "./analysis.js";
 import { createControls, formatHz } from "./controls.js";
 import { createVisualizer } from "./visualizer.js";
+import { accentFor, normalizeHex, onColorFor, relativeLuminance, textFor } from "../landing/theme.js";
 
 applyI18n();
 
@@ -53,19 +54,6 @@ function setStatus(text) {
   status.textContent = text;
 }
 
-function luminance(hex) {
-  const value = hex.replace("#", "");
-  const full =
-    value.length === 3 || value.length === 4
-      ? value[0] + value[0] + value[1] + value[1] + value[2] + value[2]
-      : value.slice(0, 6);
-  const [r, g, b] = [0, 2, 4].map((i) => {
-    const c = parseInt(full.slice(i, i + 2), 16) / 255;
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
 function normalizeUrl(raw) {
   const trimmed = raw.trim();
   if (!trimmed) return null;
@@ -107,14 +95,18 @@ function renderPalette(seed) {
 
 function applyTheme(seed) {
   const { uiTheme } = seed;
-  root.style.setProperty("--bg", uiTheme.backgroundColor);
-  root.style.setProperty("--accent", uiTheme.accentColor);
-  root.style.setProperty("--on-accent", luminance(uiTheme.accentColor) < 0.179 ? "#ffffff" : "#111111");
-  root.style.setProperty("--text", uiTheme.textColor);
+  const bg = normalizeHex(uiTheme.backgroundColor) ?? "#111111";
+  const text = textFor(bg, uiTheme.textColor) ?? "#f4f1e8";
+  const accent = accentFor(uiTheme.accentColor, bg) ?? "#d8ff4f";
+
+  root.style.setProperty("--bg", bg);
+  root.style.setProperty("--accent", accent);
+  root.style.setProperty("--on-accent", onColorFor(accent));
+  root.style.setProperty("--text", text);
   root.style.setProperty("--font", FONT_STACKS[uiTheme.fontFamily] ?? FONT_STACKS["sans-serif"]);
-  root.style.colorScheme = luminance(uiTheme.backgroundColor) < 0.4 ? "dark" : "light";
-  $("meta-theme").setAttribute("content", uiTheme.backgroundColor);
-  visualizer.setColors({ accent: uiTheme.accentColor, text: uiTheme.textColor });
+  root.style.colorScheme = relativeLuminance(bg) < 0.4 ? "dark" : "light";
+  $("meta-theme").setAttribute("content", bg);
+  visualizer.setColors({ accent, text });
   renderPalette(seed);
 }
 
@@ -143,7 +135,7 @@ function renderParams(seed) {
     arpDensity: t("scroll.arpDensity"),
   };
   const params = {
-    [t("param.mode")]: luminance(uiTheme.backgroundColor) < 0.4 ? t("param.mode.dark") : t("param.mode.light"),
+    [t("param.mode")]: relativeLuminance(uiTheme.backgroundColor) < 0.4 ? t("param.mode.dark") : t("param.mode.light"),
     [t("param.key")]: `${m.rootNote} ${SCALES[m.scale] ?? m.scale}`,
     [t("param.tempo")]: `${Math.round(m.bpm)} BPM`,
     [t("param.type")]: uiTheme.fontFamily,

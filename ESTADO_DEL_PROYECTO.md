@@ -91,7 +91,7 @@ Commits: `f64aec3` (Fase 2).
 
 #### Verificación realizada
 
-- **58 → 70 tests** en verde (`npm test`), incluidos los de rutas estáticas ES/EN, health, rate limit, caché y detección de host estático.
+- **58 → 82 tests** en verde (`npm test`), incluidos los de rutas estáticas ES/EN, health, rate limit, caché, detección de host estático y tema dinámico.
 - E2E real en navegador con Playwright: `example.com` analizado en **~3,0 s**, autoplay correcto, tema claro aplicado, sin errores de consola.
 - `stripe.com` verificado en backend en **~6,3 s**; SSRF a `localhost` devuelve 400.
 - Flujo mockeado verificado: análisis visible, cancelación, error 502, reintento, sliders (incluidos extremos de brillo), regeneración, cambio de preset con audio activo, pausa, espectro con píxeles, responsive.
@@ -109,9 +109,9 @@ Commits: `f64aec3` (Fase 2).
   - Panel de análisis reutilizado, con copia traducida; autoplay tras escaneo.
   - Secciones de cómo funciona, identidad sonora, privacidad, CTA al playground y FAQ.
   - Sin JSON ni sliders a la vista.
-  - Tema comercial estable; la semilla solo tiñe el acento, la paleta y el visualizador de la demo.
+  - La semilla tiñe el acento, la paleta y el visualizador de la demo; los presets conservan la paleta de marca.
 - **Playground movido** a `/playground/` y `/playground/en/` con barra superior, enlace de vuelta, selector de idioma y todos los textos traducidos (incluidos parámetros, estados y nombres de onda/escala).
-- **Aviso de backend estático**: si `location.hostname` termina en `github.io` (o el protocolo es `file:`), el escaneo no hace una petición inútil; muestra una explicación específica y sugiere `npm start` o los presets. También se añadió un mensaje para fallos de red del backend.
+- **Aviso de backend estático**: si la página se sirve en un host sin backend propio (GitHub Pages, dominio con API externa o `file:`), el escaneo no hace una petición inútil; muestra una explicación específica y sugiere `npm start` o los presets. También se añadió un mensaje para fallos de red del backend.
 - **Backend externo opcional** (`src/api.js`): si la página declara `<meta name="vibedom-api" content="https://...">`, el escaneo usa ese origen incluso en GitHub Pages; si no, mantiene el aviso estático. Los cuatro HTML incluyen el meta vacío listo para rellenar.
 - **Panel de análisis** (`src/demo/analysis.js`): acepta copia externa, manteniendo compatibilidad con los textos por defecto en español.
 - **Controles** (`src/demo/controls.js`): acepta copia para el estado “arpegio off”.
@@ -158,6 +158,16 @@ Verificación en producción (2026-10-26, commit `34d7512`):
 - **Verificación live** (commit `11c1ab4`): `/`, `/en/`, `/playground/` y `/playground/en/` en `200` con `canonical`, `lang` y `vibedom-api` correctos; `http://` y `www` redirigen a `https://vibedom.dev/`; certificado válido; `sitemap.xml` con 16 URLs del dominio nuevo; escaneo cross-origin en 0,4 s desde caché (`HIT`), autoplay, fuente y panel correctos; sin errores propios.
 
 **Pendiente**: verificar el dominio en GitHub con el TXT `_github-pages-challenge-germantes.vibedom.dev` (protección contra *takeover*), y añadir los cuatro `AAAA` si se quiere soporte IPv6.
+
+### ✅ FASE 3.7: Tema dinámico de la landing (COMPLETADA)
+
+La landing deja de ser solo oscura: al escanear, la página entera adopta la paleta del sitio analizado, sin sacrificar legibilidad.
+
+- **`src/landing/theme.js`**: utilidades puras de color — normalización de hex (3/4/6/8 dígitos), luminancia relativa, contraste WCAG, mezcla sRGB, `rgba()`, `textFor`, `onColorFor`, `accentFor` con mínimo configurable.
+- **Corrección de contraste**: el texto escaneado se respeta solo si llega a 4.5:1; si no, se elige casi negro o casi blanco. El acento se conserva si supera 3:1 (formas/bordes) y se mezcla hacia blanco/negro hasta 4.5:1 (`--accent-ink`) cuando se usa como texto, teniendo en cuenta el tinte del badge. `--on-accent` elige el texto del botón por contraste.
+- **Variables derivadas** (`landing.css`): `--muted`, `--line`, `--line-strong`, `--sheen-*`, `--accent-soft`, `--header-bg`, `--card-shadow`, `--glow-*` se calculan con `color-mix()` a partir de `--bg`, `--text` y `--accent`; el fondo transiciona con `background-color`.
+- **Integración** (`src/landing/main.js`): `applyTheme(seed)` al escanear, `resetTheme()` al elegir preset; se actualizan `color-scheme`, `<meta name="theme-color">` y los colores del visualizador. El playground conserva su tema propio pero reutiliza `textFor`/`accentFor`/`onColorFor`.
+- **Verificación**: escaneos mockeados de sitio claro (`#F7F3EC`), oscuro (`#0A0A0A`) y caso hostil blanco sobre blanco con acento pálido; preset devuelve la marca. Auditoría de contraste de 26 elementos: **26/26 en tema claro y 26/26 en oscuro**, incluido el texto del badge y los botones.
 
 ---
 
@@ -215,15 +225,18 @@ Verificación en producción (2026-10-26, commit `34d7512`):
 ├── src/
 │   ├── i18n.js                                # Diccionarios ES/EN y applyI18n
 │   ├── api.js                                 # /api/scan y backend externo
+│   ├── host-mode.js                           # Detección de host estático
 │   ├── backend/
 │   │   ├── scraper.js                         # Extracción HTML/CSS sin dependencias
 │   │   ├── server.js                          # node:http + API /api/scan + health
 │   │   ├── rate-limit.js                      # Cuota de escaneos por IP
+│   │   ├── scan-cache.js                      # Caché en memoria de semillas
 │   │   ├── translator.js                      # Gemini con retries/fallback/timeout
 │   │   └── url-guard.js                       # Validación anti-SSRF
 │   ├── landing/
 │   │   ├── landing.css                        # Tema comercial de la landing
-│   │   └── main.js                            # Demo, escaneo y audio de la landing
+│   │   ├── main.js                            # Demo, escaneo y audio de la landing
+│   │   └── theme.js                           # Contraste WCAG y tema dinámico
 │   ├── demo/
 │   │   ├── analysis.js                        # Panel de progreso del análisis
 │   │   ├── controls.js                        # Sliders y mapeo logarítmico

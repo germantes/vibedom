@@ -4,6 +4,15 @@ import { analysisCopy, applyI18n, t } from "../i18n.js";
 import { API_URL, CAN_SCAN, STATIC_HOST, warmApi } from "../api.js";
 import { createAnalysis } from "../demo/analysis.js";
 import { createVisualizer } from "../demo/visualizer.js";
+import {
+  accentFor,
+  mixHex,
+  normalizeHex,
+  onColorFor,
+  relativeLuminance,
+  textFor,
+  withAlpha,
+} from "./theme.js";
 
 applyI18n();
 
@@ -11,6 +20,8 @@ const TONE_URL = "https://cdn.jsdelivr.net/npm/tone@15.1.22/+esm";
 const PRESET_IDS = ["cyberpunk", "editorial", "indie-pastel"];
 const BRAND_ACCENT = "#d8ff4f";
 const BRAND_TEXT = "#f4f1e8";
+const BRAND_BG = "#0a0a0c";
+const metaTheme = document.querySelector('meta[name="theme-color"]');
 
 if (STATIC_HOST && !CAN_SCAN) {
   const hint = document.querySelector(".hint");
@@ -48,19 +59,6 @@ function setStatus(text) {
   demoStatus.textContent = text;
 }
 
-function luminance(hex) {
-  const value = String(hex).replace("#", "");
-  const full =
-    value.length === 3 || value.length === 4
-      ? value[0] + value[0] + value[1] + value[1] + value[2] + value[2]
-      : value.slice(0, 6);
-  const [r, g, b] = [0, 2, 4].map((i) => {
-    const c = parseInt(full.slice(i, i + 2), 16) / 255;
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
 function normalizeUrl(raw) {
   const trimmed = raw.trim();
   if (!trimmed) return null;
@@ -75,9 +73,65 @@ function normalizeUrl(raw) {
 }
 
 function seedAccent(seed) {
-  const accent = seed.uiTheme?.accentColor;
-  if (!/^#[0-9a-f]{3,8}$/i.test(accent ?? "")) return BRAND_ACCENT;
-  return luminance(accent) > 0.16 ? accent : BRAND_ACCENT;
+  const accent = normalizeHex(seed.uiTheme?.accentColor);
+  if (!accent) return BRAND_ACCENT;
+  return relativeLuminance(accent) > 0.16 ? accent : BRAND_ACCENT;
+}
+
+// ---- Tema de la página -----------------------------------------------------
+
+const THEME_VARS = [
+  "--bg",
+  "--bg-soft",
+  "--text",
+  "--accent",
+  "--accent-ink",
+  "--on-accent",
+  "--glow-1",
+  "--glow-2",
+  "--card-shadow",
+];
+
+/**
+ * La página adopta la paleta del sitio escaneado. El color de texto se corrige
+ * por contraste, así que un sitio claro pinta la landing en claro sin dejar
+ * texto ilegible.
+ */
+function applyTheme(seed) {
+  const bg = normalizeHex(seed.uiTheme?.backgroundColor);
+  if (!bg) return resetTheme();
+
+  const text = textFor(bg, seed.uiTheme?.textColor) ?? BRAND_TEXT;
+  const accent = accentFor(seed.uiTheme?.accentColor, bg) ?? BRAND_ACCENT;
+  const dark = relativeLuminance(bg) <= 0.4;
+
+  root.style.setProperty("--bg", bg);
+  root.style.setProperty("--bg-soft", mixHex(bg, text, 0.07));
+  root.style.setProperty("--text", text);
+  root.style.setProperty("--accent", accent);
+  // El texto en acento también aparece sobre el tinte del badge (acento al 14%).
+  root.style.setProperty("--accent-ink", accentFor(accent, mixHex(bg, accent, 0.14), 4.5) ?? accent);
+  root.style.setProperty("--on-accent", onColorFor(accent));
+  root.style.setProperty("--glow-1", withAlpha(accent, dark ? 0.2 : 0.14));
+  root.style.setProperty("--glow-2", withAlpha(accent, dark ? 0.09 : 0.07));
+  root.style.setProperty(
+    "--card-shadow",
+    dark ? "0 28px 70px rgba(0, 0, 0, 0.45)" : "0 24px 60px rgba(0, 0, 0, 0.16)",
+  );
+  root.style.colorScheme = dark ? "dark" : "light";
+  root.classList.add("is-themed");
+  metaTheme?.setAttribute("content", bg);
+
+  return { bg, text, accent };
+}
+
+/** Vuelve a la paleta de marca (al elegir un preset o recargar). */
+function resetTheme() {
+  for (const name of THEME_VARS) root.style.removeProperty(name);
+  root.style.removeProperty("color-scheme");
+  root.classList.remove("is-themed");
+  metaTheme?.setAttribute("content", BRAND_BG);
+  return { bg: BRAND_BG, text: BRAND_TEXT, accent: BRAND_ACCENT };
 }
 
 // ---- Visualizador ----------------------------------------------------------
@@ -109,14 +163,19 @@ function renderPalette(seed) {
   );
 }
 
-function renderSeedMeta(seed, { showSource = false } = {}) {
+function renderSeedMeta(seed, { showSource = false, themed = false } = {}) {
   demoVibe.textContent = seed.metadata.detectedVibe;
   renderPalette(seed);
 
   const accent = seedAccent(seed);
   root.style.setProperty("--seed-accent", accent);
   root.style.setProperty("--seed-bg", seed.uiTheme.backgroundColor);
-  visualizer.setColors({ accent, text: BRAND_TEXT });
+  root.style.setProperty("--on-seed-accent", onColorFor(accent));
+
+  const theme = themed ? applyTheme(seed) : resetTheme();
+  const cardBg = themed ? mixHex(theme.bg, theme.text, 0.07) : "#121216";
+  root.style.setProperty("--seed-accent-ink", accentFor(accent, cardBg, 4.5) ?? accent);
+  visualizer.setColors({ accent: themed ? theme.accent : accent, text: theme.text });
 
   const source = $("demo-source");
   const url = seed.metadata.url ?? "";
@@ -213,7 +272,7 @@ async function loadSeed(rawSeed, { presetId = null, autoplay = false, showSource
   const wasPlaying = Boolean(engine?.isPlaying);
   activeSeed = structuredClone(rawSeed);
   activePreset = presetId;
-  renderSeedMeta(activeSeed, { showSource });
+  renderSeedMeta(activeSeed, { showSource, themed: presetId === null });
   renderToggle();
 
   if (wasPlaying || autoplay) {

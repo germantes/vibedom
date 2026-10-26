@@ -4,20 +4,33 @@
 :root {
   --bg: #0a0a0c;
   --bg-soft: #121216;
-  --bg-card: rgba(255, 255, 255, 0.045);
   --text: #f4f1e8;
-  --muted: #a6a39a;
   --accent: #d8ff4f;
-  --accent-soft: rgba(216, 255, 79, 0.14);
+  --accent-ink: #d8ff4f;
   --violet: #8e7bff;
-  --line: rgba(244, 241, 232, 0.13);
-  --line-strong: rgba(244, 241, 232, 0.24);
+
+  /* Derivadas: cambian solas cuando el tema escaneado toca --bg/--text/--accent. */
+  --bg-card: color-mix(in srgb, var(--text) 5%, transparent);
+  --muted: color-mix(in srgb, var(--text) 70%, var(--bg));
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  --on-accent: #0a0a0c;
+  --line: color-mix(in srgb, var(--text) 13%, transparent);
+  --line-strong: color-mix(in srgb, var(--text) 24%, transparent);
+  --sheen-strong: color-mix(in srgb, var(--text) 5.5%, transparent);
+  --sheen-soft: color-mix(in srgb, var(--text) 1.8%, transparent);
+  --glow-1: rgba(142, 123, 255, 0.2);
+  --glow-2: rgba(216, 255, 79, 0.09);
+  --header-bg: color-mix(in srgb, var(--bg) 78%, transparent);
+  --card-shadow: 0 28px 70px rgba(0, 0, 0, 0.45);
+
   --radius: 24px;
   --max: 1140px;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --seed-accent: #d8ff4f;
   --seed-bg: #121216;
+  --seed-accent-ink: #d8ff4f;
+  --on-seed-accent: #0a0a0c;
   color-scheme: dark;
 }
 
@@ -37,11 +50,12 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background:
-    radial-gradient(1100px 620px at 92% -8%, rgba(142, 123, 255, 0.2), transparent 62%),
-    radial-gradient(820px 520px at 4% 2%, rgba(216, 255, 79, 0.09), transparent 58%),
-    var(--bg);
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(1100px 620px at 92% -8%, var(--glow-1), transparent 62%),
+    radial-gradient(820px 520px at 4% 2%, var(--glow-2), transparent 58%);
   color: var(--text);
+  transition: background-color 0.5s ease, color 0.5s ease;
   font-family: var(--font);
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
@@ -49,7 +63,7 @@ body {
 
 ::selection {
   background: color-mix(in srgb, var(--accent) 55%, transparent);
-  color: #0a0a0c;
+  color: var(--on-accent);
 }
 
 a {
@@ -82,7 +96,7 @@ a {
   padding: 0.7rem 1rem;
   border-radius: 999px;
   background: var(--accent);
-  color: #0a0a0c;
+  color: var(--on-accent);
   font-weight: 700;
   text-decoration: none;
   transition: top 0.2s ease;
@@ -103,8 +117,8 @@ a {
   position: sticky;
   top: 0;
   z-index: 30;
-  border-bottom: 1px solid rgba(244, 241, 232, 0.07);
-  background: rgba(10, 10, 12, 0.78);
+  border-bottom: 1px solid var(--line);
+  background: var(--header-bg);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
@@ -223,7 +237,7 @@ a {
 
 .btn-primary {
   background: var(--accent);
-  color: #0a0a0c;
+  color: var(--on-accent);
 }
 
 .btn-primary:hover {
@@ -260,7 +274,7 @@ a {
   align-items: center;
   gap: 0.45rem;
   margin: 0;
-  color: var(--accent);
+  color: var(--accent-ink);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -298,13 +312,13 @@ a {
   padding: 0.4rem;
   border: 1px solid var(--line-strong);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.035);
+  background: var(--bg-card);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .scan-form:focus-within {
   border-color: color-mix(in srgb, var(--accent) 60%, var(--line-strong));
-  box-shadow: 0 0 0 4px rgba(216, 255, 79, 0.1);
+  box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
 .scan-form input {
@@ -335,7 +349,7 @@ a {
   border: 0;
   border-radius: 13px;
   background: var(--accent);
-  color: #0a0a0c;
+  color: var(--on-accent);
   font: inherit;
   font-size: 0.9rem;
   font-weight: 750;
@@ -405,7 +419,7 @@ a {
   border-radius: 18px;
   background:
     linear-gradient(color-mix(in srgb, var(--accent) 7%, transparent), transparent 72%),
-    rgba(255, 255, 255, 0.03);
+    var(--bg-card);
   animation: reveal 0.35s ease both;
 }
 
@@ -529,7 +543,7 @@ a {
   height: 3px;
   margin-top: 0.9rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--line-strong);
 }
 
 .analysis-progress {
@@ -559,7 +573,7 @@ a {
 
 .ghost:hover {
   border-color: var(--accent);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--bg-card);
 }
 
 /* ---- Demo card ----------------------------------------------------------- */
@@ -574,9 +588,9 @@ a {
   border-radius: 28px;
   background:
     radial-gradient(420px 220px at 80% 0%, color-mix(in srgb, var(--seed-accent) 12%, transparent), transparent 70%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018)),
+    linear-gradient(180deg, var(--sheen-strong), var(--sheen-soft)),
     var(--bg-soft);
-  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--card-shadow);
   transition: border-color 0.4s ease;
 }
 
@@ -597,7 +611,7 @@ a {
 }
 
 .demo-eyebrow {
-  color: var(--seed-accent);
+  color: var(--seed-accent-ink);
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -667,7 +681,7 @@ a {
   border: 0;
   border-radius: 999px;
   background: var(--seed-accent);
-  color: #0a0a0c;
+  color: var(--on-seed-accent);
   font: inherit;
   font-size: 0.84rem;
   font-weight: 750;
@@ -810,13 +824,13 @@ h2 {
   padding: 1.4rem;
   border: 1px solid var(--line);
   border-radius: 22px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012));
+  background: linear-gradient(180deg, var(--sheen-strong), var(--sheen-soft));
 }
 
 .step-num {
   display: inline-block;
   margin-bottom: 1.4rem;
-  color: var(--accent);
+  color: var(--accent-ink);
   font-family: var(--mono);
   font-size: 0.72rem;
   letter-spacing: 0.1em;
@@ -872,8 +886,8 @@ h2 {
   border: 1px solid var(--line);
   border-radius: 28px;
   background:
-    radial-gradient(560px 300px at 100% 0%, rgba(142, 123, 255, 0.16), transparent 70%),
-    linear-gradient(135deg, rgba(216, 255, 79, 0.06), transparent 55%),
+    radial-gradient(560px 300px at 100% 0%, color-mix(in srgb, var(--violet) 16%, transparent), transparent 70%),
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 6%, transparent), transparent 55%),
     var(--bg-card);
 }
 
@@ -915,8 +929,8 @@ h2 {
   border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
   border-radius: 28px;
   background:
-    radial-gradient(520px 260px at 88% 20%, rgba(216, 255, 79, 0.18), transparent 70%),
-    linear-gradient(135deg, rgba(142, 123, 255, 0.12), transparent 60%),
+    radial-gradient(520px 260px at 88% 20%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 70%),
+    linear-gradient(135deg, color-mix(in srgb, var(--violet) 12%, transparent), transparent 60%),
     var(--bg-soft);
 }
 
@@ -1046,7 +1060,7 @@ h2 {
 }
 
 @keyframes dot {
-  50% { box-shadow: 0 0 0 6px rgba(216, 255, 79, 0.07); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 8%, transparent); }
 }
 
 @keyframes reveal {

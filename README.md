@@ -50,7 +50,19 @@ Los enlaces son relativos para funcionar tanto en `localhost:3000` como en un de
 - Panel de análisis animado y cancelable durante el escaneo; el resultado se reproduce automáticamente si el navegador lo permite.
 - Secciones de cómo funciona, identidad sonora, privacidad, CTA al playground y FAQ.
 - Sin JSON ni sliders a la vista: esos viven en el playground.
-- Si la página se sirve desde GitHub Pages (`github.io`), el escaneo se detiene con una explicación y una alternativa por presets. No se hace una petición inútil.
+- **Tema dinámico**: al escanear un sitio, la landing adopta su fondo, su texto y su acento (también `theme-color` y `color-scheme`). Elegir un preset devuelve la paleta de marca al instante.
+- Si el sitio se sirve en un host estático sin backend propio (GitHub Pages, `file:`, o un dominio con `<meta name="vibedom-api">` externo), se muestra un aviso de espera y `warmApi()` despierta Render antes de escanear.
+
+### Contraste del tema dinámico
+
+La paleta escaneada no es de fiar: un sitio puede tener texto blanco sobre blanco o un acento casi invisible. `src/landing/theme.js` normaliza los hex y calcula contraste WCAG antes de pintar:
+
+* el texto se corrige hasta **≥ 4.5:1** (o se elige el extremo —casi negro o casi blanco— que más contraste dé);
+* el acento se mantiene si llega a **3:1** para formas y bordes, y se mezcla hacia blanco/negro hasta **4.5:1** (`--accent-ink`) cuando se usa como texto, incluido el tinte del badge;
+* el texto sobre el acento (`--on-accent`) elige entre negro y blanco según contraste;
+* el resto de variables (muted, líneas, brillos, sombra) se derivan con `color-mix()` de `--bg`, `--text` y `--accent`.
+
+El playground reutiliza las mismas funciones en su propio `applyTheme`, pero conserva su interfaz técnica (sliders, JSON y espectro).
 
 ## Playground
 
@@ -87,6 +99,7 @@ src/i18n.js                  diccionarios ES/EN y utilidades
 src/api.js                   resolución de /api/scan y backend externo
 src/host-mode.js             detección de host estático (Pages, dominio propio, file:)
 src/landing/main.js          demo, escaneo y audio de la landing
+src/landing/theme.js         contraste WCAG y tema dinámico desde la semilla
 src/landing/landing.css      tema comercial de la landing
 src/backend/scraper.js       extracción HTML/CSS sin dependencias
 src/backend/translator.js    Gemini + reintentos, fallback, timeout y schema
@@ -205,7 +218,7 @@ Para añadir uno, crea el JSON en `presets/` y regístralo en `PRESET_IDS` (`src
 npm test
 ```
 
-**70 tests** con `node:test`, sin dependencias:
+**82 tests** con `node:test`, sin dependencias:
 
 * escalas, acordes y conversión MIDI;
 * validación de la semilla y presets reales;
@@ -215,9 +228,11 @@ npm test
 * guard anti-SSRF (IPs privadas, redirects, DNS);
 * servidor (rutas estáticas ES/EN y playground, `/api/scan`, health, 405/413/404/429, path traversal y cancelación);
 * limitador de peticiones por IP (`X-Forwarded-For`, ventana deslizante y cuota);
-* caché de semillas por URL (normalización, TTL, desalojo y acierto sin volver a llamar a Gemini).
+* caché de semillas por URL (normalización, TTL, desalojo y acierto sin volver a llamar a Gemini);
+* tema dinámico (normalización de hex, luminancia, contraste WCAG, texto y acento corregidos, mezclas y `rgba()`);
+* detección de host estático (Pages, dominio propio, `file:` y API externa).
 
-El flujo real se validó en navegador con Playwright (fuera del repo): landing ES/EN, presets, play/pausa, espectro, escaneo mockeado, error de backend, responsive a 390 px, playground ES/EN, sliders, JSON y cambio de idioma. También se validó un escaneo real de `example.com` (~3 s).
+El flujo real se validó en navegador con Playwright (fuera del repo): landing ES/EN, presets, play/pausa, espectro, escaneo mockeado, error de backend, responsive a 390 px, playground ES/EN, sliders, JSON y cambio de idioma. También se validó un escaneo real de `example.com` (~3 s). El tema dinámico se comprobó con escaneos mockeados (sitio claro, oscuro y un caso hostil blanco sobre blanco) y una auditoría de contraste de 26 elementos en ambos esquemas: 26/26 en claro y 26/26 en oscuro.
 
 ## Roadmap
 
