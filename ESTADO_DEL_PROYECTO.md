@@ -9,7 +9,7 @@ Documento de traspaso y contexto técnico para continuar el desarrollo.
 - **Cuenta de GitHub**: `germantes` (`German`, `gtorrestendero@gmail.com`).
 - **Repositorio**: [`https://github.com/germantes/vibedom`](https://github.com/germantes/vibedom) (público, rama `main`).
 - **Configuración local de Git**: el repositorio tiene configurado localmente `user.name`, `user.email` y un `credential.helper` propio para autenticar con el token de `germantes` sin colisionar con otras cuentas globales del sistema.
-- **Demo estática en GitHub Pages**: [`https://vibedom.dev/`](https://vibedom.dev/). Sirve la UI completa y los presets, pero el escaneo de URLs requiere el backend (`npm start`) porque Pages es solo estático.
+- **Demo pública**: [`https://vibedom.dev/`](https://vibedom.dev/) (dominio propio, HTTPS forzado). Sirve la UI completa, los presets y el escaneo real: las páginas estáticas llaman al backend de Render declarado en `<meta name="vibedom-api">`.
 
 ---
 
@@ -149,6 +149,16 @@ Verificación en producción (2026-10-26, commit `34d7512`):
 
 **Nota conocida**: si el modelo principal falla y entra el de respaldo, `metadata.detectedVibe` puede volver en inglés aunque la página esté en español (el modelo imita el idioma del sitio analizado). Los presets también llevan la etiqueta en español en la versión EN.
 
+### ✅ Dominio propio `vibedom.dev` (COMPLETADO)
+
+- **DNS en Name.com**: cuatro `A` de `@` a `185.199.108-111.153`; `CNAME www → germantes.github.io`. Los `AAAA` de GitHub quedaron sin configurar (opcional; el sitio funciona por IPv4). Sin *URL forwarding* ni registros de aparcamiento.
+- **GitHub Pages**: `CNAME` en la raíz del repo, dominio `vibedom.dev` reconocido y certificado Let's Encrypt aprobado el 2026-10-26 para `vibedom.dev` y `www.vibedom.dev` (caduca el 2027-01-24). **Enforce HTTPS** activado.
+- **`npm run set-domain -- https://vibedom.dev`**: reescribe 32 referencias en `canonical`, `og:url`, `hreflang`, JSON-LD, `sitemap.xml`, `robots.txt` y docs; genera `CNAME`.
+- **Host estático en dominio propio** (`src/host-mode.js`): la landing ya no detecta Pages solo por `github.io`. Si el backend declarado vive en otro origen, el host es estático: se muestra el aviso de espera y `warmApi()` despierta Render. Cubre GitHub Pages, `vibedom.dev`, `file:` y cualquier host estático con API externa.
+- **Verificación live** (commit `11c1ab4`): `/`, `/en/`, `/playground/` y `/playground/en/` en `200` con `canonical`, `lang` y `vibedom-api` correctos; `http://` y `www` redirigen a `https://vibedom.dev/`; certificado válido; `sitemap.xml` con 16 URLs del dominio nuevo; escaneo cross-origin en 0,4 s desde caché (`HIT`), autoplay, fuente y panel correctos; sin errores propios.
+
+**Pendiente**: verificar el dominio en GitHub con el TXT `_github-pages-challenge-germantes.vibedom.dev` (protección contra *takeover*), y añadir los cuatro `AAAA` si se quiere soporte IPv6.
+
 ---
 
 ## 4. Lo que queda por hacer (Roadmap)
@@ -162,11 +172,11 @@ Verificación en producción (2026-10-26, commit `34d7512`):
   - Carga diferida de Tone.js solo al hacer clic.
 - **Generador de código en el Playground**:
   - Bloque "Copia tu snippet" con el `<script>` listo para Webflow, Framer o HTML clásico.
-  - El snippet debe usar `location.origin` (o la URL de despliegue configurada) para apuntar al widget; no hardcodear `vibedom.com` mientras no exista ese dominio.
+  - El snippet debe usar `location.origin` (o `https://vibedom.dev`) para apuntar al widget; el dominio ya existe, pero no conviene duplicarlo en el código.
   - Componente nativo para Framer (`framer-code-components`).
 
 ### Mejoras opcionales
-- Dominio propio (`vibedom.dev`): CNAME en Pages y actualización de `canonical`, `og:url`, `sitemap.xml` y `robots.txt`.
+- Verificar `vibedom.dev` en GitHub Pages con el TXT `_github-pages-challenge-germantes` (protección contra *takeover*) y añadir los `AAAA` de GitHub para IPv6.
 - Alta en Search Console, envío del sitemap y una página dedicada a «what does my website sound like».
 - Unificar el idioma de `detectedVibe` con el de la página (parámetro `lang` en `/api/scan`) y localizar las etiquetas de los presets.
 - Historial de escaneos recientes (localStorage) y compartir semilla por URL.

@@ -183,7 +183,13 @@ También puedes abrir directamente la URL de Render: el mismo servidor sirve lan
 
 #### Dominio propio
 
-Si usas un dominio propio, actualiza también `canonical`, `og:url`, `sitemap.xml` y `robots.txt`, que hoy apuntan a `https://vibedom.dev/`.
+El sitio se publica en `https://vibedom.dev`. Para moverlo a otro dominio:
+
+```bash
+npm run set-domain -- https://tu-dominio.dev
+```
+
+Reescribe `canonical`, `og:url`, `hreflang`, JSON-LD, `sitemap.xml`, `robots.txt` y la documentación, y genera el `CNAME` que lee GitHub Pages. Hazlo solo cuando el DNS ya apunte a GitHub: en cuanto entra el `CNAME`, `germantes.github.io/vibedom/` redirige al dominio nuevo.
 
 ## Presets
 
