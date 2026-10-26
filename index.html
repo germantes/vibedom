@@ -3,14 +3,19 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>vibedom · Fase 1 — Motor de audio</title>
+    <title>vibedom · ¿Cómo suena tu web?</title>
     <link rel="stylesheet" href="src/demo/demo.css" />
   </head>
   <body>
     <header class="hero">
-      <p class="eyebrow">vibedom · Fase 1</p>
-      <h1>¿Cómo suena una web?</h1>
-      <p class="lead">Prototipo del motor procedural en Tone.js. Elige un preset, pulsa reproducir y haz scroll o pasa el ratón por los enlaces.</p>
+      <p class="eyebrow">vibedom</p>
+      <h1>¿Cómo suena tu web?</h1>
+      <p class="lead">Pega una URL y escucha su atmósfera sonora. O elige un preset de ejemplo.</p>
+
+      <form id="scan-form" class="scan-form">
+        <input id="url-input" type="url" placeholder="https://ejemplo.com" autocomplete="url" required />
+        <button type="submit" id="scan-btn">Escanear</button>
+      </form>
 
       <div class="presets" role="radiogroup" aria-label="Presets">
         <button type="button" class="preset" data-preset="cyberpunk" role="radio" aria-checked="false">Preset Cyberpunk</button>

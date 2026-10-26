@@ -44,6 +44,45 @@ h1 {
   opacity: 0.8;
 }
 
+.scan-form {
+  display: flex;
+  gap: 0.6rem;
+  margin: 1.6rem 0 0.8rem;
+}
+
+.scan-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.65rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--text) 30%, transparent);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+.scan-form input::placeholder {
+  color: color-mix(in srgb, var(--text) 40%, transparent);
+}
+
+.scan-form button {
+  padding: 0.65rem 1.3rem;
+  border: 0;
+  border-radius: 12px;
+  background: var(--accent);
+  color: var(--bg);
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.scan-form button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
 .presets {
   display: flex;
   flex-wrap: wrap;

@@ -1,7 +1,6 @@
 import { createSoundscape } from "../engine/soundscape.js";
 import { attachReactivity } from "../engine/reactivity.js";
 
-// Tone.js se descarga solo al primer clic en "Reproducir" (mismo patrón que tendrá el widget).
 const TONE_URL = "https://cdn.jsdelivr.net/npm/tone@15.1.22/+esm";
 const PRESET_IDS = ["cyberpunk", "editorial", "indie-pastel"];
 const FONT_STACKS = {
@@ -16,10 +15,13 @@ const toggle = $("toggle");
 const toggleLabel = $("toggle-label");
 const status = $("status");
 const presetButtons = [...document.querySelectorAll(".preset")];
+const scanForm = $("scan-form");
+const scanBtn = $("scan-btn");
+const urlInput = $("url-input");
 
 let Tone = null;
 let presets = {};
-let currentId = null;
+let activeSeed = null; // semilla activa (preset o resultado de escaneo)
 let engine = null;
 let detach = null;
 let busy = false;
@@ -81,20 +83,20 @@ async function teardown() {
 
 async function play() {
   await loadTone();
-  await Tone.start(); // dentro del gesto del usuario
-  setStatus("Generando reverb…");
-  engine = await createSoundscape(Tone, presets[currentId]);
+  await Tone.start();
+  setStatus("Preparando motor…");
+  engine = await createSoundscape(Tone, activeSeed);
   detach = attachReactivity(engine);
   await engine.start();
-  window.__vibedom = engine; // inspección desde la consola
-  setStatus(`Sonando: ${presets[currentId].metadata.detectedVibe}`);
+  window.__vibedom = engine;
+  setStatus(`Sonando: ${activeSeed.metadata.detectedVibe}`);
 }
 
 function renderToggle() {
   const on = Boolean(engine?.isPlaying);
   toggle.setAttribute("aria-pressed", String(on));
   toggleLabel.textContent = on ? "Pausar" : "Reproducir";
-  toggle.disabled = busy || !currentId;
+  toggle.disabled = busy || !activeSeed;
 }
 
 async function withBusy(fn) {
@@ -113,14 +115,14 @@ async function withBusy(fn) {
   }
 }
 
-async function selectPreset(id) {
-  if (id === currentId) return;
+/** Carga una semilla (de preset o escaneo) y opcionalmente arranca. */
+async function loadSeed(seed, { autoplay = false } = {}) {
   const wasPlaying = Boolean(engine?.isPlaying);
-  currentId = id;
-  presetButtons.forEach((b) => b.setAttribute("aria-checked", String(b.dataset.preset === id)));
-  applyTheme(presets[id]);
-  renderSeed(presets[id]);
-  if (wasPlaying) {
+  activeSeed = seed;
+  presetButtons.forEach((b) => b.setAttribute("aria-checked", "false"));
+  applyTheme(seed);
+  renderSeed(seed);
+  if (wasPlaying || autoplay) {
     await withBusy(async () => {
       await teardown();
       await play();
@@ -130,6 +132,32 @@ async function selectPreset(id) {
     renderToggle();
   }
 }
+
+function selectPreset(id) {
+  presetButtons.forEach((b) => b.setAttribute("aria-checked", String(b.dataset.preset === id)));
+  return loadSeed(presets[id]);
+}
+
+// ---- Escaneo de URL --------------------------------------------------------
+
+scanForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const url = urlInput.value.trim();
+  if (!url || busy) return;
+  withBusy(async () => {
+    scanBtn.disabled = true;
+    setStatus("Analizando la web…");
+    const res = await fetch("/api/scan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+    scanBtn.disabled = false;
+    await loadSeed(data, { autoplay: true });
+  });
+});
 
 toggle.addEventListener("click", () =>
   withBusy(async () => {

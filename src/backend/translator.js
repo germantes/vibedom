@@ -1,0 +1,309 @@
+// Traductor sinestésico: señales estéticas → Gemini Flash → Semilla Sonora.
+//
+// Gemini Flash devuelve 503/404 esporádicos y su latencia es muy variable, así que
+// la llamada se hace con:
+//   • timeout por intento y deadline total,
+//   • reintentos con backoff exponencial + jitter,
+//   • cadena de modelos de respaldo (si uno falla, se prueba el siguiente),
+//   • thinkingLevel "low" (el schema ya guía la respuesta; pensar de más solo añade latencia).
+
+import { readFileSync } from "node:fs";
+import { normalizeSeed } from "../engine/seed.js";
+
+/** El primero es el preferido; el resto solo entra si el anterior falla. */
+export const GEMINI_MODELS = Object.freeze(["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash"]);
+
+const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
+
+const DEFAULT_ATTEMPTS_PER_MODEL = 2;
+const DEFAULT_RETRY_DELAY_MS = 700;
+const DEFAULT_ATTEMPT_TIMEOUT_MS = 20_000;
+const DEFAULT_TOTAL_TIMEOUT_MS = 50_000;
+
+// 404: la API a veces responde 404 con cuerpo vacío por throttling (no porque falte el modelo).
+const RETRYABLE_STATUS = new Set([404, 408, 429, 500, 502, 503, 504]);
+
+export class GeminiError extends Error {
+  constructor(message, { status, retryable = false, cause } = {}) {
+    super(message, { cause });
+    this.name = "GeminiError";
+    this.status = status;
+    this.retryable = retryable;
+  }
+}
+
+function loadKey() {
+  if (process.env.GEMINI_KEY) return process.env.GEMINI_KEY;
+  try {
+    const env = readFileSync(new URL("../../.env", import.meta.url), "utf8");
+    const m = env.match(/^GEMINI_KEY=(.+)$/m);
+    if (m) return m[1].trim();
+  } catch {
+    /* no .env */
+  }
+  throw new GeminiError("GEMINI_KEY no encontrada: ponla en .env o como variable de entorno");
+}
+
+// ---- Prompt ----------------------------------------------------------------
+
+const SYSTEM_PROMPT = `Eres un Director Musical Sinestésico. Recibes el análisis estético de una página web y produces una "Semilla Sonora" JSON: parámetros para un motor de síntesis procedural Tone.js que genera un soundscape ambiental infinito.
+
+REGLAS DE TRADUCCIÓN:
+
+Colores y modo:
+• Fondo oscuro (isDark) → escalas menores, frigias o dóricas; BPM bajo (50-80); filtro cerrado (200-800 Hz)
+• Fondo claro → escalas mayores o lidias; BPM moderado (60-100); filtro abierto (1000-4000 Hz)
+• Colores saturados/neón → más chorus y reverb; ondas sawtooth/square
+• Colores apagados/pastel → menos efectos; ondas sine/triangle
+
+Tipografía:
+• Monospace → texturas analógicas: sawtooth o square, filtro más cerrado
+• Serif → calidez: sine o triangle, reverb larga, tempo lento
+• Sans-serif → limpieza: triangle o sine, efectos moderados
+• Display/decorativa → carácter: cualquier onda, densidad de arpegio alta
+
+Dinámica:
+• Tiene animaciones/transiciones → BPM más alto (+10-15), arpegio más denso (0.4-0.7)
+• Sin movimiento → BPM bajo, arpegio disperso (0.1-0.3) o desactivado
+• Contenido denso → más capas activas
+• Mucho espacio en blanco → minimalismo: densidad baja, reverb alta
+
+Interactividad:
+• Si el filtro está cerrado → scrollTarget "filterFreq" con multiplier alto (2-4): el scroll abre el sonido
+• Si reverb domina → scrollTarget "reverbWet"
+• Si arpegio es protagonista → scrollTarget "arpDensity"
+
+El campo explanation debe ser UNA frase concisa explicando la conexión entre la estética detectada y la elección musical. detectedVibe es un resumen de 3-5 palabras de la identidad visual.
+
+uiTheme debe reflejar los colores reales de la web escaneada (fondo, acento y texto).`;
+
+// ---- Schema para structured output (formato Gemini) ------------------------
+
+const RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    metadata: {
+      type: "OBJECT",
+      properties: {
+        url: { type: "STRING" },
+        detectedVibe: { type: "STRING", description: "3-5 palabras: la identidad visual" },
+        explanation: { type: "STRING", description: "Una frase conectando estética y música" },
+      },
+      required: ["url", "detectedVibe", "explanation"],
+    },
+    uiTheme: {
+      type: "OBJECT",
+      properties: {
+        backgroundColor: { type: "STRING", description: "Color hex #RRGGBB del fondo de la web" },
+        accentColor: { type: "STRING", description: "Color hex #RRGGBB del acento/enlace de la web" },
+        textColor: { type: "STRING", description: "Color hex #RRGGBB del texto principal" },
+        fontFamily: { type: "STRING", enum: ["serif", "sans-serif", "monospace", "display"] },
+      },
+      required: ["backgroundColor", "accentColor", "textColor", "fontFamily"],
+    },
+    musicalParams: {
+      type: "OBJECT",
+      properties: {
+        bpm: { type: "INTEGER", description: "40-140" },
+        rootNote: { type: "STRING", enum: ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"] },
+        scale: { type: "STRING", enum: ["major", "minor", "dorian", "phrygian", "lydian", "pentatonic"] },
+        octave: { type: "INTEGER", description: "2-5" },
+      },
+      required: ["bpm", "rootNote", "scale", "octave"],
+    },
+    synthConfig: {
+      type: "OBJECT",
+      properties: {
+        pad: {
+          type: "OBJECT",
+          properties: {
+            waveform: { type: "STRING", enum: ["sine", "triangle", "sawtooth", "square"] },
+            attack: { type: "NUMBER", description: "Segundos, 0.5-8" },
+            release: { type: "NUMBER", description: "Segundos, 1-12" },
+            filterFreq: { type: "NUMBER", description: "Hz, 200-6000" },
+          },
+          required: ["waveform", "attack", "release", "filterFreq"],
+        },
+        arp: {
+          type: "OBJECT",
+          properties: {
+            enabled: { type: "BOOLEAN" },
+            waveform: { type: "STRING", enum: ["sine", "triangle", "sawtooth", "square"] },
+            density: { type: "NUMBER", description: "0-1, probabilidad por paso" },
+            delayWet: { type: "NUMBER", description: "0-1" },
+          },
+          required: ["enabled", "waveform", "density", "delayWet"],
+        },
+        effects: {
+          type: "OBJECT",
+          properties: {
+            reverbDecay: { type: "NUMBER", description: "Segundos, 1-15" },
+            reverbWet: { type: "NUMBER", description: "0-1" },
+            chorusDepth: { type: "NUMBER", description: "0-1" },
+          },
+          required: ["reverbDecay", "reverbWet", "chorusDepth"],
+        },
+        interactivity: {
+          type: "OBJECT",
+          properties: {
+            scrollTarget: { type: "STRING", enum: ["filterFreq", "reverbWet", "delayWet", "arpDensity"] },
+            scrollMultiplier: { type: "NUMBER", description: "1-5" },
+            hoverNoteTrigger: { type: "BOOLEAN" },
+          },
+          required: ["scrollTarget", "scrollMultiplier", "hoverNoteTrigger"],
+        },
+      },
+      required: ["pad", "arp", "effects", "interactivity"],
+    },
+  },
+  required: ["metadata", "uiTheme", "musicalParams", "synthConfig"],
+};
+
+// ---- Parseo ----------------------------------------------------------------
+
+function parseJson(raw) {
+  const cleaned = raw
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/```$/i, "")
+    .trim();
+  try {
+    return JSON.parse(cleaned);
+  } catch (err) {
+    throw new GeminiError(`Gemini devolvió JSON inválido: ${err.message}`, { retryable: true, cause: err });
+  }
+}
+
+// ---- Llamada a Gemini ------------------------------------------------------
+
+function abortReason(signal) {
+  const reason = signal?.reason;
+  if (reason instanceof Error) return reason;
+  const err = new Error("Petición cancelada");
+  err.name = "AbortError";
+  return err;
+}
+
+async function requestModel({ model, key, body, fetchImpl, signal, timeoutMs }) {
+  const controller = new AbortController();
+  let timedOut = false;
+  const onExternalAbort = () => controller.abort();
+  signal?.addEventListener("abort", onExternalAbort, { once: true });
+
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+
+  try {
+    const res = await fetchImpl(`${GEMINI_ENDPOINT}/${model}:generateContent?key=${key}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      const detail = text.replace(/\s+/g, " ").trim().slice(0, 240);
+      const retryable = RETRYABLE_STATUS.has(res.status) || (res.status === 404 && !detail);
+      throw new GeminiError(`Gemini ${res.status}: ${detail || "sin detalle"}`, { status: res.status, retryable });
+    }
+
+    const data = await res.json();
+    const raw = data.candidates?.[0]?.content?.parts
+      ?.map((part) => part.text)
+      .filter(Boolean)
+      .join("");
+    if (!raw) throw new GeminiError("Gemini no devolvió contenido", { retryable: true });
+    return raw;
+  } catch (err) {
+    if (timedOut) {
+      throw new GeminiError(`Gemini no respondió en ${Math.round(timeoutMs / 1000)} s`, { retryable: true, cause: err });
+    }
+    if (signal?.aborted) throw abortReason(signal);
+    if (err instanceof GeminiError) throw err;
+    throw new GeminiError(`Error de red con Gemini: ${err.message}`, { retryable: true, cause: err });
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", onExternalAbort);
+  }
+}
+
+/**
+ * Convierte señales del scraper en una Semilla Sonora validada.
+ * Opciones pensadas para tests (fetchImpl, sleep, modelos, timeouts, signal).
+ */
+export async function translate(signals, options = {}) {
+  const {
+    fetchImpl = globalThis.fetch,
+    sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    models = GEMINI_MODELS,
+    attemptsPerModel = DEFAULT_ATTEMPTS_PER_MODEL,
+    retryDelayMs = DEFAULT_RETRY_DELAY_MS,
+    attemptTimeoutMs = DEFAULT_ATTEMPT_TIMEOUT_MS,
+    totalTimeoutMs = DEFAULT_TOTAL_TIMEOUT_MS,
+    signal,
+    logger = console,
+  } = options;
+
+  const key = options.key ?? loadKey();
+  const deadline = Date.now() + totalTimeoutMs;
+  const failures = [];
+
+  const body = {
+    system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+    contents: [
+      {
+        parts: [{ text: `Analiza esta web y genera la Semilla Sonora:\n\n${JSON.stringify(signals, null, 2)}` }],
+      },
+    ],
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: RESPONSE_SCHEMA,
+      temperature: 0.8,
+      maxOutputTokens: 4096,
+      thinkingConfig: { thinkingLevel: "low" },
+    },
+  };
+
+  for (const model of models) {
+    for (let attempt = 1; attempt <= attemptsPerModel; attempt++) {
+      if (signal?.aborted) throw abortReason(signal);
+
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) {
+        throw new GeminiError(
+          `Tiempo total de traducción agotado (${Math.round(totalTimeoutMs / 1000)} s). ${failures.at(-1) ?? ""}`.trim(),
+          { retryable: false },
+        );
+      }
+
+      const timeoutMs = Math.min(attemptTimeoutMs, remaining);
+      try {
+        const raw = await requestModel({ model, key, body, fetchImpl, signal, timeoutMs });
+        const seed = parseJson(raw);
+        try {
+          return normalizeSeed(seed);
+        } catch (err) {
+          throw new GeminiError(`Semilla inválida de ${model}: ${err.message}`, { retryable: true, cause: err });
+        }
+      } catch (err) {
+        if (signal?.aborted) throw abortReason(signal);
+        const message = err instanceof Error ? err.message : String(err);
+        failures.push(`${model}#${attempt}: ${message}`);
+        logger.warn(`[gemini] ${model} intento ${attempt} falló: ${message}`);
+
+        const retryable = err instanceof GeminiError ? err.retryable : false;
+        if (!retryable || attempt === attemptsPerModel) break;
+        const delay = retryDelayMs * 2 ** (attempt - 1) + Math.floor(Math.random() * 250);
+        await sleep(Math.min(delay, Math.max(0, deadline - Date.now())));
+      }
+    }
+  }
+
+  throw new GeminiError(
+    `No se pudo traducir la web tras varios intentos. ${failures.slice(-3).join(" | ")}`.trim(),
+    { retryable: false },
+  );
+}
