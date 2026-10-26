@@ -159,7 +159,7 @@ La combinación recomendada es **GitHub Pages para la landing** y **Render para 
 
 1. Pulsa el botón, conecta GitHub y crea el servicio desde `render.yaml`.
 2. Introduce `GEMINI_KEY` cuando Render la pida.
-3. Copia la URL del servicio (por ejemplo `https://vibedom-api.onrender.com`).
+3. Copia la URL del servicio (por ejemplo `https://vibedom.onrender.com`).
 4. Declara ese origen en las cuatro páginas:
 
 ```bash
