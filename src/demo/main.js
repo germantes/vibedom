@@ -359,7 +359,7 @@ scanForm.addEventListener("submit", async (event) => {
     if (!res.ok) {
       const message =
         data.error ??
-        (res.status === 404
+        (res.status === 404 || res.status === 405
           ? "El backend no está disponible. Arranca el servidor con `npm start`."
           : `Error ${res.status}`);
       throw new Error(message);
