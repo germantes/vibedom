@@ -6,7 +6,7 @@
 // pueden venir falsificadas por el cliente.
 
 const parsedLimit = Number(process.env.SCAN_RATE_LIMIT);
-const DEFAULT_LIMIT = Number.isFinite(parsedLimit) ? Math.max(0, parsedLimit) : 10;
+const DEFAULT_LIMIT = Number.isFinite(parsedLimit) ? Math.max(0, parsedLimit) : 5;
 const DEFAULT_WINDOW_MS = 60_000;
 const MAX_TRACKED_IPS = 5000;
 

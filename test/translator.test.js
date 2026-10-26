@@ -147,6 +147,104 @@ test("translate aplica timeout por intento y aborta la petición", async () => {
   );
 });
 
+test("translate no reintenta un 429: detiene la cadena y devuelve retryAfter", async () => {
+  const fetchImpl = fakeFetch(() =>
+    new Response(
+      JSON.stringify({
+        error: {
+          code: 429,
+          message: "quota exceeded",
+          details: [{ "@type": "type.googleapis.com/google.rpc.RetryInfo", retryDelay: "7s" }],
+        },
+      }),
+      { status: 429, headers: { "content-type": "application/json" } },
+    ),
+  );
+
+  await assert.rejects(
+    translate(SIGNALS, {
+      fetchImpl,
+      key: "k",
+      models: ["gemini-3.5-flash", "gemini-3.5-flash-lite"],
+      attemptsPerModel: 2,
+      sleep: async () => {},
+      logger: silent,
+    }),
+    (err) => {
+      assert.ok(err instanceof GeminiError);
+      assert.equal(err.code, "RATE_LIMITED");
+      assert.equal(err.retryAfter, 7);
+      assert.equal(err.retryable, false);
+      return true;
+    },
+  );
+
+  // Ni reintentos ni modelos de respaldo: la cuota es del proyecto.
+  assert.equal(fetchImpl.calls.length, 1);
+});
+
+test("translate lee Retry-After de la cabecera cuando Gemini no manda RetryInfo", async () => {
+  const fetchImpl = fakeFetch(
+    () =>
+      new Response(JSON.stringify({ error: { code: 429, message: "slow down" } }), {
+        status: 429,
+        headers: { "content-type": "application/json", "retry-after": "12" },
+      }),
+  );
+
+  await assert.rejects(
+    translate(SIGNALS, { fetchImpl, key: "k", models: ["gemini-3.5-flash"], sleep: async () => {}, logger: silent }),
+    (err) => err.code === "RATE_LIMITED" && err.retryAfter === 12,
+  );
+});
+
+test("translate pasa por el limitador global y enfría la cola tras un 429", async () => {
+  const cooldowns = [];
+  let runs = 0;
+  const limiter = {
+    run: async (task) => {
+      runs += 1;
+      return task();
+    },
+    cooldown: (seconds) => cooldowns.push(seconds),
+  };
+  const fetchImpl = fakeFetch(() =>
+    new Response(JSON.stringify({ error: { code: 429, message: "quota", details: [{ retryDelay: "9s" }] } }), {
+      status: 429,
+      headers: { "content-type": "application/json" },
+    }),
+  );
+
+  await assert.rejects(
+    translate(SIGNALS, { fetchImpl, key: "k", limiter, models: ["gemini-3.5-flash"], logger: silent }),
+    (err) => err.code === "RATE_LIMITED",
+  );
+
+  assert.equal(runs, 1);
+  assert.deepEqual(cooldowns, [9]);
+});
+
+test("translate convierte un rechazo del limitador en RATE_LIMITED", async () => {
+  const limiter = {
+    run: async () => {
+      throw Object.assign(new Error("cola llena"), { code: "RATE_LIMITED", retryAfter: 15 });
+    },
+  };
+  const fetchImpl = fakeFetch(() => geminiOk());
+
+  await assert.rejects(
+    translate(SIGNALS, { fetchImpl, key: "k", limiter, models: ["gemini-3.5-flash"], logger: silent }),
+    (err) => {
+      assert.ok(err instanceof GeminiError);
+      assert.equal(err.code, "RATE_LIMITED");
+      assert.equal(err.retryAfter, 15);
+      assert.equal(err.status, 429);
+      return true;
+    },
+  );
+  assert.equal(fetchImpl.calls.length, 0);
+});
+
 test("translate respeta la cancelación externa", async () => {
   const controller = new AbortController();
   const fetchImpl = async () =>

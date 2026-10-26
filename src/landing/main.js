@@ -356,6 +356,10 @@ scanForm.addEventListener("submit", async (event) => {
     const isJson = (res.headers.get("content-type") ?? "").includes("application/json");
     const data = isJson ? await res.json() : {};
     if (!res.ok) {
+      if (data.code === "RATE_LIMITED") {
+        const seconds = Math.max(1, Math.ceil(Number(data.retryAfter) || 30));
+        throw new Error(t("status.rateLimited", { seconds }));
+      }
       const fallback =
         res.status === 404 || res.status === 405
           ? t(CAN_SCAN ? "status.backendMissing" : "status.backendMissingStatic")

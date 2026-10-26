@@ -31,14 +31,19 @@ export function resolveLang(value) {
 }
 
 // 404: la API a veces responde 404 con cuerpo vacío por throttling (no porque falte el modelo).
-const RETRYABLE_STATUS = new Set([404, 408, 429, 500, 502, 503, 504]);
+// 429 no está aquí a propósito: la cuota es global y reintentar empeora el problema.
+const RETRYABLE_STATUS = new Set([404, 408, 500, 502, 503, 504]);
+
+const DEFAULT_RATE_LIMIT_RETRY_S = 30;
 
 export class GeminiError extends Error {
-  constructor(message, { status, retryable = false, cause } = {}) {
+  constructor(message, { status, retryable = false, code, retryAfter, cause } = {}) {
     super(message, { cause });
     this.name = "GeminiError";
     this.status = status;
     this.retryable = retryable;
+    this.code = code;
+    this.retryAfter = retryAfter;
   }
 }
 
@@ -208,6 +213,34 @@ function abortReason(signal) {
   return err;
 }
 
+/**
+ * Gemini indica cuándo se puede reintentar de dos formas: la cabecera
+ * `Retry-After` o `error.details[].retryDelay` (RetryInfo). Si no viene nada,
+ * asumimos 30 s: suficiente para que la ventana de cuota se recupere.
+ */
+function parseRetryAfter(res, bodyText) {
+  const header = res.headers?.get?.("retry-after");
+  if (header) {
+    const seconds = Number(header);
+    if (Number.isFinite(seconds)) return Math.max(1, Math.ceil(seconds));
+    const date = Date.parse(header);
+    if (Number.isFinite(date)) return Math.max(1, Math.ceil((date - Date.now()) / 1000));
+  }
+
+  try {
+    const data = JSON.parse(bodyText);
+    for (const detail of data?.error?.details ?? []) {
+      const raw = detail?.retryDelay ?? detail?.retry_delay;
+      const match = typeof raw === "string" ? raw.match(/^(\d+(?:\.\d+)?)s$/) : null;
+      if (match) return Math.max(1, Math.ceil(Number(match[1])));
+    }
+  } catch {
+    /* el cuerpo no era JSON */
+  }
+
+  return DEFAULT_RATE_LIMIT_RETRY_S;
+}
+
 async function requestModel({ model, key, body, fetchImpl, signal, timeoutMs }) {
   const controller = new AbortController();
   let timedOut = false;
@@ -230,8 +263,14 @@ async function requestModel({ model, key, body, fetchImpl, signal, timeoutMs }) 
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       const detail = text.replace(/\s+/g, " ").trim().slice(0, 240);
-      const retryable = RETRYABLE_STATUS.has(res.status) || (res.status === 404 && !detail);
-      throw new GeminiError(`Gemini ${res.status}: ${detail || "sin detalle"}`, { status: res.status, retryable });
+      const rateLimited = res.status === 429;
+      const retryable = !rateLimited && (RETRYABLE_STATUS.has(res.status) || (res.status === 404 && !detail));
+      throw new GeminiError(`Gemini ${res.status}: ${detail || "sin detalle"}`, {
+        status: res.status,
+        retryable,
+        code: rateLimited ? "RATE_LIMITED" : undefined,
+        retryAfter: rateLimited ? parseRetryAfter(res, text) : undefined,
+      });
     }
 
     const data = await res.json();
@@ -269,12 +308,14 @@ export async function translate(signals, options = {}) {
     totalTimeoutMs = DEFAULT_TOTAL_TIMEOUT_MS,
     signal,
     lang = "es",
+    limiter,
     logger = console,
   } = options;
 
   const key = options.key ?? loadKey();
   const deadline = Date.now() + totalTimeoutMs;
   const failures = [];
+  const schedule = limiter?.run ? (task) => limiter.run(task) : (task) => task();
 
   const body = {
     system_instruction: { parts: [{ text: systemPrompt(lang) }] },
@@ -306,7 +347,18 @@ export async function translate(signals, options = {}) {
 
       const timeoutMs = Math.min(attemptTimeoutMs, remaining);
       try {
-        const raw = await requestModel({ model, key, body, fetchImpl, signal, timeoutMs });
+        const raw = await schedule(async () => {
+          try {
+            return await requestModel({ model, key, body, fetchImpl, signal, timeoutMs });
+          } catch (err) {
+            // Un 429 afecta a todo el proyecto: enfriamos la cola global antes
+            // de liberar el turno para que la siguiente petición no lo repita.
+            if (err instanceof GeminiError && err.code === "RATE_LIMITED") {
+              limiter?.cooldown?.(err.retryAfter ?? DEFAULT_RATE_LIMIT_RETRY_S);
+            }
+            throw err;
+          }
+        });
         const seed = parseJson(raw);
         try {
           return normalizeSeed(seed);
@@ -315,6 +367,22 @@ export async function translate(signals, options = {}) {
         }
       } catch (err) {
         if (signal?.aborted) throw abortReason(signal);
+
+        if (err?.code === "RATE_LIMITED") {
+          const rateLimited =
+            err instanceof GeminiError
+              ? err
+              : new GeminiError(err.message, {
+                  status: 429,
+                  retryable: false,
+                  code: "RATE_LIMITED",
+                  retryAfter: err.retryAfter,
+                  cause: err,
+                });
+          logger.warn(`[gemini] cuota agotada; reintentar en ${rateLimited.retryAfter ?? DEFAULT_RATE_LIMIT_RETRY_S} s`);
+          throw rateLimited;
+        }
+
         const message = err instanceof Error ? err.message : String(err);
         failures.push(`${model}#${attempt}: ${message}`);
         logger.warn(`[gemini] ${model} intento ${attempt} falló: ${message}`);
@@ -329,6 +397,6 @@ export async function translate(signals, options = {}) {
 
   throw new GeminiError(
     `No se pudo traducir la web tras varios intentos. ${failures.slice(-3).join(" | ")}`.trim(),
-    { retryable: false },
+    { retryable: false, code: "ANALYSIS_FAILED" },
   );
 }

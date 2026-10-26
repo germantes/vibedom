@@ -14,11 +14,25 @@ import { resolveLang, translate } from "./translator.js";
 import { assertPublicUrl, UnsafeUrlError } from "./url-guard.js";
 import { createRateLimiter } from "./rate-limit.js";
 import { cacheKey, createScanCache } from "./scan-cache.js";
+import { createGeminiLimiter } from "./gemini-limiter.js";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 export const DEFAULT_ROOT = resolve(HERE, "../..");
 const DEFAULT_PORT = Number(process.env.PORT) || 3000;
 const MAX_BODY_BYTES = 16 * 1024;
+const RATE_LIMIT_FALLBACK_S = 30;
+
+const SCAN_ERROR_COPY = {
+  es: {
+    rateLimited: (seconds) =>
+      `El analizador está saturado ahora mismo. Espera ${seconds} s y vuelve a intentarlo.`,
+    unavailable: "No se pudo analizar la web. Prueba un preset o inténtalo de nuevo en unos segundos.",
+  },
+  en: {
+    rateLimited: (seconds) => `The analyser is busy right now. Wait ${seconds}s and try again.`,
+    unavailable: "Couldn't analyse the site. Try a preset or try again in a few seconds.",
+  },
+};
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -135,9 +149,27 @@ function makeScanHandler({ scrape, translateSeed, validateUrl, logger, cache }) 
       return json(res, 200, seed, { "X-Vibedom-Cache": "MISS" });
     } catch (err) {
       if (clientGone || controller.signal.aborted) return;
-      const status = err instanceof UnsafeUrlError ? 400 : 502;
+
+      if (err instanceof UnsafeUrlError) {
+        logger.error(`[scan] ✖ ${err.message}`);
+        return json(res, 400, { error: err.message });
+      }
+
+      const copy = SCAN_ERROR_COPY[lang] ?? SCAN_ERROR_COPY.es;
+
+      if (err?.code === "RATE_LIMITED") {
+        const retryAfter = Math.max(1, Math.ceil(Number(err.retryAfter) || RATE_LIMIT_FALLBACK_S));
+        logger.warn(`[scan] ⏳ ${err.message} · reintentar en ${retryAfter} s`);
+        return json(
+          res,
+          429,
+          { code: "RATE_LIMITED", error: copy.rateLimited(retryAfter), retryAfter },
+          { "Retry-After": String(retryAfter) },
+        );
+      }
+
       logger.error(`[scan] ✖ ${err.message}`);
-      return json(res, status, { error: err.message });
+      return json(res, 502, { code: "ANALYSIS_FAILED", error: copy.unavailable });
     } finally {
       res.off("close", onClose);
     }
@@ -197,13 +229,24 @@ function makeStaticHandler(root) {
 export function createVibedomServer({
   root = DEFAULT_ROOT,
   scrape = scrapeUrl,
-  translateSeed = translate,
+  translateSeed,
+  geminiLimiter = createGeminiLimiter(),
   validateUrl = assertPublicUrl,
   rateLimit = createRateLimiter(),
   cache = createScanCache(),
   logger = console,
 } = {}) {
-  const handleScan = makeScanHandler({ scrape, translateSeed, validateUrl, cache, logger });
+  // El limitador global se aplica a todas las llamadas a Gemini del proceso.
+  const translateWithLimit =
+    translateSeed ??
+    ((signals, options = {}) => translate(signals, { ...options, limiter: geminiLimiter }));
+  const handleScan = makeScanHandler({
+    scrape,
+    translateSeed: translateWithLimit,
+    validateUrl,
+    cache,
+    logger,
+  });
   const handleStatic = makeStaticHandler(root);
 
   return createServer(async (req, res) => {
@@ -219,7 +262,11 @@ export function createVibedomServer({
     }
 
     if (req.method === "GET" && req.url === "/api/health") {
-      return json(res, 200, { ok: true, service: "vibedom" });
+      return json(res, 200, {
+        ok: true,
+        service: "vibedom",
+        commit: process.env.RENDER_GIT_COMMIT?.slice(0, 7) ?? null,
+      });
     }
 
     if (req.method === "POST" && req.url === "/api/scan") {
@@ -228,7 +275,11 @@ export function createVibedomServer({
         return json(
           res,
           429,
-          { error: "Demasiadas peticiones. Espera un momento e inténtalo de nuevo." },
+          {
+            code: "RATE_LIMITED",
+            error: "Demasiadas peticiones. Espera un momento e inténtalo de nuevo.",
+            retryAfter: quota.retryAfter,
+          },
           { "Retry-After": String(quota.retryAfter) },
         );
       }

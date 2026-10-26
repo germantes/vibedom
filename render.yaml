@@ -12,6 +12,14 @@ services:
       - key: NODE_VERSION
         value: "22"
       - key: SCAN_RATE_LIMIT
+        value: "5"
+      # La cuota de Gemini es por proyecto, no por IP. Estas llamadas se
+      # serializan y se espacian 8 s (≈7,5/min) para no agotarla entre visitantes.
+      - key: GEMINI_MIN_INTERVAL_MS
+        value: "8000"
+      - key: GEMINI_MAX_WAIT_MS
+        value: "25000"
+      - key: GEMINI_QUEUE_LIMIT
         value: "10"
       # Se pide al crear el servicio desde el Blueprint; nunca se guarda en el repo.
       - key: GEMINI_KEY

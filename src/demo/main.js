@@ -392,6 +392,10 @@ scanForm.addEventListener("submit", async (event) => {
     const isJson = (res.headers.get("content-type") ?? "").includes("application/json");
     const data = isJson ? await res.json() : {};
     if (!res.ok) {
+      if (data.code === "RATE_LIMITED") {
+        const seconds = Math.max(1, Math.ceil(Number(data.retryAfter) || 30));
+        throw Object.assign(new Error(t("playground.status.rateLimited", { seconds })), { friendly: true });
+      }
       const message =
         data.error ??
         (res.status === 404 || res.status === 405
@@ -419,7 +423,7 @@ scanForm.addEventListener("submit", async (event) => {
       console.error(err);
       const message = err instanceof TypeError ? t("status.backendUnreachable") : err.message;
       analysis.fail(message);
-      setStatus(t("playground.status.scanError", { message }));
+      setStatus(err.friendly ? message : t("playground.status.scanError", { message }));
     }
   } finally {
     busy = false;

@@ -154,12 +154,13 @@ El esquema es el de la spec (sección 4). `normalizeSeed()` aplica dos política
 
 ## Backend
 
-- `POST /api/scan` con `{ "url": "https://...", "lang": "es" }` → `200` con la Semilla Sonora, o `400`/`422`/`429`/`502`/`504` con `{ error }`. `lang` (`es` o `en`) controla el idioma de `detectedVibe` y `explanation`; la caché guarda una entrada por idioma y la cabecera `X-Vibedom-Cache` indica `HIT` o `MISS`.
-- `GET /api/health` → `200` con `{ ok: true }`; sirve de health check y despierta el servicio en Render.
+- `POST /api/scan` con `{ "url": "https://...", "lang": "es" }` → `200` con la Semilla Sonora. Si falla: `400` (URL), `429` (`{ code: "RATE_LIMITED", retryAfter }`) o `502` (`{ code: "ANALYSIS_FAILED" }`) con un mensaje localizado en `error`. `lang` (`es` o `en`) controla el idioma de `detectedVibe` y `explanation`; la caché guarda una entrada por idioma y la cabecera `X-Vibedom-Cache` indica `HIT` o `MISS`.
+- `GET /api/health` → `200` con `{ ok: true, service: "vibedom", commit }`; sirve de health check, despierta el servicio en Render y permite comprobar qué commit está desplegado.
 - Archivos estáticos del repositorio en el resto de rutas.
 - **Sin dependencias npm**: `node:http`, `fetch` nativo y regex. Node ≥ 20.
-- Variables: `GEMINI_KEY` (obligatoria para escanear), `PORT` (3000 por defecto), `SCAN_RATE_LIMIT` (10 escaneos/min por IP; `0` lo desactiva), `SCAN_CACHE_TTL` (segundos que se recuerda una semilla; 3600 por defecto, `0` desactiva la caché) y `VIBEDOM_ALLOW_PRIVATE=1` (solo desarrollo, permite escanear hosts privados).
+- Variables: `GEMINI_KEY` (obligatoria para escanear), `PORT` (3000 por defecto), `SCAN_RATE_LIMIT` (5 escaneos/min por IP; `0` lo desactiva), `GEMINI_MIN_INTERVAL_MS` (8 s entre llamadas reales a Gemini), `GEMINI_MAX_WAIT_MS` (25 s de espera máxima en cola), `GEMINI_QUEUE_LIMIT` (10 peticiones en cola), `SCAN_CACHE_TTL` (segundos que se recuerda una semilla; 3600 por defecto, `0` desactiva la caché) y `VIBEDOM_ALLOW_PRIVATE=1` (solo desarrollo, permite escanear hosts privados).
 - El servidor valida cada salto de redirección y cada hoja de estilos para evitar SSRF, bloquea dotfiles y *path traversal*, limita el cuerpo de las peticiones a 16 KB y aplica la cuota antes de llamar a Gemini.
+- La cuota gratuita de Gemini es **por proyecto, no por IP**: el limitador por IP no basta. Por eso las llamadas se serializan y se espacian (`GEMINI_MIN_INTERVAL_MS`); si Gemini devuelve `429`, no se reintenta ni se prueba otro modelo, se enfría la cola global y se responde `429` con `Retry-After` en lugar de un `502` técnico.
 - La semilla de cada URL se guarda en memoria una hora (`SCAN_CACHE_TTL`): repetir un escaneo no vuelve a llamar a Gemini.
 - Modelos: `gemini-3.5-flash` → `gemini-3.5-flash-lite` → `gemini-3.6-flash`. No uses `gemini-2.x` (retirado para esta clave) ni `gemini-3.8-flash` (latencia inaceptable).
 
@@ -169,7 +170,7 @@ La combinación recomendada es **GitHub Pages para la landing** y **Render para 
 
 - La landing y los presets cargan al instante desde Pages.
 - Solo el escaneo viaja al backend de Render, que tiene la `GEMINI_KEY` y acceso a Gemini.
-- El servidor ya envía CORS y un limitador por IP (`SCAN_RATE_LIMIT`, 10/min por defecto) para proteger la clave.
+- El servidor ya envía CORS y un limitador por IP (`SCAN_RATE_LIMIT`, 5/min por defecto) para proteger la clave.
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/germantes/vibedom)
 
@@ -192,7 +193,10 @@ También puedes abrir directamente la URL de Render: el mismo servidor sirve lan
 | --- | --- | --- |
 | `GEMINI_KEY` | Sí | Clave de Google AI Studio para traducir la estética a la semilla. |
 | `PORT` | No | Render la inyecta; en local es 3000. |
-| `SCAN_RATE_LIMIT` | No | Escaneos por minuto y por IP. Por defecto 10; `0` desactiva el límite. |
+| `SCAN_RATE_LIMIT` | No | Escaneos por minuto y por IP. Por defecto 5; `0` desactiva el límite. |
+| `GEMINI_MIN_INTERVAL_MS` | No | Separación mínima entre llamadas reales a Gemini. Por defecto 8000 ms (≈7,5/min). |
+| `GEMINI_MAX_WAIT_MS` | No | Espera máxima de una petición en la cola global. Por defecto 25000 ms. |
+| `GEMINI_QUEUE_LIMIT` | No | Peticiones que pueden esperar turno a la vez. Por defecto 10. |
 | `SCAN_CACHE_TTL` | No | Segundos que se recuerda la semilla de una URL. Por defecto 3600; `0` desactiva la caché. |
 | `VIBEDOM_ALLOW_PRIVATE` | No | Solo desarrollo: permite escanear hosts privados. No usar en producción. |
 

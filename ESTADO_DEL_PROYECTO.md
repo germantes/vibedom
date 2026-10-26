@@ -129,9 +129,9 @@ Commits: `f64aec3` (Fase 2).
 
 ### ✅ FASE 3.6: Despliegue del analizador (COMPLETADA)
 
-- **`render.yaml`**: Blueprint de Render con runtime Node 22, plan free, health check en `/api/health`, `SCAN_RATE_LIMIT=10` y `GEMINI_KEY` como secreto solicitado al crear el servicio.
-- **`GET /api/health`**: respuesta `{ ok: true, service: "vibedom" }` sin caché, útil como health check y para despertar el plan gratuito.
-- **Rate limit por IP** (`src/backend/rate-limit.js`): ventana de 60 s, 10 escaneos/min por defecto, `SCAN_RATE_LIMIT=0` lo desactiva, usa la última IP de `X-Forwarded-For` (la que añade el proxy) y devuelve `429` + `Retry-After` antes de llamar a Gemini.
+- **`render.yaml`**: Blueprint de Render con runtime Node 22, plan free, health check en `/api/health`, `SCAN_RATE_LIMIT=5`, intervalo global de Gemini (`GEMINI_MIN_INTERVAL_MS=8000`, `GEMINI_MAX_WAIT_MS=25000`, `GEMINI_QUEUE_LIMIT=10`) y `GEMINI_KEY` como secreto solicitado al crear el servicio.
+- **`GET /api/health`**: respuesta `{ ok: true, service: "vibedom", commit }` sin caché, útil como health check, para despertar el plan gratuito y para comprobar qué commit está desplegado.
+- **Rate limit por IP** (`src/backend/rate-limit.js`): ventana de 60 s, 5 escaneos/min por defecto, `SCAN_RATE_LIMIT=0` lo desactiva, usa la última IP de `X-Forwarded-For` (la que añade el proxy) y devuelve `429` + `Retry-After` antes de llamar a Gemini.
 - **Backend externo configurable** (`src/api.js` + `<meta name="vibedom-api">`): permite que la landing de GitHub Pages escanee contra Render sin CORS adicional (el servidor ya envía `Access-Control-Allow-Origin: *`). Al cargar, la landing hace un `GET /api/health` para despertar el servicio.
 - **Caché de semillas** (`src/backend/scan-cache.js`): guarda en memoria el resultado de cada URL una hora (`SCAN_CACHE_TTL`, `0` lo desactiva), con tope de 500 entradas y desalojo LRU. Repetir un escaneo responde al instante y no vuelve a llamar a Gemini; la cabecera `X-Vibedom-Cache` indica `HIT`/`MISS`.
 - **Script de configuración** (`scripts/set-api.mjs`): `npm run set-api -- https://...` declara el backend externo en las cuatro páginas y valida la URL; `--clear` lo quita. Sustituye al `sed` del README.
@@ -190,6 +190,20 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **Metadatos sociales** en las dos landings: `og:image` absoluta con `type`, `width`, `height` y `alt`; `twitter:card=summary_large_image`, `twitter:title`, `twitter:description`, `twitter:image` y `twitter:image:alt`.
 - **Playground**: añadidos canonical, `hreflang` ES/EN/x-default y el mismo bloque Open Graph/Twitter, con la imagen de su idioma.
 - **Verificación**: script `check-og.mjs` contra el servidor local, **28/28 PASS** (metadatos, canonical, URL absoluta y PNG real de 1200×630 en las cuatro rutas); 85 tests y E2E de SEO sin regresiones.
+
+### ✅ FASE 3.10: Cuota global de Gemini y errores amables (COMPLETADA)
+
+- **Causa del fallo**: la cuota gratuita de Gemini es **por proyecto, no por IP**. El limitador por IP no protegía a dos visitantes distintos y el traductor trataba el `429` como reintentable: hasta 6 llamadas por escaneo (3 modelos × 2 intentos), así que la segunda petición seguida agotaba el cupo y acababa en un `502` con el mensaje crudo de Google.
+- **`src/backend/gemini-limiter.js`**: cola global que serializa las llamadas reales a Gemini, las espacia `GEMINI_MIN_INTERVAL_MS` (8 s ≈ 7,5/min) y limita la espera (`GEMINI_MAX_WAIT_MS`, 25 s) y el tamaño de la cola (`GEMINI_QUEUE_LIMIT`, 10). Si no hay hueco, lanza `RATE_LIMITED` con `retryAfter`.
+- **429 no reintentable** (`src/backend/translator.js`): se detiene la cadena de modelos, se lee `Retry-After` o `error.details[].retryDelay`, se enfría la cola global y se propaga `{ code: "RATE_LIMITED", retryAfter }`.
+- **Respuesta HTTP**: el servidor devuelve `429` con `Retry-After`, `code` y un mensaje localizado ES/EN; los fallos restantes devuelven `502` con `{ code: "ANALYSIS_FAILED" }` y un mensaje genérico, sin filtrar detalles técnicos. La landing y el playground traducen el código con `status.rateLimited` / `playground.status.rateLimited`.
+- **Límites**: `SCAN_RATE_LIMIT` baja de 10 a 5 por IP; `render.yaml` declara también las tres variables del limitador global.
+- **`GET /api/health`**: incluye `commit` (`RENDER_GIT_COMMIT`) para comprobar qué versión está desplegada.
+- **Verificación local**: **95 tests** en verde (nuevos tests del limitador, del 429 del traductor y del contrato HTTP), E2E de landing/playground sin regresiones y simulación de `429` en las cuatro rutas con el mensaje correcto en cada idioma.
+
+### 🔎 Strudel frente a Tone.js (evaluado, no adoptado)
+
+Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Tidal Cycles: su fuerte son los **patrones rítmicos y el live coding sobre samples**, no la síntesis procedural sin audio pregrabado. Adoptarlo implicaría reescribir la Semilla Sonora y el motor, añadir muestras (o cargar su banco) y cumplir la **AGPL-3.0** en un producto web. Se mantiene Tone.js; una prueba A/B con Strudel queda como experimento externo, no como dependencia del repo.
 
 ---
 

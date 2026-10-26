@@ -126,14 +126,17 @@ test("POST /api/scan valida el cuerpo y la URL", async () => {
   assert.match((await blocked.json()).error, /bloqueado/);
 });
 
-test("POST /api/scan devuelve 502 si el escaneo falla", async () => {
+test("POST /api/scan devuelve 502 genérico si el escaneo falla", async () => {
   const res = await fetch(`${base}/api/scan`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ url: "https://rota.test/" }),
   });
   assert.equal(res.status, 502);
-  assert.match((await res.json()).error, /no responde/);
+  const body = await res.json();
+  assert.equal(body.code, "ANALYSIS_FAILED");
+  assert.match(body.error, /No se pudo analizar/);
+  assert.doesNotMatch(body.error, /no responde/);
 });
 
 test("POST /api/scan rechaza cuerpos demasiado grandes", async () => {
@@ -206,7 +209,42 @@ test("GET /api/health responde sin caché y con CORS", async () => {
   assert.match(res.headers.get("content-type"), /application\/json/);
   assert.equal(res.headers.get("cache-control"), "no-store");
   assert.equal(res.headers.get("access-control-allow-origin"), "*");
-  assert.deepEqual(await res.json(), { ok: true, service: "vibedom" });
+  assert.deepEqual(await res.json(), { ok: true, service: "vibedom", commit: null });
+});
+
+test("POST /api/scan devuelve 429 amable cuando Gemini agota la cuota", async () => {
+  const limited = await startServer({
+    port: 0,
+    logger: silent,
+    validateUrl: async (url) => url,
+    scrape: async (url) => ({ url, title: "Studio" }),
+    translateSeed: async () => {
+      throw Object.assign(new Error("Gemini 429: quota exceeded"), {
+        code: "RATE_LIMITED",
+        retryAfter: 9,
+      });
+    },
+    rateLimit: () => ({ ok: true, remaining: 99, retryAfter: 0 }),
+    cache: createScanCache({ ttlMs: 0 }),
+  });
+  const limitedBase = `http://127.0.0.1:${limited.address().port}`;
+
+  try {
+    const res = await fetch(`${limitedBase}/api/scan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: "https://studio.test/", lang: "en" }),
+    });
+    assert.equal(res.status, 429);
+    assert.equal(res.headers.get("retry-after"), "9");
+    const body = await res.json();
+    assert.equal(body.code, "RATE_LIMITED");
+    assert.equal(body.retryAfter, 9);
+    assert.match(body.error, /busy right now/);
+    assert.doesNotMatch(body.error, /Gemini/);
+  } finally {
+    await new Promise((resolve) => limited.close(resolve));
+  }
 });
 
 test("el rate limit devuelve 429 con Retry-After antes de procesar el escaneo", async () => {
@@ -224,7 +262,10 @@ test("el rate limit devuelve 429 con Retry-After antes de procesar el escaneo", 
     });
     assert.equal(res.status, 429);
     assert.equal(res.headers.get("retry-after"), "7");
-    assert.match((await res.json()).error, /Demasiadas peticiones/);
+    const body = await res.json();
+    assert.equal(body.code, "RATE_LIMITED");
+    assert.equal(body.retryAfter, 7);
+    assert.match(body.error, /Demasiadas peticiones/);
   } finally {
     await new Promise((resolve) => limited.close(resolve));
   }

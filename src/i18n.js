@@ -122,6 +122,8 @@ const DICTS = {
     "status.backendUnreachable":
       "No se pudo conectar con el analizador. Puede estar arrancando: espera unos segundos e inténtalo de nuevo.",
     "status.scanError": "No se pudo analizar: {message}",
+    "status.rateLimited":
+      "El analizador está saturado ahora mismo. Espera {seconds} s y vuelve a intentarlo.",
     "status.cancelled": "Análisis cancelado.",
     "status.presetsError": "No se pudieron cargar las demos. Recarga la página.",
     "status.audioError": "Semilla lista, pero no se pudo iniciar el audio: {message}",
@@ -210,6 +212,8 @@ const DICTS = {
     "playground.status.audioBlocked":
       "El navegador ha bloqueado el audio. Pulsa Reproducir para activarlo.",
     "playground.status.scanError": "No se pudo analizar: {message}",
+    "playground.status.rateLimited":
+      "El analizador está saturado ahora mismo. Espera {seconds} s y vuelve a intentarlo.",
     "playground.status.cancelled": "Análisis cancelado.",
     "playground.status.presetsError": "No se pudieron cargar los presets. Recarga la página.",
     "playground.status.audioError": "Semilla lista, pero no se pudo iniciar el audio: {message}",
@@ -363,6 +367,7 @@ const DICTS = {
     "status.backendUnreachable":
       "Couldn't reach the analyser. It may be waking up: wait a few seconds and try again.",
     "status.scanError": "Couldn't analyse: {message}",
+    "status.rateLimited": "The analyser is busy right now. Wait {seconds}s and try again.",
     "status.cancelled": "Analysis cancelled.",
     "status.presetsError": "Couldn't load the demos. Reload the page.",
     "status.audioError": "Seed ready, but audio couldn't start: {message}",
@@ -450,6 +455,7 @@ const DICTS = {
     "playground.status.invalidUrl": "Enter a valid URL, for example https://stripe.com",
     "playground.status.audioBlocked": "The browser blocked audio. Press Play to enable it.",
     "playground.status.scanError": "Couldn't analyse: {message}",
+    "playground.status.rateLimited": "The analyser is busy right now. Wait {seconds}s and try again.",
     "playground.status.cancelled": "Analysis cancelled.",
     "playground.status.presetsError": "Couldn't load the presets. Reload the page.",
     "playground.status.audioError": "Seed ready, but audio couldn't start: {message}",
