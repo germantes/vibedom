@@ -96,6 +96,9 @@ const DICTS = {
     "landing.faq.q5": "¿Necesito registrarme o pagar?",
     "landing.faq.a5":
       "No. La demo es abierta. El único requisito es que el backend esté disponible para escanear URLs nuevas; los presets funcionan sin él.",
+    "landing.faq.q6": "¿A qué suena mi web?",
+    "landing.faq.a6":
+      "A una pieza generativa construida con sus propios rasgos: los colores y el contraste fijan el modo y la energía, la tipografía sugiere los timbres y el movimiento marca el tempo. No suena igual dos veces, pero siempre suena a ella.",
     "landing.footer.tagline": "Atmósferas sonoras procedurales para la web.",
 
     "status.loadingTone": "Descargando el sintetizador…",
@@ -322,6 +325,9 @@ const DICTS = {
     "landing.faq.q5": "Do I need an account or payment?",
     "landing.faq.a5":
       "No. The demo is open. The only requirement for scanning new URLs is a running backend; presets work without it.",
+    "landing.faq.q6": "What does my website sound like?",
+    "landing.faq.a6":
+      "Like a generative piece built from its own traits: colours and contrast set the mode and energy, typography suggests the timbres, and motion sets the tempo. It never plays the same way twice, but it always sounds like itself.",
     "landing.footer.tagline": "Procedural soundscapes for the web.",
 
     "status.loadingTone": "Downloading the synth…",
