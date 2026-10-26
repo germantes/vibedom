@@ -135,6 +135,7 @@ Commits: `f64aec3` (Fase 2).
 - **Backend externo configurable** (`src/api.js` + `<meta name="vibedom-api">`): permite que la landing de GitHub Pages escanee contra Render sin CORS adicional (el servidor ya envía `Access-Control-Allow-Origin: *`). Al cargar, la landing hace un `GET /api/health` para despertar el servicio.
 - **Caché de semillas** (`src/backend/scan-cache.js`): guarda en memoria el resultado de cada URL una hora (`SCAN_CACHE_TTL`, `0` lo desactiva), con tope de 500 entradas y desalojo LRU. Repetir un escaneo responde al instante y no vuelve a llamar a Gemini; la cabecera `X-Vibedom-Cache` indica `HIT`/`MISS`.
 - **Script de configuración** (`scripts/set-api.mjs`): `npm run set-api -- https://...` declara el backend externo en las cuatro páginas y valida la URL; `--clear` lo quita. Sustituye al `sed` del README.
+- **Redespliegue**: GitHub Pages publica cada push a `main`; Render solo lo hace si el servicio tiene *Auto-Deploy* activo. Si no, hay que lanzar *Manual Deploy → Deploy latest commit* desde el dashboard.
 - **Documentación**: botón *Deploy to Render*, variables de entorno, aviso de spin-down del plan free, comando `npm run set-api` y nota sobre dominio propio/canonical.
 
 **Desplegado**: `https://vibedom.onrender.com` (servicio `vibedom`, plan free, Frankfurt, Node 22). Las cuatro páginas declaran ese origen en `<meta name="vibedom-api">` y GitHub Pages escanea contra él.
