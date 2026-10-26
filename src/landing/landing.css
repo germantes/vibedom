@@ -787,12 +787,17 @@ a {
 /* ---- Secciones ----------------------------------------------------------- */
 
 .section {
-  padding-block: clamp(3.5rem, 7vw, 5.5rem);
+  padding-block: clamp(2.5rem, 5vw, 4rem);
+}
+
+/* Separa bloques con una línea fina en vez de depender solo del aire. */
+main > .section {
+  border-top: 1px solid var(--line);
 }
 
 .section-head {
   max-width: 720px;
-  margin-bottom: 2.2rem;
+  margin-bottom: 1.7rem;
 }
 
 h2 {
@@ -938,6 +943,10 @@ h2 {
   max-width: 55ch;
 }
 
+.cta-card p {
+  margin: 0;
+}
+
 .cta-card h2 {
   margin-top: 0.7rem;
 }
@@ -1013,6 +1022,10 @@ h2 {
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
+}
+
+.footer-inner p {
+  margin: 0;
 }
 
 .footer-brand {
