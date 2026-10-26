@@ -30,7 +30,7 @@ before(async () => {
       return { url, title: "Studio", colors: { all: ["#111111"], background: "#111111", isDark: true } };
     },
     translateSeed: async (signals, options) => {
-      calls.translate.push({ signals, signal: options?.signal, lang: options?.lang });
+      calls.translate.push({ signals, signal: options?.signal, lang: options?.lang, limiter: options?.limiter });
       return SEED;
     },
     rateLimit: () => ({ ok: true, remaining: 99, retryAfter: 0 }),
@@ -79,6 +79,7 @@ test("POST /api/scan ejecuta scraper + traductor y devuelve la semilla", async (
   assert.ok(calls.scrape[0].signal instanceof AbortSignal);
   assert.ok(calls.translate[0].signal instanceof AbortSignal);
   assert.equal(calls.translate[0].lang, "es");
+  assert.equal(typeof calls.translate[0].limiter.run, "function");
 });
 
 test("POST /api/scan pasa el idioma pedido al traductor", async () => {

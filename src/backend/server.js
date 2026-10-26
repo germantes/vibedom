@@ -93,7 +93,7 @@ async function readJsonBody(req) {
 
 // ---- POST /api/scan --------------------------------------------------------
 
-function makeScanHandler({ scrape, translateSeed, validateUrl, logger, cache }) {
+function makeScanHandler({ scrape, translateSeed, validateUrl, logger, cache, limiter }) {
   return async function handleScan(req, res) {
     let body;
     try {
@@ -141,7 +141,7 @@ function makeScanHandler({ scrape, translateSeed, validateUrl, logger, cache }) 
         `[scan] Señales: ${signals.colors?.all?.length ?? 0} colores, ${signals.fonts?.families?.length ?? 0} fuentes, dark=${signals.colors?.isDark ?? false}`,
       );
       logger.log("[scan] Llamando a Gemini…");
-      const seed = await translateSeed(signals, { signal: controller.signal, lang, logger });
+      const seed = await translateSeed(signals, { signal: controller.signal, lang, logger, limiter });
       logger.log(
         `[scan] ✔ ${seed.metadata.detectedVibe} — ${seed.musicalParams.rootNote} ${seed.musicalParams.scale} ${seed.musicalParams.bpm} BPM`,
       );
@@ -239,13 +239,14 @@ export function createVibedomServer({
   // El limitador global se aplica a todas las llamadas a Gemini del proceso.
   const translateWithLimit =
     translateSeed ??
-    ((signals, options = {}) => translate(signals, { ...options, limiter: geminiLimiter }));
+    ((signals, options = {}) => translate(signals, { ...options, limiter: options.limiter ?? geminiLimiter }));
   const handleScan = makeScanHandler({
     scrape,
     translateSeed: translateWithLimit,
     validateUrl,
     cache,
     logger,
+    limiter: geminiLimiter,
   });
   const handleStatic = makeStaticHandler(root);
 
