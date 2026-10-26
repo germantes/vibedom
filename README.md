@@ -11,7 +11,7 @@ La interfaz está disponible en **español e inglés** mediante rutas estáticas
 
 ## Demo
 
-Online: **https://germantes.github.io/vibedom/**
+Online: **https://vibedom.dev/**
 
 > El escaneo funciona online: la landing de GitHub Pages llama al backend desplegado en Render (`https://vibedom.onrender.com`). Ese servicio se duerme tras 15 minutos sin uso y la página lo despierta con `GET /api/health`, así que el primer análisis del día puede tardar unos segundos más.
 
@@ -182,7 +182,7 @@ También puedes abrir directamente la URL de Render: el mismo servidor sirve lan
 
 #### Dominio propio
 
-Si usas un dominio propio, actualiza también `canonical`, `og:url`, `sitemap.xml` y `robots.txt`, que hoy apuntan a `https://germantes.github.io/vibedom/`.
+Si usas un dominio propio, actualiza también `canonical`, `og:url`, `sitemap.xml` y `robots.txt`, que hoy apuntan a `https://vibedom.dev/`.
 
 ## Presets
 

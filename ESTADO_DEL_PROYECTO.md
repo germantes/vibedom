@@ -9,7 +9,7 @@ Documento de traspaso y contexto técnico para continuar el desarrollo.
 - **Cuenta de GitHub**: `germantes` (`German`, `gtorrestendero@gmail.com`).
 - **Repositorio**: [`https://github.com/germantes/vibedom`](https://github.com/germantes/vibedom) (público, rama `main`).
 - **Configuración local de Git**: el repositorio tiene configurado localmente `user.name`, `user.email` y un `credential.helper` propio para autenticar con el token de `germantes` sin colisionar con otras cuentas globales del sistema.
-- **Demo estática en GitHub Pages**: [`https://germantes.github.io/vibedom/`](https://germantes.github.io/vibedom/). Sirve la UI completa y los presets, pero el escaneo de URLs requiere el backend (`npm start`) porque Pages es solo estático.
+- **Demo estática en GitHub Pages**: [`https://vibedom.dev/`](https://vibedom.dev/). Sirve la UI completa y los presets, pero el escaneo de URLs requiere el backend (`npm start`) porque Pages es solo estático.
 
 ---
 
