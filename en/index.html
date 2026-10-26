@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0a0a0c" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+    <title data-i18n="landing.title">vibedom · Your website already has a soundtrack</title>
+    <meta name="description" data-i18n-content="landing.description" content="Paste a URL and listen to its soundscape. vibedom reads your site's palette, typography and motion, then turns them into generative music in your browser." />
+
+    <link rel="canonical" href="https://germantes.github.io/vibedom/en/" />
+    <link rel="alternate" hreflang="es" href="https://germantes.github.io/vibedom/" />
+    <link rel="alternate" hreflang="en" href="https://germantes.github.io/vibedom/en/" />
+    <link rel="alternate" hreflang="x-default" href="https://germantes.github.io/vibedom/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="vibedom" />
+    <meta property="og:title" content="vibedom · Your website already has a soundtrack" />
+    <meta property="og:description" content="Paste a URL and listen to its soundscape. Generative music from your site's aesthetics, in your browser." />
+    <meta property="og:url" content="https://germantes.github.io/vibedom/en/" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="es_ES" />
+    <meta name="twitter:card" content="summary" />
+
+    <link rel="stylesheet" href="../src/landing/landing.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main" data-i18n="common.skip">Skip to content</a>
+
+    <header class="site-header">
+      <div class="wrap nav">
+        <a class="brand" href="./" aria-label="vibedom">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          vibedom
+        </a>
+
+        <nav class="nav-links" aria-label="Main">
+          <a href="#how" data-i18n="nav.how">How it works</a>
+          <a href="#privacy" data-i18n="nav.privacy">Privacy</a>
+          <a href="#faq" data-i18n="nav.faq">FAQ</a>
+        </nav>
+
+        <div class="nav-actions">
+          <a
+            class="lang-switch"
+            href="../"
+            hreflang="es"
+            lang="es"
+            data-i18n="nav.langSwitch"
+            data-i18n-aria-label="nav.langSwitchAria"
+            aria-label="View this page in Spanish"
+          >ES</a>
+          <a class="btn btn-ghost" href="../playground/en/" data-i18n="nav.playground">Open playground</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero wrap">
+        <div class="hero-copy">
+          <p class="badge" data-i18n="landing.eyebrow">Web → music · in your browser</p>
+          <h1 data-i18n="landing.h1">Your website already has a soundtrack. It just needed someone to listen.</h1>
+          <p class="lead" data-i18n="landing.lead">
+            Paste a URL. vibedom reads its palette, typography and motion, then turns them into a
+            one-of-a-kind soundscape. No samples, no sign-up, no uploads.
+          </p>
+
+          <form id="scan-form" class="scan-form">
+            <label class="sr-only" for="url-input" data-i18n="landing.form.label">Your website URL</label>
+            <input
+              id="url-input"
+              type="text"
+              inputmode="url"
+              data-i18n-placeholder="landing.form.placeholder"
+              placeholder="https://yoursite.com"
+              autocomplete="url"
+              autocapitalize="off"
+              spellcheck="false"
+              required
+            />
+            <button type="submit" id="scan-btn">
+              <span data-i18n="landing.form.button">Hear my site</span>
+              <span class="spinner" aria-hidden="true"></span>
+            </button>
+          </form>
+          <p class="hint" data-i18n="landing.form.hint">
+            It takes a few seconds. The music is synthesised in your browser; there is no pre-recorded
+            audio.
+          </p>
+
+          <div id="analysis" class="analysis" hidden>
+            <div class="analysis-head">
+              <div class="analysis-pulse" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+              <div class="analysis-copy">
+                <p id="analysis-step" class="analysis-step"></p>
+                <p id="analysis-sub" class="analysis-sub" role="status" aria-live="polite"></p>
+              </div>
+              <button type="button" id="analysis-cancel" class="ghost" data-i18n="analysis.cancel">Cancel</button>
+              <button type="button" id="analysis-retry" class="ghost" hidden data-i18n="analysis.retry">Retry</button>
+            </div>
+            <ol id="analysis-steps" class="analysis-steps"></ol>
+            <div class="analysis-track" aria-hidden="true"><div id="analysis-progress" class="analysis-progress"></div></div>
+          </div>
+
+          <ul class="trust">
+            <li><strong>0</strong> <span data-i18n="landing.trust.samples">samples</span></li>
+            <li><strong>100%</strong> <span data-i18n="landing.trust.synthesized">synthesised</span></li>
+            <li><span data-i18n="landing.trust.account">No sign-up</span></li>
+          </ul>
+        </div>
+
+        <aside id="demo-card" class="demo-card" aria-labelledby="demo-title">
+          <div class="demo-head">
+            <p class="demo-eyebrow" id="demo-title" data-i18n="landing.demo.eyebrow">Live demo</p>
+            <p class="demo-vibe" id="demo-vibe">Cyberpunk</p>
+          </div>
+
+          <div
+            class="preset-tabs"
+            role="radiogroup"
+            data-i18n-aria-label="landing.demo.presetsAria"
+            aria-label="Choose a demo"
+          >
+            <button type="button" class="preset" data-preset="cyberpunk" role="radio" aria-checked="true">Cyberpunk</button>
+            <button type="button" class="preset" data-preset="editorial" role="radio" aria-checked="false">Editorial</button>
+            <button type="button" class="preset" data-preset="indie-pastel" role="radio" aria-checked="false">Indie pastel</button>
+          </div>
+
+          <div class="demo-stage">
+            <button type="button" id="demo-toggle" class="demo-toggle" aria-pressed="false" disabled>
+              <span class="demo-toggle-icon" aria-hidden="true">
+                <svg class="icon-play" viewBox="0 0 24 24"><path d="M8 5.14v13.72L19 12z" /></svg>
+                <svg class="icon-pause" viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z" /></svg>
+              </span>
+              <span id="demo-toggle-label" data-i18n="landing.demo.play">Play</span>
+            </button>
+            <div class="viz" aria-hidden="true">
+              <canvas id="spectrum"></canvas>
+              <canvas id="scope"></canvas>
+            </div>
+          </div>
+
+          <div class="demo-foot">
+            <div
+              id="palette"
+              class="palette"
+              data-i18n-aria-label="landing.demo.paletteAria"
+              aria-label="Demo palette"
+            ></div>
+            <a id="demo-source" class="demo-source" href="#" target="_blank" rel="noreferrer noopener" hidden></a>
+          </div>
+
+          <p id="demo-status" class="demo-status" role="status" aria-live="polite" data-i18n="landing.demo.loading">
+            Loading demos…
+          </p>
+        </aside>
+      </section>
+
+      <section id="how" class="section wrap">
+        <div class="section-head">
+          <p class="eyebrow" data-i18n="landing.how.eyebrow">How it works</p>
+          <h2 data-i18n="landing.how.title">From aesthetics to sound in three steps.</h2>
+          <p class="section-lead" data-i18n="landing.how.lead">
+            No samples, no playlists. A sound seed is generated once and your browser performs it forever.
+          </p>
+        </div>
+        <ol class="steps">
+          <li>
+            <span class="step-num">01</span>
+            <h3 data-i18n="landing.how.step1.title">Paste the URL</h3>
+            <p data-i18n="landing.how.step1.body">
+              We read the public HTML and stylesheets. Only what anyone can see.
+            </p>
+          </li>
+          <li>
+            <span class="step-num">02</span>
+            <h3 data-i18n="landing.how.step2.title">Read the aesthetics</h3>
+            <p data-i18n="landing.how.step2.body">
+              Palette, contrast, typography, hierarchy and motion become a sound seed: key, tempo, timbres
+              and effects.
+            </p>
+          </li>
+          <li>
+            <span class="step-num">03</span>
+            <h3 data-i18n="landing.how.step3.title">Press play</h3>
+            <p data-i18n="landing.how.step3.body">
+              Tone.js synthesises pad, drone and arpeggio in your browser. The same site sounds different
+              next time: it's generative.
+            </p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="section wrap">
+        <div class="why-grid">
+          <div class="section-head">
+            <p class="eyebrow" data-i18n="landing.why.eyebrow">What it isn't</p>
+            <h2 data-i18n="landing.why.title">Not a jingle. A sonic identity.</h2>
+            <p class="section-lead" data-i18n="landing.why.lead">
+              vibedom doesn't guess your favourite genre. It translates design decisions — colour, visual
+              rhythm, type — into musical ones.
+            </p>
+          </div>
+          <div class="why-cards">
+            <article class="why-card">
+              <h3 data-i18n="landing.why.card1.title">Genuinely generative</h3>
+              <p data-i18n="landing.why.card1.body">
+                The engine walks scales, chords and arpeggios with harmonic rules. There is no audio file
+                looping in the background.
+              </p>
+            </article>
+            <article class="why-card">
+              <h3 data-i18n="landing.why.card2.title">Made to measure</h3>
+              <p data-i18n="landing.why.card2.body">
+                Every site produces a different seed. Two sites with the same palette can sound completely
+                different.
+              </p>
+            </article>
+            <article class="why-card">
+              <h3 data-i18n="landing.why.card3.title">Reactive</h3>
+              <p data-i18n="landing.why.card3.body">
+                Scrolling modulates brightness, reverb or arpeggio density. The page moves and the music
+                answers.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="privacy" class="section wrap">
+        <div class="privacy-card">
+          <div>
+            <p class="eyebrow" data-i18n="landing.privacy.eyebrow">Privacy</p>
+            <h2 data-i18n="landing.privacy.title">Your site doesn't stay with us.</h2>
+            <p class="section-lead" data-i18n="landing.privacy.lead">
+              We don't store screenshots, HTML or content. We only read what's public, generate a seed, and
+              the music happens in your browser.
+            </p>
+          </div>
+          <ul class="privacy-list">
+            <li data-i18n="landing.privacy.item1">No accounts or sign-up.</li>
+            <li data-i18n="landing.privacy.item2">No tracking cookies or third-party analytics.</li>
+            <li data-i18n="landing.privacy.item3">No pre-recorded audio or streaming: zero samples.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="section wrap">
+        <div class="cta-card">
+          <div>
+            <p class="eyebrow" data-i18n="landing.cta.eyebrow">Lab mode</p>
+            <h2 data-i18n="landing.cta.title">Want to open the console?</h2>
+            <p data-i18n="landing.cta.lead">
+              In the playground you can inspect the seed, move tempo, brightness, spaciousness and density,
+              and watch the spectrum while it plays.
+            </p>
+          </div>
+          <a class="btn btn-primary" href="../playground/en/" data-i18n="landing.cta.button">Open the playground</a>
+        </div>
+      </section>
+
+      <section id="faq" class="section wrap">
+        <div class="faq-grid">
+          <div class="section-head">
+            <p class="eyebrow" data-i18n="nav.faq">FAQ</p>
+            <h2 data-i18n="landing.faq.title">Frequently asked questions</h2>
+          </div>
+          <div class="faq-list">
+            <details>
+              <summary data-i18n="landing.faq.q1">What exactly does it analyse?</summary>
+              <p data-i18n="landing.faq.a1">
+                Dominant palette and background colour, contrast, type families, heading hierarchy and
+                motion signals (animations, transitions) — all from public HTML and CSS.
+              </p>
+            </details>
+            <details>
+              <summary data-i18n="landing.faq.q2">Where does the audio come from?</summary>
+              <p data-i18n="landing.faq.a2">
+                There is no pre-recorded audio. Tone.js builds a synth graph in your browser and feeds it a
+                sound seed. Every playback is still generative.
+              </p>
+            </details>
+            <details>
+              <summary data-i18n="landing.faq.q3">Does it work with any site?</summary>
+              <p data-i18n="landing.faq.a3">
+                With any public http(s) URL. Some sites block bots or rely on JavaScript to paint their
+                style; in those cases the analysis may fall short.
+              </p>
+            </details>
+            <details>
+              <summary data-i18n="landing.faq.q4">Do you store my URL?</summary>
+              <p data-i18n="landing.faq.a4">
+                We don't store it. The request is used to fetch the page, extract signals and return the
+                seed. If you run the backend yourself, the logs are your own console's.
+              </p>
+            </details>
+            <details>
+              <summary data-i18n="landing.faq.q5">Do I need an account or payment?</summary>
+              <p data-i18n="landing.faq.a5">
+                No. The demo is open. The only requirement for scanning new URLs is a running backend;
+                presets work without it.
+              </p>
+            </details>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-inner">
+        <a class="footer-brand" href="./">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          vibedom
+        </a>
+        <p data-i18n="landing.footer.tagline">Procedural soundscapes for the web.</p>
+        <div class="footer-links">
+          <a href="../playground/en/" data-i18n="nav.playground">Open playground</a>
+          <a href="https://github.com/germantes/vibedom" target="_blank" rel="noreferrer noopener">GitHub</a>
+        </div>
+      </div>
+    </footer>
+
+    <script type="module" src="../src/landing/main.js"></script>
+  </body>
+</html>

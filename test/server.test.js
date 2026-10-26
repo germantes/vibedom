@@ -132,6 +132,40 @@ test("sirve index.html en / y tipos MIME correctos", async () => {
   assert.match(js.headers.get("content-type"), /javascript/);
 });
 
+test("sirve landing y playground bilingües en sus rutas estáticas", async () => {
+  const landingEs = await fetch(`${base}/`);
+  const htmlEs = await landingEs.text();
+  assert.match(htmlEs, /lang="es"/);
+  assert.match(htmlEs, /banda sonora/i);
+
+  const landingEn = await fetch(`${base}/en/`);
+  assert.equal(landingEn.status, 200);
+  const htmlEn = await landingEn.text();
+  assert.match(htmlEn, /lang="en"/);
+  assert.match(htmlEn, /soundtrack/i);
+
+  const playEs = await fetch(`${base}/playground/`);
+  assert.equal(playEs.status, 200);
+  assert.match(await playEs.text(), /Escucha, ajusta, rompe/);
+
+  const playEn = await fetch(`${base}/playground/en/`);
+  assert.equal(playEn.status, 200);
+  assert.match(await playEn.text(), /Listen, tweak, break things/);
+
+  const css = await fetch(`${base}/src/landing/landing.css`);
+  assert.equal(css.status, 200);
+  assert.match(css.headers.get("content-type"), /text\/css/);
+
+  const sitemap = await fetch(`${base}/sitemap.xml`);
+  assert.equal(sitemap.status, 200);
+  assert.match(sitemap.headers.get("content-type"), /xml/);
+  assert.match(await sitemap.text(), /hreflang="en"/);
+
+  const robots = await fetch(`${base}/robots.txt`);
+  assert.equal(robots.status, 200);
+  assert.match(await robots.text(), /Sitemap: https:\/\/germantes\.github\.io\/vibedom\/sitemap\.xml/);
+});
+
 test("no sirve dotfiles ni permite directory traversal", async () => {
   const env = await fetch(`${base}/.env`);
   assert.equal(env.status, 404);

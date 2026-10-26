@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#111111" id="meta-theme" />
+    <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+    <title data-i18n="playground.title">vibedom · Playground</title>
+    <meta
+      name="description"
+      data-i18n-content="playground.description"
+      content="vibedom's technical lab: scan a site, tweak the sound seed, watch the spectrum and regenerate variations."
+    />
+    <link rel="stylesheet" href="../../src/demo/demo.css" />
+  </head>
+  <body>
+    <nav class="topbar" aria-label="vibedom">
+      <a class="topbar-brand" href="../../">vibedom <span>· Playground</span></a>
+      <div class="topbar-actions">
+        <a
+          class="topbar-link lang"
+          href="../"
+          hreflang="es"
+          lang="es"
+          data-i18n="playground.langSwitch"
+          data-i18n-aria-label="playground.langSwitchAria"
+        >ES</a>
+        <a class="topbar-link" href="../../" data-i18n="playground.back">← Back to landing</a>
+      </div>
+    </nav>
+
+    <header class="hero">
+      <p class="eyebrow" data-i18n="playground.eyebrow">Lab mode</p>
+      <h1 data-i18n="playground.h1">Listen, tweak, break things.</h1>
+      <p class="lead" data-i18n="playground.lead">
+        Scan a URL or pick a preset. Here you can see the seed, the sliders and the spectrum.
+      </p>
+
+      <form id="scan-form" class="scan-form">
+        <label class="sr-only" for="url-input" data-i18n="playground.form.label">Website URL</label>
+        <input
+          id="url-input"
+          type="text"
+          inputmode="url"
+          data-i18n-placeholder="playground.form.placeholder"
+          placeholder="https://example.com"
+          autocomplete="url"
+          autocapitalize="off"
+          spellcheck="false"
+          required
+        />
+        <button type="submit" id="scan-btn">
+          <span data-i18n="playground.form.button">Scan</span>
+          <span class="spinner" aria-hidden="true"></span>
+        </button>
+      </form>
+      <p class="scan-hint" data-i18n="playground.form.hint">
+        We analyse the site's palette, typography and motion. It usually takes a few seconds.
+      </p>
+
+      <div id="analysis" class="analysis" hidden>
+        <div class="analysis-head">
+          <div class="analysis-pulse" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+          <div class="analysis-copy">
+            <p id="analysis-step" class="analysis-step"></p>
+            <p id="analysis-sub" class="analysis-sub" role="status" aria-live="polite"></p>
+          </div>
+          <button type="button" id="analysis-cancel" class="ghost" data-i18n="analysis.cancel">Cancel</button>
+          <button type="button" id="analysis-retry" class="ghost" hidden data-i18n="analysis.retry">Retry</button>
+        </div>
+        <ol id="analysis-steps" class="analysis-steps"></ol>
+        <div class="analysis-track" aria-hidden="true"><div id="analysis-progress" class="analysis-progress"></div></div>
+      </div>
+
+      <div class="presets" role="radiogroup" data-i18n-aria-label="playground.presets.label" aria-label="Presets">
+        <button type="button" class="preset" data-preset="cyberpunk" role="radio" aria-checked="false" data-i18n="playground.preset.cyberpunk">Cyberpunk preset</button>
+        <button type="button" class="preset" data-preset="editorial" role="radio" aria-checked="false" data-i18n="playground.preset.editorial">Elegant Editorial preset</button>
+        <button type="button" class="preset" data-preset="indie-pastel" role="radio" aria-checked="false" data-i18n="playground.preset.indie">Indie Pastel preset</button>
+      </div>
+
+      <div class="player">
+        <button type="button" id="toggle" class="toggle" disabled aria-pressed="false">
+          <span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+          <span id="toggle-label" data-i18n="playground.play">Play</span>
+        </button>
+        <div class="viz" aria-hidden="true">
+          <canvas id="spectrum"></canvas>
+          <canvas id="scope"></canvas>
+        </div>
+      </div>
+      <p id="status" class="status" role="status" aria-live="polite" data-i18n="playground.status.loadingPresets">
+        Loading presets…
+      </p>
+    </header>
+
+    <main>
+      <section class="card vibe-card">
+        <div class="vibe-head">
+          <div>
+            <p class="eyebrow small" data-i18n="playground.vibe.eyebrow">Detected identity</p>
+            <h2 id="vibe">—</h2>
+          </div>
+          <div
+            id="palette"
+            class="palette"
+            data-i18n-aria-label="playground.vibe.palette"
+            aria-label="Detected palette"
+          ></div>
+        </div>
+        <p id="explanation"></p>
+        <p class="source"><span class="source-label" data-i18n="playground.source">Source</span> <a id="source-url" href="#" target="_blank" rel="noreferrer noopener"></a></p>
+        <dl id="params" class="params"></dl>
+      </section>
+
+      <section class="card controls" id="controls" hidden>
+        <div class="card-head">
+          <div>
+            <h2 data-i18n="playground.controls.title">Fine-tuning</h2>
+            <p class="card-sub" data-i18n="playground.controls.sub">No second AI call. Changes apply live while it's playing.</p>
+          </div>
+          <button type="button" id="regenerate" class="ghost" disabled data-i18n="playground.controls.regenerate">Regenerate variation</button>
+        </div>
+        <div class="sliders">
+          <div class="control">
+            <div class="control-head">
+              <label for="ctl-bpm" data-i18n="playground.control.tempo">Tempo</label>
+              <output id="ctl-bpm-value" for="ctl-bpm">—</output>
+            </div>
+            <input id="ctl-bpm" type="range" min="40" max="140" step="1" value="84" />
+          </div>
+          <div class="control">
+            <div class="control-head">
+              <label for="ctl-brightness" data-i18n="playground.control.brightness">Brightness</label>
+              <output id="ctl-brightness-value" for="ctl-brightness">—</output>
+            </div>
+            <input id="ctl-brightness" type="range" min="0" max="100" step="1" value="50" />
+          </div>
+          <div class="control">
+            <div class="control-head">
+              <label for="ctl-spatiality" data-i18n="playground.control.spatiality">Spaciousness</label>
+              <output id="ctl-spatiality-value" for="ctl-spatiality">—</output>
+            </div>
+            <input id="ctl-spatiality" type="range" min="0" max="100" step="1" value="50" />
+          </div>
+          <div class="control">
+            <div class="control-head">
+              <label for="ctl-density" data-i18n="playground.control.density">Melodic density</label>
+              <output id="ctl-density-value" for="ctl-density">—</output>
+            </div>
+            <input id="ctl-density" type="range" min="0" max="100" step="1" value="40" />
+          </div>
+        </div>
+        <p class="hint" data-i18n="playground.control.hint">
+          Brightness opens the pad filter; spaciousness soaks the reverb; density decides how many arpeggio notes play.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2 data-i18n="playground.reactivity.title">Try the reactivity</h2>
+        <p data-i18n-html="playground.reactivity.bodyHtml">
+          Scroll fast through this page: the seed picks a parameter and modulates it. Hover these links to trigger notes from the scale:
+          <a href="#a">one</a> · <a href="#b">two</a> · <a href="#c">three</a> · <a href="#d">four</a> · <a href="#e">five</a>
+        </p>
+      </section>
+
+      <section class="card">
+        <h2 data-i18n="playground.json.title">Sound Seed (JSON)</h2>
+        <p class="card-sub" data-i18n="playground.json.sub">This is the only thing AI generates. The music is synthesised entirely in your browser.</p>
+        <pre id="json"></pre>
+      </section>
+
+      <footer class="footer">
+        <span>vibedom</span>
+        <span data-i18n="playground.footer.samples">No pre-recorded audio · Tone.js on demand</span>
+        <a href="https://github.com/germantes/vibedom" target="_blank" rel="noreferrer noopener" data-i18n="playground.footer.github">GitHub</a>
+      </footer>
+
+      <div class="spacer" aria-hidden="true"></div>
+    </main>
+
+    <script type="module" src="../../src/demo/main.js"></script>
+  </body>
+</html>

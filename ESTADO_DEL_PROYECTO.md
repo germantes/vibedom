@@ -91,11 +91,40 @@ Commits: `f64aec3` (Fase 2).
 
 #### Verificación realizada
 
-- **52 tests** en verde (`npm test`).
+- **53 tests** en verde (`npm test`), incluidos los nuevos tests de rutas estáticas ES/EN y playground.
 - E2E real en navegador con Playwright: `example.com` analizado en **~3,0 s**, autoplay correcto, tema claro aplicado, sin errores de consola.
 - `stripe.com` verificado en backend en **~6,3 s**; SSRF a `localhost` devuelve 400.
 - Flujo mockeado verificado: análisis visible, cancelación, error 502, reintento, sliders (incluidos extremos de brillo), regeneración, cambio de preset con audio activo, pausa, espectro con píxeles, responsive.
 - Único aviso de consola restante: warning interno de Tone.js al disponer una voz dentro de un callback programado; no afecta al audio.
+
+### ✅ FASE 3.5: Landing comercial bilingüe (COMPLETADA)
+
+- **Rutas estáticas ES/EN**:
+  - `/` y `/en/` para la landing.
+  - `/playground/` y `/playground/en/` para el laboratorio.
+  - Enlaces relativos y `hreflang`/canonical para funcionar en local y bajo la subruta de GitHub Pages.
+- **i18n sin toggle JS** (`src/i18n.js`): diccionarios ES/EN, `t()` con interpolación y `applyI18n()` para `data-i18n`, `data-i18n-html` y atributos (`placeholder`, `aria-label`, `title`, `content`). El idioma se deduce de `<html lang>`, así que cada URL es compartible y rastreable.
+- **Landing** (`index.html`, `en/index.html`, `src/landing/main.js`, `src/landing/landing.css`):
+  - Hero con una acción principal (pegar URL y escuchar), demo de presets con audio, espectro y osciloscopio.
+  - Panel de análisis reutilizado, con copia traducida; autoplay tras escaneo.
+  - Secciones de cómo funciona, identidad sonora, privacidad, CTA al playground y FAQ.
+  - Sin JSON ni sliders a la vista.
+  - Tema comercial estable; la semilla solo tiñe el acento, la paleta y el visualizador de la demo.
+- **Playground movido** a `/playground/` y `/playground/en/` con barra superior, enlace de vuelta, selector de idioma y todos los textos traducidos (incluidos parámetros, estados y nombres de onda/escala).
+- **Aviso de backend estático**: si `location.hostname` termina en `github.io` (o el protocolo es `file:`), el escaneo no hace una petición inútil; muestra una explicación específica y sugiere `npm start` o los presets. También se añadió un mensaje para fallos de red del backend.
+- **Panel de análisis** (`src/demo/analysis.js`): acepta copia externa, manteniendo compatibilidad con los textos por defecto en español.
+- **Controles** (`src/demo/controls.js`): acepta copia para el estado “arpegio off”.
+- **`.nojekyll`** para que GitHub Pages sirva todos los archivos sin procesado de Jekyll.
+- **SEO bilingüe**: canonical, `hreflang` ES/EN/x-default, `sitemap.xml` con alternates y `robots.txt` apuntando al sitemap.
+
+#### Verificación de la landing
+
+- Playwright (fuera del repo) sobre `localhost:3000`:
+  - Landing ES/EN: títulos, `hreflang`, demo, 3 presets, audio, pausa, cambio de preset, espectro, paleta y responsive a 390 px sin overflow.
+  - Escaneo mockeado: panel visible, semilla aplicada, autoplay, fuente y ocultado del panel.
+  - Error de backend: panel en estado `is-error` y mensaje claro.
+  - Playground ES/EN: rutas, barra superior, idioma, sliders, JSON, audio y pausa.
+- Consola sin errores propios; solo el warning conocido de Tone.js y los 404 esperados del test de error.
 
 ---
 
@@ -114,6 +143,7 @@ Commits: `f64aec3` (Fase 2).
   - Componente nativo para Framer (`framer-code-components`).
 
 ### Mejoras opcionales
+- **Desplegar el backend** (Render, Railway, Fly.io…) y apuntar la constante `API_URL` de `src/landing/main.js` y `src/demo/main.js` a ese origen para habilitar el escaneo en la demo online.
 - Historial de escaneos recientes (localStorage) y compartir semilla por URL.
 - Exportar/importar Semilla Sonora.
 - Rate limiting por IP en `/api/scan` si se despliega públicamente.
@@ -127,11 +157,20 @@ Commits: `f64aec3` (Fase 2).
 .
 ├── .env                                       # GEMINI_KEY (GITIGNORADO)
 ├── .gitignore                                 # node_modules, .DS_Store, .env
+├── .nojekyll                                  # GitHub Pages sin Jekyll
+├── sitemap.xml                                # Sitemap bilingüe con hreflang
+├── robots.txt                                 # Crawl abierto + sitemap
 ├── LICENSE                                    # Licencia MIT (German)
 ├── README.md                                  # Documentación general y demo
 ├── especificaciones_del_proyecto_web_to_audio.md # Spec funcional y técnico
 ├── ESTADO_DEL_PROYECTO.md                     # Este documento
-├── index.html                                 # Playground completo
+├── index.html                                 # Landing ES
+├── en/
+│   └── index.html                             # Landing EN
+├── playground/
+│   ├── index.html                             # Playground ES
+│   └── en/
+│       └── index.html                         # Playground EN
 ├── favicon.svg                                # Icono de la demo
 ├── package.json                               # Scripts (start, dev, test)
 ├── presets/                                   # Semillas de prueba
@@ -139,16 +178,20 @@ Commits: `f64aec3` (Fase 2).
 │   ├── editorial.json
 │   └── indie-pastel.json
 ├── src/
+│   ├── i18n.js                                # Diccionarios ES/EN y applyI18n
 │   ├── backend/
 │   │   ├── scraper.js                         # Extracción HTML/CSS sin dependencias
 │   │   ├── server.js                          # node:http + API /api/scan
 │   │   ├── translator.js                      # Gemini con retries/fallback/timeout
 │   │   └── url-guard.js                       # Validación anti-SSRF
+│   ├── landing/
+│   │   ├── landing.css                        # Tema comercial de la landing
+│   │   └── main.js                            # Demo, escaneo y audio de la landing
 │   ├── demo/
 │   │   ├── analysis.js                        # Panel de progreso del análisis
 │   │   ├── controls.js                        # Sliders y mapeo logarítmico
 │   │   ├── demo.css                           # Estilos basados en la semilla
-│   │   ├── main.js                            # Orquestación de la UI
+│   │   ├── main.js                            # Orquestación del playground
 │   │   └── visualizer.js                      # Espectro + osciloscopio
 │   └── engine/
 │       ├── generative.js                      # Markov, voice leading, arpegio
@@ -189,3 +232,7 @@ npm run dev
 - Si cambias el backend, reinicia `npm start` (el proceso en segundo plano no recarga solo).
 - El motor no debe importar Tone.js: se inyecta desde `main.js` para conservar el lazy-loading.
 - La verificación con Playwright se hizo con `playwright-core` instalado fuera del repo (`/tmp/opencode`) usando el Chromium cacheado; no añadir Playwright al `package.json` sin decisión explícita.
+- **Bilingüe**: las rutas son estáticas (`/`, `/en/`, `/playground/`, `/playground/en/`). No convertir la elección de idioma en un toggle JS: rompería SEO, enlaces compartidos y el render sin JavaScript. Para añadir textos, edita `src/i18n.js` y usa `data-i18n` en el HTML.
+- **Landing vs playground**: la landing no debe mostrar JSON ni sliders. La demo de la landing reutiliza `analysis.js`, `visualizer.js` y el motor; si cambias su API, revisa `src/landing/main.js` y `src/demo/main.js`.
+- **GitHub Pages es estático**: el escaneo no funcionará online hasta desplegar el backend. El código detecta `github.io` y muestra un aviso específico; no lo elimines pensando que es un bug.
+- El servidor de desarrollo puede seguir sirviendo archivos actualizados sin reinicio; si cambias código del backend (`src/backend/`), reinicia `npm start`.

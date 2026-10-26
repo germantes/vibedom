@@ -47,6 +47,60 @@ main {
   padding: 3.5rem 1.5rem 0;
 }
 
+/* ---- Barra superior ------------------------------------------------------ */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 1.25rem 1.5rem 0;
+}
+
+.topbar-brand {
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.topbar-brand span {
+  color: var(--accent);
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.topbar-link {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  color: var(--text);
+  font-size: 0.76rem;
+  text-decoration: none;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.topbar-link:hover {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.topbar-link.lang {
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
 main {
   padding-top: 0;
 }

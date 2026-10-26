@@ -72,8 +72,14 @@ const CONTROLS = [
  * @param {HTMLElement} opts.root        sección de controles
  * @param {(change: {key: string, value: number}) => void} opts.onChange
  * @param {() => void} opts.onRegenerate
+ * @param {{arpOff: string, arpOffAria: string}} [opts.copy]
  */
-export function createControls({ root, onChange, onRegenerate }) {
+export function createControls({
+  root,
+  onChange,
+  onRegenerate,
+  copy = { arpOff: "Arpegio off", arpOffAria: "Arpegio desactivado en esta semilla" },
+}) {
   const rows = CONTROLS.map((control) => {
     const input = document.getElementById(control.input);
     const output = document.getElementById(control.output);
@@ -114,8 +120,8 @@ export function createControls({ root, onChange, onRegenerate }) {
       density.input.disabled = !arpEnabled;
       density.row.classList.toggle("is-disabled", !arpEnabled);
       if (!arpEnabled) {
-        density.output.textContent = "Arpegio off";
-        density.input.setAttribute("aria-valuetext", "Arpegio desactivado en esta semilla");
+        density.output.textContent = copy.arpOff;
+        density.input.setAttribute("aria-valuetext", copy.arpOffAria);
       }
 
       regenerateBtn.disabled = !playing;

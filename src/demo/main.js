@@ -1,10 +1,24 @@
 import { attachReactivity } from "../engine/reactivity.js";
 import { configureContext, createSoundscape } from "../engine/soundscape.js";
+import { analysisCopy, applyI18n, t } from "../i18n.js";
 import { createAnalysis } from "./analysis.js";
 import { createControls, formatHz } from "./controls.js";
 import { createVisualizer } from "./visualizer.js";
 
+applyI18n();
+
 const TONE_URL = "https://cdn.jsdelivr.net/npm/tone@15.1.22/+esm";
+const API_URL = new URL("../../api/scan", import.meta.url);
+const STATIC_HOST =
+  location.protocol === "file:" || /(^|\.)github\.io$/.test(location.hostname);
+const backendMissingMessage = () =>
+  t(STATIC_HOST ? "status.backendMissingStatic" : "playground.status.backendMissing");
+
+if (STATIC_HOST) {
+  const hint = document.querySelector(".scan-hint");
+  if (hint) hint.textContent = t("status.staticHint");
+}
+
 const PRESET_IDS = ["cyberpunk", "editorial", "indie-pastel"];
 const FONT_STACKS = {
   serif: "'Iowan Old Style', 'Palatino Linotype', Georgia, serif",
@@ -73,9 +87,9 @@ const visualizer = createVisualizer({
 
 function renderPalette(seed) {
   const colors = [
-    ["Fondo", seed.uiTheme.backgroundColor],
-    ["Acento", seed.uiTheme.accentColor],
-    ["Texto", seed.uiTheme.textColor],
+    [t("playground.palette.background"), seed.uiTheme.backgroundColor],
+    [t("playground.palette.accent"), seed.uiTheme.accentColor],
+    [t("playground.palette.text"), seed.uiTheme.textColor],
   ];
   $("palette").replaceChildren(
     ...colors.map(([label, color]) => {
@@ -107,35 +121,37 @@ function applyTheme(seed) {
 function renderParams(seed) {
   const { musicalParams: m, synthConfig: s, uiTheme } = seed;
   const WAVES = {
-    sine: "seno",
-    triangle: "triángulo",
-    sawtooth: "sierra",
-    square: "cuadrada",
+    sine: t("wave.sine"),
+    triangle: t("wave.triangle"),
+    sawtooth: t("wave.sawtooth"),
+    square: t("wave.square"),
   };
   const SCALES = {
-    major: "mayor",
-    minor: "menor",
-    dorian: "dórico",
-    phrygian: "frigio",
-    lydian: "lidio",
-    pentatonic: "pentatónica",
+    major: t("scale.major"),
+    minor: t("scale.minor"),
+    dorian: t("scale.dorian"),
+    phrygian: t("scale.phrygian"),
+    lydian: t("scale.lydian"),
+    pentatonic: t("scale.pentatonic"),
   };
   const SCROLL = {
-    filterFreq: "brillo",
-    reverbWet: "espacialidad",
-    delayWet: "eco",
-    arpDensity: "densidad",
+    filterFreq: t("scroll.filterFreq"),
+    reverbWet: t("scroll.reverbWet"),
+    delayWet: t("scroll.delayWet"),
+    arpDensity: t("scroll.arpDensity"),
   };
   const params = {
-    Modo: luminance(uiTheme.backgroundColor) < 0.4 ? "oscuro" : "claro",
-    Tonalidad: `${m.rootNote} ${SCALES[m.scale] ?? m.scale}`,
-    Tempo: `${Math.round(m.bpm)} BPM`,
-    Tipografía: uiTheme.fontFamily,
-    "Onda pad": WAVES[s.pad.waveform] ?? s.pad.waveform,
-    Brillo: formatHz(s.pad.filterFreq),
-    Arpegio: s.arp.enabled ? `${WAVES[s.arp.waveform] ?? s.arp.waveform} · ${Math.round(s.arp.density * 100)}%` : "off",
-    Reverb: `${s.effects.reverbDecay.toFixed(1)} s · ${Math.round(s.effects.reverbWet * 100)}%`,
-    Scroll: `${SCROLL[s.interactivity.scrollTarget] ?? s.interactivity.scrollTarget} ×${s.interactivity.scrollMultiplier}`,
+    [t("param.mode")]: luminance(uiTheme.backgroundColor) < 0.4 ? t("param.mode.dark") : t("param.mode.light"),
+    [t("param.key")]: `${m.rootNote} ${SCALES[m.scale] ?? m.scale}`,
+    [t("param.tempo")]: `${Math.round(m.bpm)} BPM`,
+    [t("param.type")]: uiTheme.fontFamily,
+    [t("param.padWave")]: WAVES[s.pad.waveform] ?? s.pad.waveform,
+    [t("param.brightness")]: formatHz(s.pad.filterFreq),
+    [t("param.arp")]: s.arp.enabled
+      ? `${WAVES[s.arp.waveform] ?? s.arp.waveform} · ${Math.round(s.arp.density * 100)}%`
+      : t("value.off"),
+    [t("param.reverb")]: `${s.effects.reverbDecay.toFixed(1)} s · ${Math.round(s.effects.reverbWet * 100)}%`,
+    [t("param.scroll")]: `${SCROLL[s.interactivity.scrollTarget] ?? s.interactivity.scrollTarget} ×${s.interactivity.scrollMultiplier}`,
   };
 
   $("params").replaceChildren(
@@ -181,7 +197,7 @@ function updateSeedView() {
 
 async function loadTone() {
   if (Tone) return Tone;
-  setStatus("Descargando Tone.js…");
+  setStatus(t("playground.status.loadingTone"));
   Tone = await import(TONE_URL);
   // El contexto se crea aquí, dentro del gesto del usuario, para que el
   // AudioContext que se desbloquee sea el mismo que usará el motor.
@@ -214,14 +230,14 @@ async function play() {
   await engine.start();
 
   if (Tone.getContext().state !== "running") {
-    setStatus("El navegador ha bloqueado el audio. Pulsa Reproducir para activarlo.");
+    setStatus(t("playground.status.audioBlocked"));
     await teardown();
     return false;
   }
 
   controls.setPlaying(true);
   window.__vibedom = engine;
-  setStatus(`Sonando: ${activeSeed.metadata.detectedVibe}`);
+  setStatus(t("playground.status.playing", { vibe: activeSeed.metadata.detectedVibe }));
   renderToggle();
   return true;
 }
@@ -234,7 +250,7 @@ async function restartAudio() {
 function renderToggle() {
   const on = Boolean(engine?.isPlaying);
   toggle.setAttribute("aria-pressed", String(on));
-  toggleLabel.textContent = on ? "Pausar" : "Reproducir";
+  toggleLabel.textContent = on ? t("playground.pause") : t("playground.play");
   toggle.disabled = busy || !activeSeed;
 }
 
@@ -246,7 +262,7 @@ async function withBusy(fn) {
     await fn();
   } catch (err) {
     console.error(err);
-    setStatus(`Error: ${err.message}`);
+    setStatus(t("playground.status.audioError", { message: err.message }));
     await teardown().catch(() => {});
   } finally {
     busy = false;
@@ -264,9 +280,9 @@ async function loadSeed(seed, { autoplay = false, presetId = null } = {}) {
 
   if (wasPlaying || autoplay) {
     const ok = await restartAudio();
-    if (!ok && autoplay) setStatus("Análisis listo. Pulsa Reproducir para escuchar tu web.");
+    if (!ok && autoplay) setStatus(t("playground.status.analysisReady"));
   } else {
-    setStatus("Listo. Pulsa Reproducir.");
+    setStatus(t("playground.status.ready"));
   }
   renderToggle();
 }
@@ -279,6 +295,10 @@ function selectPreset(id) {
 
 const controls = createControls({
   root: $("controls"),
+  copy: {
+    arpOff: t("playground.arpOff"),
+    arpOffAria: t("playground.arpOffAria"),
+  },
   onChange: ({ key, value }) => {
     if (!activeSeed) return;
     controls.write(activeSeed, key, value);
@@ -294,11 +314,11 @@ const controls = createControls({
   },
   onRegenerate: () => {
     if (!engine?.isPlaying) {
-      setStatus("Pulsa Reproducir para escuchar la variación.");
+      setStatus(t("playground.status.regenerate"));
       return;
     }
     const result = engine.regenerate();
-    if (result) setStatus(`Nueva variación · grado ${result.degree + 1} de la escala.`);
+    if (result) setStatus(t("playground.status.variation", { degree: result.degree + 1 }));
   },
 });
 
@@ -312,6 +332,7 @@ const analysis = createAnalysis({
   progressEl: $("analysis-progress"),
   cancelBtn: $("analysis-cancel"),
   retryBtn: $("analysis-retry"),
+  copy: analysisCopy(),
 });
 
 $("analysis-cancel").addEventListener("click", () => scanController?.abort());
@@ -326,11 +347,18 @@ scanForm.addEventListener("submit", async (event) => {
 
   const target = normalizeUrl(urlInput.value);
   if (!target) {
-    setStatus("Escribe una URL válida, por ejemplo https://stripe.com");
+    setStatus(t("playground.status.invalidUrl"));
     urlInput.focus();
     return;
   }
   urlInput.value = target;
+
+  if (STATIC_HOST) {
+    const message = t("status.backendMissingStatic");
+    analysis.fail(message);
+    setStatus(message);
+    return;
+  }
 
   scanController = new AbortController();
   busy = true;
@@ -347,7 +375,7 @@ scanForm.addEventListener("submit", async (event) => {
     .catch(() => {});
 
   try {
-    const res = await fetch("/api/scan", {
+    const res = await fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url: target }),
@@ -360,7 +388,7 @@ scanForm.addEventListener("submit", async (event) => {
       const message =
         data.error ??
         (res.status === 404 || res.status === 405
-          ? "El backend no está disponible. Arranca el servidor con `npm start`."
+          ? backendMissingMessage()
           : `Error ${res.status}`);
       throw new Error(message);
     }
@@ -372,18 +400,19 @@ scanForm.addEventListener("submit", async (event) => {
       await loadSeed(data, { autoplay: true });
     } catch (audioError) {
       console.error(audioError);
-      setStatus(`Semilla lista, pero no se pudo iniciar el audio: ${audioError.message}`);
+      setStatus(t("playground.status.audioError", { message: audioError.message }));
     }
 
     analysis.hideSoon();
   } catch (err) {
     if (err.name === "AbortError") {
       analysis.cancel();
-      setStatus("Análisis cancelado.");
+      setStatus(t("playground.status.cancelled"));
     } else {
       console.error(err);
-      analysis.fail(err.message);
-      setStatus(`No se pudo analizar: ${err.message}`);
+      const message = err instanceof TypeError ? t("status.backendUnreachable") : err.message;
+      analysis.fail(message);
+      setStatus(t("playground.status.scanError", { message }));
     }
   } finally {
     busy = false;
@@ -401,7 +430,7 @@ toggle.addEventListener("click", () =>
   withBusy(async () => {
     if (engine?.isPlaying) {
       await teardown();
-      setStatus("En pausa.");
+      setStatus(t("playground.status.paused"));
     } else {
       await play();
     }
@@ -426,5 +455,5 @@ try {
   await selectPreset(PRESET_IDS[0]);
 } catch (err) {
   console.error(err);
-  setStatus("No se pudieron cargar los presets. Recarga la página.");
+  setStatus(t("playground.status.presetsError"));
 }
