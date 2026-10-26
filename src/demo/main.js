@@ -252,6 +252,7 @@ function renderToggle() {
   toggle.setAttribute("aria-pressed", String(on));
   toggleLabel.textContent = on ? t("playground.pause") : t("playground.play");
   toggle.disabled = busy || !activeSeed;
+  scanBtn.disabled = busy;
 }
 
 async function withBusy(fn) {

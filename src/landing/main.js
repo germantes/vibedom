@@ -133,6 +133,7 @@ function renderToggle() {
   toggle.setAttribute("aria-pressed", String(on));
   toggleLabel.textContent = on ? t("landing.demo.pause") : t("landing.demo.play");
   toggle.disabled = busy || !activeSeed;
+  scanBtn.disabled = busy;
   presetButtons.forEach((button) => {
     button.disabled = busy;
     button.setAttribute("aria-checked", String(button.dataset.preset === activePreset));
