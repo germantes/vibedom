@@ -184,6 +184,13 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
   - E2E desde `https://vibedom.dev`: `/` y `/en/` envían `lang=es`/`lang=en`, muestran la semilla correspondiente y no registran errores de consola.
   - GitHub Pages construyó `c35f46a`; las cuatro rutas responden 200 y el `meta vibedom-api` apunta a Render.
 
+### ✅ FASE 3.9: Open Graph y previews sociales (COMPLETADA)
+
+- **Imágenes 1200×630** en `assets/og-es.png` y `assets/og-en.png`, generadas con Playwright fuera del repo (sin dependencias nuevas): fondo de marca, titular localizado, espectro y ficha de reproducción.
+- **Metadatos sociales** en las dos landings: `og:image` absoluta con `type`, `width`, `height` y `alt`; `twitter:card=summary_large_image`, `twitter:title`, `twitter:description`, `twitter:image` y `twitter:image:alt`.
+- **Playground**: añadidos canonical, `hreflang` ES/EN/x-default y el mismo bloque Open Graph/Twitter, con la imagen de su idioma.
+- **Verificación**: script `check-og.mjs` contra el servidor local, **28/28 PASS** (metadatos, canonical, URL absoluta y PNG real de 1200×630 en las cuatro rutas); 85 tests y E2E de SEO sin regresiones.
+
 ---
 
 ## 4. Lo que queda por hacer (Roadmap)
@@ -230,6 +237,9 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 │   ├── index.html                             # Playground ES
 │   └── en/
 │       └── index.html                         # Playground EN
+├── assets/
+│   ├── og-es.png                              # Open Graph ES 1200×630
+│   └── og-en.png                              # Open Graph EN 1200×630
 ├── favicon.svg                                # Icono de la demo
 ├── package.json                               # Scripts (start, dev, test)
 ├── presets/                                   # Semillas de prueba

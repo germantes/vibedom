@@ -90,6 +90,8 @@ index.html                   landing ES
 en/index.html                landing EN
 playground/index.html        playground ES
 playground/en/index.html     playground EN
+assets/og-es.png              imagen Open Graph ES (1200×630)
+assets/og-en.png              imagen Open Graph EN (1200×630)
 favicon.svg
 .nojekyll                    evita el procesado de Jekyll en GitHub Pages
 sitemap.xml                  sitemap bilingüe con hreflang
@@ -238,7 +240,7 @@ El flujo real se validó en navegador con Playwright (fuera del repo): landing E
 ## Roadmap
 
 * **Fase 4**: widget embebible < 5 KB con Shadow DOM, Tone.js bajo demanda y generador de snippet para Framer/Webflow.
-* Imagen Open Graph, verificación en Search Console y página dedicada a «what does my website sound like».
+* Verificación en Search Console, envío del sitemap y página dedicada a «what does my website sound like».
 * Historial de escaneos recientes y compartir semilla por URL.
 
 > El snippet deberá apuntar al origen desplegado (`location.origin`) en lugar de una URL fija.
