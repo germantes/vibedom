@@ -176,7 +176,13 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **Prompt**: `detectedVibe` y `explanation` se escriben en el idioma de la página, no en el del sitio escaneado; los valores técnicos (escala, onda, BPM) no se traducen.
 - **Caché por idioma**: la clave incluye `lang` para no devolver una semilla en español a una página EN. Repetir el escaneo en el mismo idioma sigue siendo `HIT`.
 - **Presets traducidos**: `src/i18n.js` incluye `preset.*.vibe` y `preset.*.explanation` en ES/EN. La landing y el playground muestran la copia localizada sin tocar el JSON de la semilla (el panel técnico sigue mostrando el dato original).
-- **Verificación**: 85 tests y E2E que comprueba `lang=en`/`lang=es` en la petición, las etiquetas de presets en ambas rutas y el estado «Now playing» traducido.
+- **Verificación local**: 85 tests y E2E que comprueba `lang=en`/`lang=es` en la petición, las etiquetas de presets en ambas rutas y el estado «Now playing» traducido.
+- **Verificación en producción (2026-10-26, `c35f46a`)**: Render seguía sirviendo `f74bc9a` porque el auto-deploy no se disparó; se redesplegó con el Deploy Hook del servicio. `server.js` ya contiene `resolveLang` y `translator.js` `IDIOMA DE SALIDA`.
+  - `lang=en` sobre `es.wikipedia.org/wiki/Guitarra` → «Dark encyclopedia guitar history» en **16,9 s** (`MISS`).
+  - `lang=es` sobre la misma URL → «Enciclopedia oscura y sobria» en **18,6 s** (`MISS`); un primer intento chocó con cuota 429 de Gemini y el backend devolvió 502 tras agotar reintentos, pero el siguiente pasó.
+  - Repetir ambos escaneos → `HIT` en **0,33 s** y **0,43 s**, con la copia de cada idioma.
+  - E2E desde `https://vibedom.dev`: `/` y `/en/` envían `lang=es`/`lang=en`, muestran la semilla correspondiente y no registran errores de consola.
+  - GitHub Pages construyó `c35f46a`; las cuatro rutas responden 200 y el `meta vibedom-api` apunta a Render.
 
 ---
 
