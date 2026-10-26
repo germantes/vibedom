@@ -85,6 +85,7 @@ robots.txt                   crawl abierto + referencia al sitemap
 render.yaml                  Blueprint de Render (servicio + env)
 src/i18n.js                  diccionarios ES/EN y utilidades
 src/api.js                   resolución de /api/scan y backend externo
+src/host-mode.js             detección de host estático (Pages, dominio propio, file:)
 src/landing/main.js          demo, escaneo y audio de la landing
 src/landing/landing.css      tema comercial de la landing
 src/backend/scraper.js       extracción HTML/CSS sin dependencias
@@ -198,7 +199,7 @@ Para añadir uno, crea el JSON en `presets/` y regístralo en `PRESET_IDS` (`src
 npm test
 ```
 
-**63 tests** con `node:test`, sin dependencias:
+**70 tests** con `node:test`, sin dependencias:
 
 * escalas, acordes y conversión MIDI;
 * validación de la semilla y presets reales;

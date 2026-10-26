@@ -2,30 +2,33 @@
 //
 // - En local (npm start) o en un despliegue full-stack, la API vive en el mismo
 //   origen: /api/scan.
-// - En GitHub Pages (o file:) no hay backend. Si la página declara
-//   <meta name="vibedom-api" content="https://...">, usamos ese origen externo
-//   y el escaneo sigue funcionando; si no, la UI lo explica y no hace peticiones.
+// - En GitHub Pages, en el dominio propio o en file: no hay backend. Si la
+//   página declara <meta name="vibedom-api" content="https://...">, usamos ese
+//   origen externo y el escaneo sigue funcionando; si no, la UI lo explica y no
+//   hace peticiones.
+//
+// La clasificación vive en host-mode.js para poder probarla sin DOM.
+
+import { classifyHost } from "./host-mode.js";
 
 const meta = document.querySelector('meta[name="vibedom-api"]');
-const rawBase = (meta?.getAttribute("content") ?? "").trim();
-let apiBase = "";
+const rawBase = meta?.getAttribute("content") ?? "";
 
-if (rawBase) {
-  try {
-    const parsed = new URL(rawBase);
-    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-      apiBase = rawBase.replace(/\/+$/, "");
-    } else {
-      console.warn("[vibedom] vibedom-api debe ser http(s):", rawBase);
-    }
-  } catch {
-    console.warn("[vibedom] vibedom-api no es una URL válida:", rawBase);
-  }
+const host = classifyHost({
+  protocol: location.protocol,
+  hostname: location.hostname,
+  origin: location.origin,
+  rawApiBase: rawBase,
+});
+
+const { apiBase, staticHost, externalApi } = host;
+
+if (rawBase.trim() && !apiBase) {
+  console.warn("[vibedom] vibedom-api debe ser una URL http(s) válida:", rawBase);
 }
 
-export const STATIC_HOST =
-  location.protocol === "file:" || /(^|\.)github\.io$/.test(location.hostname);
-export const EXTERNAL_API = Boolean(apiBase);
+export const STATIC_HOST = staticHost;
+export const EXTERNAL_API = externalApi;
 export const CAN_SCAN = !STATIC_HOST || EXTERNAL_API;
 
 export const API_URL = apiBase

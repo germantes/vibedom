@@ -91,7 +91,7 @@ Commits: `f64aec3` (Fase 2).
 
 #### Verificación realizada
 
-- **58 → 63 tests** en verde (`npm test`), incluidos los de rutas estáticas ES/EN, health, rate limit y caché.
+- **58 → 70 tests** en verde (`npm test`), incluidos los de rutas estáticas ES/EN, health, rate limit, caché y detección de host estático.
 - E2E real en navegador con Playwright: `example.com` analizado en **~3,0 s**, autoplay correcto, tema claro aplicado, sin errores de consola.
 - `stripe.com` verificado en backend en **~6,3 s**; SSRF a `localhost` devuelve 400.
 - Flujo mockeado verificado: análisis visible, cancelación, error 502, reintento, sliders (incluidos extremos de brillo), regeneración, cambio de preset con audio activo, pausa, espectro con píxeles, responsive.

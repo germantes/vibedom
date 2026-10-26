@@ -166,7 +166,7 @@ test("sirve landing y playground bilingües en sus rutas estáticas", async () =
 
   const robots = await fetch(`${base}/robots.txt`);
   assert.equal(robots.status, 200);
-  assert.match(await robots.text(), /Sitemap: https:\/\/germantes\.github\.io\/vibedom\/sitemap\.xml/);
+  assert.match(await robots.text(), /Sitemap: https:\/\/vibedom\.dev\/sitemap\.xml/);
 });
 
 test("no sirve dotfiles ni permite directory traversal", async () => {
