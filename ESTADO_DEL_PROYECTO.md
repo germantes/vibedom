@@ -202,6 +202,17 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **Verificación local**: **96 tests** en verde (nuevos tests del limitador, del 429 del traductor y del contrato HTTP), E2E de landing/playground sin regresiones y simulación de `429` en las cuatro rutas con el mensaje correcto en cada idioma (12 s, 5 min y 15 h).
 - **Verificación live** (2026-10-27, backend `f7f9848`): dos escaneos reales consecutivos con URLs distintas → `200` en **4,0 s** y `200` en **15,7 s** (`X-Vibedom-Cache: MISS` en ambos). El segundo esperó la cola global en vez de recibir un `429` o un `502`. Un `429` real de cupo diario devolvió `retryAfter: 52391`; el cliente ya lo presenta como «límite de uso, se renueva en unas 15 h».
 - **Pendiente**: Render sigue sin aplicar el auto-deploy; `1bb5b2c` (mensaje largo también en el servidor) está en GitHub y Pages, pero el backend requiere otro *Manual Deploy*. La UI ya muestra el mensaje correcto porque formatea el `retryAfter` en el cliente.
+- **Superado parcialmente por 3.11**: con `SCAN_FALLBACK` activo (por defecto), un 429 ya no llega al usuario: se responde con una semilla local. El `429` amable se conserva para `SCAN_FALLBACK=0` y para el rate limit por IP.
+
+### ✅ FASE 3.11: Semilla local cuando Gemini no está disponible (COMPLETADA)
+
+- **Problema**: aunque el 429 ya era amable, el cupo diario agotado dejaba la demo sin escaneos durante horas. La segunda visita no podía hacer nada.
+- **`src/backend/local-seed.js`**: compositor determinista sin IA. Traduce fondo, saturación, tipografía, movimiento y paleta a una Semilla Sonora válida con las mismas reglas del prompt. La misma web con las mismas señales produce la misma música; el idioma solo cambia `detectedVibe` y `explanation`.
+- **Servidor**: si el scrape ya obtuvo señales y Gemini devuelve `429`, `ANALYSIS_FAILED` o falla la red, responde `200` con `metadata.source: "local"` y `X-Vibedom-Source: local`. La semilla local no se cachea, así que el primer escaneo con cuota disponible vuelve a usar Gemini.
+- **Enfriamiento**: si el limitador ya conoce un `429` previo, el servidor ni siquiera espera la cola (`SCAN_FALLBACK_COOLDOWN_S=0` por defecto). El primer 429 tarda lo que tarde Gemini; los siguientes son inmediatos.
+- **UI**: la línea de origen muestra «análisis local» y su `title` explica que la IA no estaba disponible; el estado de reproducción lo indica sin errores técnicos. Funciona en ES/EN y en landing/playground.
+- **Control**: `SCAN_FALLBACK=0` recupera el comportamiento anterior (429 amable con `Retry-After`). Si el scraper no puede cargar la web, se mantiene el `502` genérico: no se inventa una semilla sin señales.
+- **Verificación**: **105 tests** en verde (compositor local, determinismo, contrato, contraste, claro/oscuro, idioma, 429 cubierto, enfriamiento sin llamar a Gemini y modo sin fallback).
 
 ### 🔎 Strudel frente a Tone.js (evaluado, no adoptado)
 
@@ -271,6 +282,7 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 │   │   ├── server.js                          # node:http + API /api/scan + health
 │   │   ├── rate-limit.js                      # Cuota de escaneos por IP
 │   │   ├── scan-cache.js                      # Caché en memoria de semillas
+│   │   ├── local-seed.js                      # Compositor determinista sin IA
 │   │   ├── translator.js                      # Gemini con retries/fallback/timeout
 │   │   └── url-guard.js                       # Validación anti-SSRF
 │   ├── landing/

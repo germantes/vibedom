@@ -213,7 +213,7 @@ test("GET /api/health responde sin caché y con CORS", async () => {
   assert.deepEqual(await res.json(), { ok: true, service: "vibedom", commit: null });
 });
 
-test("POST /api/scan devuelve 429 amable cuando Gemini agota la cuota", async () => {
+test("un 429 de Gemini se cubre con una semilla local en vez de bloquear la demo", async () => {
   const limited = await startServer({
     port: 0,
     logger: silent,
@@ -236,22 +236,58 @@ test("POST /api/scan devuelve 429 amable cuando Gemini agota la cuota", async ()
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url: "https://studio.test/", lang: "en" }),
     });
-    assert.equal(res.status, 429);
-    assert.equal(res.headers.get("retry-after"), "9");
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("x-vibedom-source"), "local");
+    assert.equal(res.headers.get("retry-after"), null);
     const body = await res.json();
-    assert.equal(body.code, "RATE_LIMITED");
-    assert.equal(body.retryAfter, 9);
-    assert.match(body.error, /busy right now/);
-    assert.doesNotMatch(body.error, /Gemini/);
+    assert.equal(body.metadata.source, "local");
+    assert.match(body.metadata.explanation, /BPM/);
+    assert.ok(body.synthConfig.pad.filterFreq > 0);
+    assert.doesNotMatch(JSON.stringify(body), /Gemini|quota/);
   } finally {
     await new Promise((resolve) => limited.close(resolve));
   }
 });
 
-test("un retryAfter largo se explica como límite de uso, no como 52 000 segundos", async () => {
+test("un 429 con espera larga también devuelve semilla local", async () => {
   const limited = await startServer({
     port: 0,
     logger: silent,
+    validateUrl: async (url) => url,
+    scrape: async (url) => ({ url, title: "Studio", colors: { all: ["#101820", "#ff4d8d"], background: "#101820", isDark: true } }),
+    translateSeed: async () => {
+      throw Object.assign(new Error("Gemini 429: quota exceeded"), {
+        code: "RATE_LIMITED",
+        retryAfter: 52_391,
+      });
+    },
+    rateLimit: () => ({ ok: true, remaining: 99, retryAfter: 0 }),
+    cache: createScanCache({ ttlMs: 0 }),
+  });
+  const limitedBase = `http://127.0.0.1:${limited.address().port}`;
+
+  try {
+    const res = await fetch(`${limitedBase}/api/scan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: "https://studio.test/", lang: "es" }),
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.metadata.source, "local");
+    assert.equal(body.uiTheme.backgroundColor, "#101820");
+    assert.match(body.metadata.explanation, /fondo oscuro/i);
+    assert.match(body.metadata.explanation, /BPM/);
+  } finally {
+    await new Promise((resolve) => limited.close(resolve));
+  }
+});
+
+test("el 429 amable sigue disponible si se desactiva el fallback local", async () => {
+  const limited = await startServer({
+    port: 0,
+    logger: silent,
+    localFallback: false,
     validateUrl: async (url) => url,
     scrape: async (url) => ({ url, title: "Studio" }),
     translateSeed: async () => {
@@ -280,6 +316,37 @@ test("un retryAfter largo se explica como límite de uso, no como 52 000 segundo
     assert.doesNotMatch(body.error, /52391/);
   } finally {
     await new Promise((resolve) => limited.close(resolve));
+  }
+});
+
+test("durante el enfriamiento de Gemini no se espera la cola: semilla local directa", async () => {
+  let translated = 0;
+  const server = await startServer({
+    port: 0,
+    logger: silent,
+    validateUrl: async (url) => url,
+    scrape: async (url) => ({ url, title: "Studio" }),
+    translateSeed: async () => {
+      translated += 1;
+      return SEED;
+    },
+    geminiLimiter: { cooldownSeconds: 3600, run: (task) => task() },
+    rateLimit: () => ({ ok: true, remaining: 99, retryAfter: 0 }),
+    cache: createScanCache({ ttlMs: 0 }),
+  });
+  const localBase = `http://127.0.0.1:${server.address().port}`;
+
+  try {
+    const res = await fetch(`${localBase}/api/scan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: "https://studio.test/", lang: "es" }),
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("x-vibedom-source"), "local");
+    assert.equal(translated, 0);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
   }
 });
 

@@ -21,6 +21,12 @@ services:
         value: "25000"
       - key: GEMINI_QUEUE_LIMIT
         value: "10"
+      # Cuando la cuota se agota, la demo sigue sonando con una semilla local
+      # determinista en vez de quedarse bloqueada durante horas.
+      - key: SCAN_FALLBACK
+        value: "1"
+      - key: SCAN_FALLBACK_COOLDOWN_S
+        value: "0"
       # Se pide al crear el servicio desde el Blueprint; nunca se guarda en el repo.
       - key: GEMINI_KEY
         sync: false

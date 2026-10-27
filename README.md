@@ -43,6 +43,8 @@ Los enlaces son relativos para funcionar tanto en `localhost:3000` como en un de
 4. **Saneado** (`src/engine/seed.js`): el contrato se valida y los números fuera de rango se recortan antes de llegar al navegador.
 5. **Síntesis** (`src/engine/soundscape.js`): el cliente construye el grafo de audio y genera pad, drone y arpegio de forma infinita. No hay audio pregrabado ni streaming.
 
+Si Gemini no está disponible (cuota agotada, sin clave o error de red), el paso 3 se sustituye por un **compositor local determinista** (`src/backend/local-seed.js`). Aplica las mismas reglas estéticas —fondo, saturación, tipografía y movimiento— sin IA, así que la demo nunca se queda sin sonido. La semilla se marca con `metadata.source: "local"` y la interfaz lo indica como «análisis local».
+
 ## Landing
 
 - Hero con una acción principal: pegar una URL y escuchar.
@@ -105,6 +107,7 @@ src/landing/theme.js         contraste WCAG y tema dinámico desde la semilla
 src/landing/landing.css      tema comercial de la landing
 src/backend/scraper.js       extracción HTML/CSS sin dependencias
 src/backend/translator.js    Gemini + reintentos, fallback, timeout y schema
+src/backend/local-seed.js    compositor determinista sin IA (cuota agotada)
 src/backend/url-guard.js     validación anti-SSRF (DNS, IPs privadas, redirects)
 src/backend/rate-limit.js    cuota de escaneos por IP
 src/backend/scan-cache.js    caché en memoria de semillas por URL
@@ -154,13 +157,14 @@ El esquema es el de la spec (sección 4). `normalizeSeed()` aplica dos política
 
 ## Backend
 
-- `POST /api/scan` con `{ "url": "https://...", "lang": "es" }` → `200` con la Semilla Sonora. Si falla: `400` (URL), `429` (`{ code: "RATE_LIMITED", retryAfter }`) o `502` (`{ code: "ANALYSIS_FAILED" }`) con un mensaje localizado en `error`. `lang` (`es` o `en`) controla el idioma de `detectedVibe` y `explanation`; la caché guarda una entrada por idioma y la cabecera `X-Vibedom-Cache` indica `HIT` o `MISS`.
+- `POST /api/scan` con `{ "url": "https://...", "lang": "es" }` → `200` con la Semilla Sonora. `lang` (`es` o `en`) controla el idioma de `detectedVibe` y `explanation`; la caché guarda una entrada por idioma y la cabecera `X-Vibedom-Cache` indica `HIT` o `MISS`.
+- **Resiliencia del escaneo**: si Gemini devuelve `429` o falla después de descargar las señales, se responde `200` con una semilla local (`metadata.source: "local"`, cabecera `X-Vibedom-Source: local`). Durante un enfriamiento conocido (`429` previo) ni siquiera se espera la cola. La semilla local no se cachea: cuando la cuota vuelve, el siguiente escaneo usa Gemini. Si el scraper no puede cargar la web, siguen aplicando `400` (URL), `429` (límite por IP) o `502` (`{ code: "ANALYSIS_FAILED" }`) con un mensaje localizado en `error`.
 - `GET /api/health` → `200` con `{ ok: true, service: "vibedom", commit }`; sirve de health check, despierta el servicio en Render y permite comprobar qué commit está desplegado.
 - Archivos estáticos del repositorio en el resto de rutas.
 - **Sin dependencias npm**: `node:http`, `fetch` nativo y regex. Node ≥ 20.
-- Variables: `GEMINI_KEY` (obligatoria para escanear), `PORT` (3000 por defecto), `SCAN_RATE_LIMIT` (5 escaneos/min por IP; `0` lo desactiva), `GEMINI_MIN_INTERVAL_MS` (8 s entre llamadas reales a Gemini), `GEMINI_MAX_WAIT_MS` (25 s de espera máxima en cola), `GEMINI_QUEUE_LIMIT` (10 peticiones en cola), `SCAN_CACHE_TTL` (segundos que se recuerda una semilla; 3600 por defecto, `0` desactiva la caché) y `VIBEDOM_ALLOW_PRIVATE=1` (solo desarrollo, permite escanear hosts privados).
+- Variables: `GEMINI_KEY` (necesaria para el análisis con IA; sin ella se usa siempre la semilla local), `PORT` (3000 por defecto), `SCAN_RATE_LIMIT` (5 escaneos/min por IP; `0` lo desactiva), `GEMINI_MIN_INTERVAL_MS` (8 s entre llamadas reales a Gemini), `GEMINI_MAX_WAIT_MS` (25 s de espera máxima en cola), `GEMINI_QUEUE_LIMIT` (10 peticiones en cola), `SCAN_CACHE_TTL` (segundos que se recuerda una semilla; 3600 por defecto, `0` desactiva la caché), `SCAN_FALLBACK` (`0` desactiva la semilla local de emergencia), `SCAN_FALLBACK_COOLDOWN_S` (enfriamiento mínimo, en segundos, para saltarse Gemini; `0` = cualquiera) y `VIBEDOM_ALLOW_PRIVATE=1` (solo desarrollo, permite escanear hosts privados).
 - El servidor valida cada salto de redirección y cada hoja de estilos para evitar SSRF, bloquea dotfiles y *path traversal*, limita el cuerpo de las peticiones a 16 KB y aplica la cuota antes de llamar a Gemini.
-- La cuota gratuita de Gemini es **por proyecto, no por IP**: el limitador por IP no basta. Por eso las llamadas se serializan y se espacian (`GEMINI_MIN_INTERVAL_MS`); si Gemini devuelve `429`, no se reintenta ni se prueba otro modelo, se enfría la cola global y se responde `429` con `Retry-After` en lugar de un `502` técnico. Si la espera supera 10 minutos (cupo diario), el mensaje habla de límite de uso y horas, no de decenas de miles de segundos.
+- La cuota gratuita de Gemini es **por proyecto, no por IP**: el limitador por IP no basta. Por eso las llamadas se serializan y se espacian (`GEMINI_MIN_INTERVAL_MS`); si Gemini devuelve `429`, no se reintenta ni se prueba otro modelo, se enfría la cola global y se compone la semilla local al instante. La cabecera `X-Vibedom-Source: local` y `metadata.source` lo hacen visible sin romper la experiencia. Si se desactiva `SCAN_FALLBACK`, el servidor vuelve al `429` con `Retry-After` y un mensaje que, a partir de 10 minutos, habla de límite de uso y horas.
 - La semilla de cada URL se guarda en memoria una hora (`SCAN_CACHE_TTL`): repetir un escaneo no vuelve a llamar a Gemini.
 - Modelos: `gemini-3.5-flash` → `gemini-3.5-flash-lite` → `gemini-3.6-flash`. No uses `gemini-2.x` (retirado para esta clave) ni `gemini-3.8-flash` (latencia inaceptable).
 
@@ -191,13 +195,15 @@ También puedes abrir directamente la URL de Render: el mismo servidor sirve lan
 
 | Variable | Obligatoria | Uso |
 | --- | --- | --- |
-| `GEMINI_KEY` | Sí | Clave de Google AI Studio para traducir la estética a la semilla. |
+| `GEMINI_KEY` | No | Clave de Google AI Studio para traducir la estética a la semilla. Sin ella se usa el compositor local. |
 | `PORT` | No | Render la inyecta; en local es 3000. |
 | `SCAN_RATE_LIMIT` | No | Escaneos por minuto y por IP. Por defecto 5; `0` desactiva el límite. |
 | `GEMINI_MIN_INTERVAL_MS` | No | Separación mínima entre llamadas reales a Gemini. Por defecto 8000 ms (≈7,5/min). |
 | `GEMINI_MAX_WAIT_MS` | No | Espera máxima de una petición en la cola global. Por defecto 25000 ms. |
 | `GEMINI_QUEUE_LIMIT` | No | Peticiones que pueden esperar turno a la vez. Por defecto 10. |
 | `SCAN_CACHE_TTL` | No | Segundos que se recuerda la semilla de una URL. Por defecto 3600; `0` desactiva la caché. |
+| `SCAN_FALLBACK` | No | `0` desactiva la semilla local cuando Gemini falla. Activada por defecto. |
+| `SCAN_FALLBACK_COOLDOWN_S` | No | Si Gemini ya está en enfriamiento, se salta la cola y se compone en local. Por defecto `0` (cualquier enfriamiento). |
 | `VIBEDOM_ALLOW_PRIVATE` | No | Solo desarrollo: permite escanear hosts privados. No usar en producción. |
 
 #### Dominio propio
@@ -224,15 +230,16 @@ Para añadir uno, crea el JSON en `presets/` y regístralo en `PRESET_IDS` (`src
 npm test
 ```
 
-**85 tests** con `node:test`, sin dependencias:
+**105 tests** con `node:test`, sin dependencias:
 
 * escalas, acordes y conversión MIDI;
 * validación de la semilla y presets reales;
 * lógica generativa (Markov sin grados disminuidos, voice leading acotado, arpegio, scroll);
 * scraper con HTML/CSS simulado (paleta, tipografía, colores con alfa, entidades, límites);
 * traductor con `fetch` falso (reintentos, fallback de modelos, timeout, errores);
+* compositor local determinista (contrato, idioma, fondo claro/oscuro, colores legibles y ausencia de señales);
 * guard anti-SSRF (IPs privadas, redirects, DNS);
-* servidor (rutas estáticas ES/EN y playground, `/api/scan`, health, 405/413/404/429, path traversal y cancelación);
+* servidor (rutas estáticas ES/EN y playground, `/api/scan`, health, 405/413/404/429, semilla local ante 429, path traversal y cancelación);
 * limitador de peticiones por IP (`X-Forwarded-For`, ventana deslizante y cuota);
 * caché de semillas por URL (normalización, TTL, desalojo y acierto sin volver a llamar a Gemini);
 * tema dinámico (normalización de hex, luminancia, contraste WCAG, texto y acento corregidos, mezclas y `rgba()`);

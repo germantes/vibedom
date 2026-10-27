@@ -185,12 +185,17 @@ function renderSeedMeta(seed, { showSource = false, themed = false } = {}) {
   const source = $("demo-source");
   const url = seed.metadata.url ?? "";
   if (showSource && /^https?:\/\//i.test(url)) {
+    const local = seed.metadata.source === "local";
     source.href = url;
-    source.textContent = `${t("landing.demo.source")}: ${url.replace(/^https?:\/\//, "").replace(/\/$/, "")}`;
+    source.textContent = `${t("landing.demo.source")}: ${url.replace(/^https?:\/\//, "").replace(/\/$/, "")}${
+      local ? ` · ${t("source.local")}` : ""
+    }`;
+    source.title = local ? t("source.localTitle") : "";
     source.hidden = false;
   } else {
     source.hidden = true;
     source.removeAttribute("href");
+    source.removeAttribute("title");
   }
 }
 
@@ -247,7 +252,8 @@ async function play() {
   }
 
   window.__vibedom = engine;
-  setStatus(t("status.playing", { vibe: seedVibe(activeSeed) }));
+  const local = activeSeed.metadata?.source === "local";
+  setStatus(t(local ? "status.playingLocal" : "status.playing", { vibe: seedVibe(activeSeed) }));
   renderToggle();
   return true;
 }

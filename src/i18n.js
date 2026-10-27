@@ -107,6 +107,7 @@ const DICTS = {
     "status.loadingPresets": "Cargando demos…",
     "status.ready": "Demo lista. Pulsa play para escuchar.",
     "status.playing": "Sonando: {vibe}",
+    "status.playingLocal": "Semilla local (sin IA) · {vibe}",
     "status.paused": "En pausa.",
     "status.invalidUrl": "Escribe una URL válida, por ejemplo https://stripe.com",
     "status.audioBlocked": "El navegador ha bloqueado el audio. Pulsa play para activarlo.",
@@ -187,6 +188,9 @@ const DICTS = {
     "playground.palette.accent": "Acento",
     "playground.palette.text": "Texto",
     "playground.source": "Origen",
+    "source.local": "análisis local",
+    "source.localTitle":
+      "La IA no estaba disponible: esta semilla se ha generado con reglas locales a partir de las señales de la web.",
     "playground.controls.title": "Ajuste fino",
     "playground.controls.sub":
       "Sin volver a llamar a la IA. Se aplica en caliente si está sonando.",
@@ -210,6 +214,7 @@ const DICTS = {
     "playground.status.ready": "Listo. Pulsa Reproducir.",
     "playground.status.analysisReady": "Análisis listo. Pulsa Reproducir para escuchar tu web.",
     "playground.status.playing": "Sonando: {vibe}",
+    "playground.status.playingLocal": "Semilla local (sin IA) · {vibe}",
     "playground.status.paused": "En pausa.",
     "playground.status.loadingTone": "Descargando Tone.js…",
     "playground.status.invalidUrl": "Escribe una URL válida, por ejemplo https://stripe.com",
@@ -360,6 +365,7 @@ const DICTS = {
     "status.loadingPresets": "Loading demos…",
     "status.ready": "Demo ready. Hit play to listen.",
     "status.playing": "Now playing: {vibe}",
+    "status.playingLocal": "Local seed (no AI) · {vibe}",
     "status.paused": "Paused.",
     "status.invalidUrl": "Enter a valid URL, for example https://stripe.com",
     "status.audioBlocked": "The browser blocked audio. Press play to enable it.",
@@ -438,6 +444,9 @@ const DICTS = {
     "playground.palette.accent": "Accent",
     "playground.palette.text": "Text",
     "playground.source": "Source",
+    "source.local": "local analysis",
+    "source.localTitle":
+      "The AI wasn't available: this seed was generated locally from the site's signals with deterministic rules.",
     "playground.controls.title": "Fine-tuning",
     "playground.controls.sub":
       "No second AI call. Changes apply live while it's playing.",
@@ -461,6 +470,7 @@ const DICTS = {
     "playground.status.ready": "Ready. Press Play.",
     "playground.status.analysisReady": "Analysis ready. Press Play to hear your site.",
     "playground.status.playing": "Now playing: {vibe}",
+    "playground.status.playingLocal": "Local seed (no AI) · {vibe}",
     "playground.status.paused": "Paused.",
     "playground.status.loadingTone": "Downloading Tone.js…",
     "playground.status.invalidUrl": "Enter a valid URL, for example https://stripe.com",

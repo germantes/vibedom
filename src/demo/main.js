@@ -179,11 +179,16 @@ function renderSeed(seed, { showSource = true } = {}) {
   const source = $("source-url");
   const sourceLine = source.closest(".source");
   if (showSource && /^https?:\/\//i.test(seed.metadata.url ?? "")) {
+    const local = seed.metadata.source === "local";
     source.href = seed.metadata.url;
-    source.textContent = seed.metadata.url.replace(/^https?:\/\//, "").replace(/\/$/, "");
+    source.textContent = `${seed.metadata.url.replace(/^https?:\/\//, "").replace(/\/$/, "")}${
+      local ? ` · ${t("source.local")}` : ""
+    }`;
+    source.title = local ? t("source.localTitle") : "";
     sourceLine.hidden = false;
   } else {
     sourceLine.hidden = true;
+    source.removeAttribute("title");
   }
 
   renderParams(seed);
@@ -242,7 +247,10 @@ async function play() {
 
   controls.setPlaying(true);
   window.__vibedom = engine;
-  setStatus(t("playground.status.playing", { vibe: seedCopy(activeSeed).vibe }));
+  const local = activeSeed.metadata?.source === "local";
+  setStatus(
+    t(local ? "playground.status.playingLocal" : "playground.status.playing", { vibe: seedCopy(activeSeed).vibe }),
+  );
   renderToggle();
   return true;
 }

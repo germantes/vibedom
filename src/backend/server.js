@@ -15,12 +15,28 @@ import { assertPublicUrl, UnsafeUrlError } from "./url-guard.js";
 import { createRateLimiter } from "./rate-limit.js";
 import { cacheKey, createScanCache } from "./scan-cache.js";
 import { createGeminiLimiter } from "./gemini-limiter.js";
+import { composeLocalSeed } from "./local-seed.js";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 export const DEFAULT_ROOT = resolve(HERE, "../..");
 const DEFAULT_PORT = Number(process.env.PORT) || 3000;
 const MAX_BODY_BYTES = 16 * 1024;
 const RATE_LIMIT_FALLBACK_S = 30;
+
+/** SCAN_FALLBACK=0 desactiva la semilla local de emergencia. */
+const DEFAULT_LOCAL_FALLBACK = process.env.SCAN_FALLBACK !== "0";
+
+/**
+ * Si Gemini ya está en enfriamiento (429 previo), no tiene sentido esperar la
+ * cola: componemos la semilla local al instante. `0` significa "cualquier
+ * enfriamiento"; un valor mayor deja pasar esperas cortas.
+ */
+function resolveSkipCooldownS() {
+  const raw = Number(process.env.SCAN_FALLBACK_COOLDOWN_S);
+  return Number.isFinite(raw) && raw >= 0 ? raw : 0;
+}
+
+export const DEFAULT_SKIP_COOLDOWN_S = resolveSkipCooldownS();
 
 const SCAN_ERROR_COPY = {
   es: {
@@ -107,7 +123,29 @@ async function readJsonBody(req) {
 
 // ---- POST /api/scan --------------------------------------------------------
 
-function makeScanHandler({ scrape, translateSeed, validateUrl, logger, cache, limiter }) {
+function makeScanHandler({
+  scrape,
+  translateSeed,
+  composeFallback,
+  skipCooldownS,
+  validateUrl,
+  logger,
+  cache,
+  limiter,
+}) {
+  /**
+   * Semilla de emergencia: el scrape ya trajo las señales, así que la web
+   * suena igualmente. Se marca como local para que la UI lo diga sin rodeos.
+   */
+  function sendLocalSeed(res, signals, lang, reason) {
+    const seed = structuredClone(composeFallback(signals, { lang, reason }));
+    seed.metadata.source = "local";
+    logger.warn(
+      `[scan] ⚠ ${reason}: semilla local (${seed.musicalParams.rootNote} ${seed.musicalParams.scale}, ${seed.musicalParams.bpm} BPM)`,
+    );
+    return json(res, 200, seed, { "X-Vibedom-Cache": "MISS", "X-Vibedom-Source": "local" });
+  }
+
   return async function handleScan(req, res) {
     let body;
     try {
@@ -148,12 +186,21 @@ function makeScanHandler({ scrape, translateSeed, validateUrl, logger, cache, li
     };
     res.on("close", onClose);
 
+    let signals = null;
     try {
       logger.log(`[scan] Scrapeando ${target}…`);
-      const signals = await scrape(target, { validateUrl, signal: controller.signal });
+      signals = await scrape(target, { validateUrl, signal: controller.signal });
       logger.log(
         `[scan] Señales: ${signals.colors?.all?.length ?? 0} colores, ${signals.fonts?.families?.length ?? 0} fuentes, dark=${signals.colors?.isDark ?? false}`,
       );
+
+      // Un 429 anterior ya nos dijo cuándo vuelve la cuota. Durante ese
+      // enfriamiento respondemos con la semilla local sin esperar la cola.
+      const cooldown = Number(limiter?.cooldownSeconds) || 0;
+      if (composeFallback && cooldown > skipCooldownS) {
+        return sendLocalSeed(res, signals, lang, `cuota en enfriamiento (${cooldown} s)`);
+      }
+
       logger.log("[scan] Llamando a Gemini…");
       const seed = await translateSeed(signals, { signal: controller.signal, lang, logger, limiter });
       logger.log(
@@ -170,6 +217,16 @@ function makeScanHandler({ scrape, translateSeed, validateUrl, logger, cache, li
       }
 
       const copy = SCAN_ERROR_COPY[lang] ?? SCAN_ERROR_COPY.es;
+
+      // Cualquier fallo de la IA con las señales ya descargadas se cubre con
+      // una semilla local determinista. La demo nunca se queda sin sonido.
+      if (composeFallback && signals) {
+        try {
+          return sendLocalSeed(res, signals, lang, err?.code ?? "IA no disponible");
+        } catch (fallbackErr) {
+          logger.error(`[scan] ✖ la semilla local también falló: ${fallbackErr.message}`);
+        }
+      }
 
       if (err?.code === "RATE_LIMITED") {
         const retryAfter = Math.max(1, Math.ceil(Number(err.retryAfter) || RATE_LIMIT_FALLBACK_S));
@@ -244,6 +301,9 @@ export function createVibedomServer({
   root = DEFAULT_ROOT,
   scrape = scrapeUrl,
   translateSeed,
+  localFallback = DEFAULT_LOCAL_FALLBACK,
+  composeFallback = composeLocalSeed,
+  skipCooldownS = DEFAULT_SKIP_COOLDOWN_S,
   geminiLimiter = createGeminiLimiter(),
   validateUrl = assertPublicUrl,
   rateLimit = createRateLimiter(),
@@ -257,6 +317,8 @@ export function createVibedomServer({
   const handleScan = makeScanHandler({
     scrape,
     translateSeed: translateWithLimit,
+    composeFallback: localFallback ? composeFallback : null,
+    skipCooldownS,
     validateUrl,
     cache,
     logger,
