@@ -1,6 +1,6 @@
 import { attachReactivity } from "../engine/reactivity.js";
 import { configureContext, createSoundscape } from "../engine/soundscape.js";
-import { analysisCopy, applyI18n, getLang, presetCopy, t } from "../i18n.js";
+import { analysisCopy, applyI18n, getLang, presetCopy, rateLimitCopy, t } from "../i18n.js";
 import { API_URL, CAN_SCAN, STATIC_HOST, warmApi } from "../api.js";
 import { createAnalysis } from "../demo/analysis.js";
 import { createVisualizer } from "../demo/visualizer.js";
@@ -357,8 +357,7 @@ scanForm.addEventListener("submit", async (event) => {
     const data = isJson ? await res.json() : {};
     if (!res.ok) {
       if (data.code === "RATE_LIMITED") {
-        const seconds = Math.max(1, Math.ceil(Number(data.retryAfter) || 30));
-        throw new Error(t("status.rateLimited", { seconds }));
+        throw new Error(rateLimitCopy(data.retryAfter));
       }
       const fallback =
         res.status === 404 || res.status === 405

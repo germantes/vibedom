@@ -26,13 +26,27 @@ const SCAN_ERROR_COPY = {
   es: {
     rateLimited: (seconds) =>
       `El analizador está saturado ahora mismo. Espera ${seconds} s y vuelve a intentarlo.`,
+    rateLimitedMinutes: (minutes) =>
+      `El analizador está saturado. Espera ${minutes} min y vuelve a intentarlo.`,
+    quota: (hours) =>
+      `El analizador ha alcanzado su límite de uso. Se renueva en unas ${hours} h; mientras tanto, prueba un preset.`,
     unavailable: "No se pudo analizar la web. Prueba un preset o inténtalo de nuevo en unos segundos.",
   },
   en: {
     rateLimited: (seconds) => `The analyser is busy right now. Wait ${seconds}s and try again.`,
+    rateLimitedMinutes: (minutes) => `The analyser is busy. Wait ${minutes} min and try again.`,
+    quota: (hours) =>
+      `The analyser has reached its usage limit. It renews in about ${hours}h; try a preset in the meantime.`,
     unavailable: "Couldn't analyse the site. Try a preset or try again in a few seconds.",
   },
 };
+
+/** Convierte el retryAfter de Google en un mensaje útil. */
+function rateLimitedMessage(copy, retryAfter) {
+  if (retryAfter >= 600) return copy.quota(Math.max(1, Math.ceil(retryAfter / 3600)));
+  if (retryAfter >= 90) return copy.rateLimitedMinutes(Math.ceil(retryAfter / 60));
+  return copy.rateLimited(retryAfter);
+}
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -163,7 +177,7 @@ function makeScanHandler({ scrape, translateSeed, validateUrl, logger, cache, li
         return json(
           res,
           429,
-          { code: "RATE_LIMITED", error: copy.rateLimited(retryAfter), retryAfter },
+          { code: "RATE_LIMITED", error: rateLimitedMessage(copy, retryAfter), retryAfter },
           { "Retry-After": String(retryAfter) },
         );
       }

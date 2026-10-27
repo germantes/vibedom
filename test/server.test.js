@@ -248,6 +248,41 @@ test("POST /api/scan devuelve 429 amable cuando Gemini agota la cuota", async ()
   }
 });
 
+test("un retryAfter largo se explica como límite de uso, no como 52 000 segundos", async () => {
+  const limited = await startServer({
+    port: 0,
+    logger: silent,
+    validateUrl: async (url) => url,
+    scrape: async (url) => ({ url, title: "Studio" }),
+    translateSeed: async () => {
+      throw Object.assign(new Error("Gemini 429: quota exceeded"), {
+        code: "RATE_LIMITED",
+        retryAfter: 52_391,
+      });
+    },
+    rateLimit: () => ({ ok: true, remaining: 99, retryAfter: 0 }),
+    cache: createScanCache({ ttlMs: 0 }),
+  });
+  const limitedBase = `http://127.0.0.1:${limited.address().port}`;
+
+  try {
+    const res = await fetch(`${limitedBase}/api/scan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: "https://studio.test/", lang: "es" }),
+    });
+    assert.equal(res.status, 429);
+    assert.equal(res.headers.get("retry-after"), "52391");
+    const body = await res.json();
+    assert.equal(body.retryAfter, 52_391);
+    assert.match(body.error, /límite de uso/);
+    assert.match(body.error, /15 h/);
+    assert.doesNotMatch(body.error, /52391/);
+  } finally {
+    await new Promise((resolve) => limited.close(resolve));
+  }
+});
+
 test("el rate limit devuelve 429 con Retry-After antes de procesar el escaneo", async () => {
   const limited = await startServer({
     port: 0,

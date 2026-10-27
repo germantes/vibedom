@@ -124,6 +124,10 @@ const DICTS = {
     "status.scanError": "No se pudo analizar: {message}",
     "status.rateLimited":
       "El analizador está saturado ahora mismo. Espera {seconds} s y vuelve a intentarlo.",
+    "status.rateLimitedMinutes":
+      "El analizador está saturado. Espera {minutes} min y vuelve a intentarlo.",
+    "status.rateLimitedLong":
+      "El analizador ha alcanzado su límite de uso. Se renueva en unas {hours} h; mientras tanto, prueba un preset.",
     "status.cancelled": "Análisis cancelado.",
     "status.presetsError": "No se pudieron cargar las demos. Recarga la página.",
     "status.audioError": "Semilla lista, pero no se pudo iniciar el audio: {message}",
@@ -214,6 +218,10 @@ const DICTS = {
     "playground.status.scanError": "No se pudo analizar: {message}",
     "playground.status.rateLimited":
       "El analizador está saturado ahora mismo. Espera {seconds} s y vuelve a intentarlo.",
+    "playground.status.rateLimitedMinutes":
+      "El analizador está saturado. Espera {minutes} min y vuelve a intentarlo.",
+    "playground.status.rateLimitedLong":
+      "El analizador ha alcanzado su límite de uso. Se renueva en unas {hours} h; mientras tanto, prueba un preset.",
     "playground.status.cancelled": "Análisis cancelado.",
     "playground.status.presetsError": "No se pudieron cargar los presets. Recarga la página.",
     "playground.status.audioError": "Semilla lista, pero no se pudo iniciar el audio: {message}",
@@ -368,6 +376,9 @@ const DICTS = {
       "Couldn't reach the analyser. It may be waking up: wait a few seconds and try again.",
     "status.scanError": "Couldn't analyse: {message}",
     "status.rateLimited": "The analyser is busy right now. Wait {seconds}s and try again.",
+    "status.rateLimitedMinutes": "The analyser is busy. Wait {minutes} min and try again.",
+    "status.rateLimitedLong":
+      "The analyser has reached its usage limit. It renews in about {hours}h; try a preset in the meantime.",
     "status.cancelled": "Analysis cancelled.",
     "status.presetsError": "Couldn't load the demos. Reload the page.",
     "status.audioError": "Seed ready, but audio couldn't start: {message}",
@@ -456,6 +467,9 @@ const DICTS = {
     "playground.status.audioBlocked": "The browser blocked audio. Press Play to enable it.",
     "playground.status.scanError": "Couldn't analyse: {message}",
     "playground.status.rateLimited": "The analyser is busy right now. Wait {seconds}s and try again.",
+    "playground.status.rateLimitedMinutes": "The analyser is busy. Wait {minutes} min and try again.",
+    "playground.status.rateLimitedLong":
+      "The analyser has reached its usage limit. It renews in about {hours}h; try a preset in the meantime.",
     "playground.status.cancelled": "Analysis cancelled.",
     "playground.status.presetsError": "Couldn't load the presets. Reload the page.",
     "playground.status.audioError": "Seed ready, but audio couldn't start: {message}",
@@ -518,6 +532,22 @@ export function t(key, vars = {}) {
   return template.replace(/\{(\w+)\}/g, (match, name) =>
     Object.hasOwn(vars, name) ? String(vars[name]) : match,
   );
+}
+
+/**
+ * Mensaje de cuota adaptado a la espera real. Google puede pedir 52 000 s
+ * cuando se agota el cupo diario: decir "espera 52 000 s" no ayuda a nadie.
+ * A partir de 10 minutos lo tratamos como límite de uso y damos horas.
+ */
+export function rateLimitCopy(retryAfter, prefix = "status") {
+  const seconds = Math.max(1, Math.ceil(Number(retryAfter) || 30));
+  if (seconds >= 600) {
+    return t(`${prefix}.rateLimitedLong`, { hours: Math.max(1, Math.ceil(seconds / 3600)) });
+  }
+  if (seconds >= 90) {
+    return t(`${prefix}.rateLimitedMinutes`, { minutes: Math.ceil(seconds / 60) });
+  }
+  return t(`${prefix}.rateLimited`, { seconds });
 }
 
 /**

@@ -1,6 +1,6 @@
 import { attachReactivity } from "../engine/reactivity.js";
 import { configureContext, createSoundscape } from "../engine/soundscape.js";
-import { analysisCopy, applyI18n, getLang, presetCopy, t } from "../i18n.js";
+import { analysisCopy, applyI18n, getLang, presetCopy, rateLimitCopy, t } from "../i18n.js";
 import { API_URL, CAN_SCAN, STATIC_HOST, warmApi } from "../api.js";
 import { createAnalysis } from "./analysis.js";
 import { createControls, formatHz } from "./controls.js";
@@ -393,8 +393,7 @@ scanForm.addEventListener("submit", async (event) => {
     const data = isJson ? await res.json() : {};
     if (!res.ok) {
       if (data.code === "RATE_LIMITED") {
-        const seconds = Math.max(1, Math.ceil(Number(data.retryAfter) || 30));
-        throw Object.assign(new Error(t("playground.status.rateLimited", { seconds })), { friendly: true });
+        throw Object.assign(new Error(rateLimitCopy(data.retryAfter, "playground.status")), { friendly: true });
       }
       const message =
         data.error ??
