@@ -199,7 +199,9 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **Respuesta HTTP**: el servidor devuelve `429` con `Retry-After`, `code` y un mensaje localizado ES/EN; los fallos restantes devuelven `502` con `{ code: "ANALYSIS_FAILED" }` y un mensaje genérico, sin filtrar detalles técnicos. La landing y el playground traducen el código con `status.rateLimited` / `playground.status.rateLimited`. Si la espera supera los 10 minutos (cupo diario agotado) no se muestra «espera 52 391 s»: se explica que se alcanzó el límite de uso, se redondea a horas y se sugiere un preset.
 - **Límites**: `SCAN_RATE_LIMIT` baja de 10 a 5 por IP; `render.yaml` declara también las tres variables del limitador global.
 - **`GET /api/health`**: incluye `commit` (`RENDER_GIT_COMMIT`) para comprobar qué versión está desplegada.
-- **Verificación local**: **95 tests** en verde (nuevos tests del limitador, del 429 del traductor y del contrato HTTP), E2E de landing/playground sin regresiones y simulación de `429` en las cuatro rutas con el mensaje correcto en cada idioma.
+- **Verificación local**: **96 tests** en verde (nuevos tests del limitador, del 429 del traductor y del contrato HTTP), E2E de landing/playground sin regresiones y simulación de `429` en las cuatro rutas con el mensaje correcto en cada idioma (12 s, 5 min y 15 h).
+- **Verificación live** (2026-10-27, backend `f7f9848`): dos escaneos reales consecutivos con URLs distintas → `200` en **4,0 s** y `200` en **15,7 s** (`X-Vibedom-Cache: MISS` en ambos). El segundo esperó la cola global en vez de recibir un `429` o un `502`. Un `429` real de cupo diario devolvió `retryAfter: 52391`; el cliente ya lo presenta como «límite de uso, se renueva en unas 15 h».
+- **Pendiente**: Render sigue sin aplicar el auto-deploy; `1bb5b2c` (mensaje largo también en el servidor) está en GitHub y Pages, pero el backend requiere otro *Manual Deploy*. La UI ya muestra el mensaje correcto porque formatea el `retryAfter` en el cliente.
 
 ### 🔎 Strudel frente a Tone.js (evaluado, no adoptado)
 
