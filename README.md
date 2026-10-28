@@ -234,7 +234,7 @@ Notas de funcionamiento:
 - El token de OAuth se firma con `node:crypto` y se cachea una hora; no hay dependencias nuevas. Un `401` descarta el token y reintenta una sola vez.
 - Con Vertex las cuotas son mucho más altas que la capa gratuita, así que `render.yaml` espacia las llamadas 2 s y espera hasta 12 s en cola (`GEMINI_MIN_INTERVAL_MS=2000`, `GEMINI_MAX_WAIT_MS=12000`).
 - Vertex no tiene capa gratuita para Gemini Flash: cada escaneo consume crédito. Crea un presupuesto con alertas en Google Cloud antes de desplegar.
-- **Tope de gasto**: `SCAN_DAILY_LIMIT` (200/día en total) y `SCAN_IP_DAILY_LIMIT` (30/día por IP) cuentan solo las llamadas reales a la IA; la caché y las semillas locales no consumen. Al agotarse, el escaneo sigue funcionando con la semilla local y `/api/health` expone el estado en `budget` (`usedToday`, `dailyLimit`, `perIpDailyLimit`).
+- **Tope de gasto**: `SCAN_DAILY_LIMIT` (200/día en total) y `SCAN_IP_DAILY_LIMIT` (30/día por IP) cuentan solo las llamadas reales a la IA; la caché y las semillas locales no consumen. Al agotarse, el escaneo sigue funcionando con la semilla local y `/api/health` expone el estado en `budget` (`usedToday`, `dailyLimit`, `perIpDailyLimit`). El contador vive en memoria y se reinicia con el proceso: es una primera barrera, no un tope duro; para un límite estricto, baja la cuota de Vertex o mueve el contador a un almacén compartido.
 - El fichero de la clave **nunca** se commitea: se pasa en base64 por variable de entorno.
 
 ### Despliegue
