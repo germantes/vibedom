@@ -197,6 +197,11 @@ El rol `roles/aiplatform.user` es el mínimo para invocar modelos: la cuenta no 
 **2. Probar antes de desplegar:**
 
 ```bash
+# Atajo: usa el proyecto activo y el token de tu sesión de gcloud
+gcloud config set project vibedom
+npm run vertex:check
+
+# O con la service account, como lo usará Render
 VERTEX_PROJECT_ID=vibedom \
 VERTEX_LOCATION=europe-west4 \
 VERTEX_SA_KEY_B64=$(base64 -w0 vibedom-vertex.json) \

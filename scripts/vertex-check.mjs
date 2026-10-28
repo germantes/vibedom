@@ -12,6 +12,7 @@
 // No imprime la clave privada ni el token.
 
 import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 
 import { createTokenSource, loadServiceAccount } from "../src/backend/vertex-auth.js";
 import { DEFAULT_VERTEX_LOCATION, modelsFromEnv } from "../src/backend/providers.js";
@@ -31,21 +32,49 @@ function loadDotEnv() {
   }
 }
 
+/** Ejecuta gcloud si está instalado; si no, devuelve cadena vacía. */
+function gcloud(args) {
+  try {
+    const output = execFileSync("gcloud", args, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    return output === "(unset)" ? "" : output;
+  } catch {
+    return "";
+  }
+}
+
 loadDotEnv();
 
-const project = process.env.VERTEX_PROJECT_ID?.trim();
+// El proyecto puede venir de la variable o del proyecto activo de gcloud.
+const project = process.env.VERTEX_PROJECT_ID?.trim() || gcloud(["config", "get-value", "project"]);
 const location = process.env.VERTEX_LOCATION?.trim() || DEFAULT_VERTEX_LOCATION;
 const models = modelsFromEnv(process.env.VERTEX_MODELS);
 
-if (!project) {
+const credentials = loadServiceAccount();
+let accessToken = process.env.VERTEX_ACCESS_TOKEN?.trim() || null;
+let authLabel = credentials ? credentials.clientEmail : accessToken ? "VERTEX_ACCESS_TOKEN" : "";
+
+// Sin service account, se usa el token de la sesión de gcloud. Sirve para
+// probar el catálogo y los modelos; para Render sigue haciendo falta la clave.
+if (!credentials && !accessToken) {
+  accessToken = gcloud(["auth", "print-access-token"]) || null;
+  if (accessToken) authLabel = "tu sesión de gcloud (solo para probar)";
+}
+
+if (!project || !authLabel) {
   console.error(
     [
-      "Falta VERTEX_PROJECT_ID.",
+      "Faltan credenciales para Vertex AI.",
       "",
-      "Para probarlo en local:",
+      "Opción rápida (con gcloud ya autenticado):",
+      "  gcloud auth login",
+      "  gcloud config set project vibedom",
+      "  gcloud services enable aiplatform.googleapis.com",
+      "  npm run vertex:check",
+      "",
+      "Opción con service account (la que necesita Render):",
       "  VERTEX_PROJECT_ID=vibedom \\",
       "  VERTEX_LOCATION=europe-west4 \\",
-      "  VERTEX_SA_KEY_B64=$(base64 -w0 clave.json) \\",
+      "  VERTEX_SA_KEY_B64=$(base64 -w0 vibedom-vertex.json) \\",
       "  npm run vertex:check",
     ].join("\n"),
   );
@@ -55,15 +84,11 @@ if (!project) {
 const host = location === "global" ? "aiplatform.googleapis.com" : `${location}-aiplatform.googleapis.com`;
 const base = `https://${host}/v1/projects/${encodeURIComponent(project)}/locations/${encodeURIComponent(location)}`;
 
-const credentials = loadServiceAccount();
-const tokens = createTokenSource({
-  credentials,
-  accessToken: process.env.VERTEX_ACCESS_TOKEN?.trim() || null,
-});
+const tokens = createTokenSource({ credentials, accessToken });
 
 console.log(`proyecto: ${project}`);
 console.log(`región:   ${location}`);
-console.log(`auth:     ${credentials ? credentials.clientEmail : "VERTEX_ACCESS_TOKEN"}`);
+console.log(`auth:     ${authLabel}`);
 console.log(`modelos:  ${models.join(", ")}\n`);
 
 let token;
@@ -132,4 +157,16 @@ if (failures) {
   console.error(`${failures} modelo(s) fallaron. Ajusta VERTEX_MODELS antes de desplegar.`);
   process.exit(1);
 }
-console.log("Todo listo: copia VERTEX_PROJECT_ID, VERTEX_LOCATION y VERTEX_SA_KEY_B64 en Render.");
+if (credentials) {
+  console.log("Todo listo: copia VERTEX_PROJECT_ID, VERTEX_LOCATION y VERTEX_SA_KEY_B64 en Render.");
+} else {
+  console.log(
+    [
+      "Modelos y permisos OK.",
+      "Para Render falta la service account: el token de tu sesión caduca en 1 h.",
+      "  gcloud iam service-accounts keys create vibedom-vertex.json \\",
+      "    --iam-account=vibedom-vertex@vibedom.iam.gserviceaccount.com",
+      "  base64 -w0 vibedom-vertex.json   # → VERTEX_SA_KEY_B64 en Render",
+    ].join("\n"),
+  );
+}
