@@ -308,6 +308,18 @@ Para quitarlo: `npm run set-api -- --clear`. Sin ese `meta`, GitHub Pages sigue 
 
 También puedes abrir directamente la URL de Render: el mismo servidor sirve landing, playground y `/api/scan` en un solo origen, sin configurar nada. Es la opción más simple, aunque cada visita en frío espera a que arranque el servicio.
 
+#### Deploy automático de Render
+
+Si el servicio se creó como **Public Git Repository** (pegando la URL del repo) en vez de con la GitHub App conectada, Render muestra *Auto-Deploy: On Commit* pero **nunca despliega solo**: su documentación indica que los servicios con URL de repositorio público solo se despliegan a mano. La región (Frankfurt) no influye; el síntoma es que el repo no recibe ningún webhook de Render.
+
+Para no recrear el servicio (perderías `VERTEX_SA_KEY_B64` y el historial), el repo incluye `.github/workflows/render-deploy.yml`, que lanza el Deploy Hook en cada push a `main`:
+
+1. Render → servicio **vibedom** → **Settings** → **Deploy Hook** → copia la URL (`https://api.render.com/deploy/srv-…`).
+2. GitHub → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**: nombre `RENDER_DEPLOY_HOOK`, valor la URL anterior.
+3. Listo. Sin el secreto el workflow termina en verde sin hacer nada, así que no rompe los pushes.
+
+Comprobación: `curl -s https://TU-SERVICIO.onrender.com/api/health` devuelve el campo `commit`, que debe coincidir con el último commit de `main`.
+
 #### Variables de entorno
 
 | Variable | Obligatoria | Uso |

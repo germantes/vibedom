@@ -135,7 +135,7 @@ Commits: `f64aec3` (Fase 2).
 - **Backend externo configurable** (`src/api.js` + `<meta name="vibedom-api">`): permite que la landing de GitHub Pages escanee contra Render sin CORS adicional (el servidor ya envía `Access-Control-Allow-Origin: *`). Al cargar, la landing hace un `GET /api/health` para despertar el servicio.
 - **Caché de semillas** (`src/backend/scan-cache.js`): guarda en memoria el resultado de cada URL una hora (`SCAN_CACHE_TTL`, `0` lo desactiva), con tope de 500 entradas y desalojo LRU. Repetir un escaneo responde al instante y no vuelve a llamar a Gemini; la cabecera `X-Vibedom-Cache` indica `HIT`/`MISS`.
 - **Script de configuración** (`scripts/set-api.mjs`): `npm run set-api -- https://...` declara el backend externo en las páginas y valida la URL; `--clear` lo quita. Sustituye al `sed` del README.
-- **Redespliegue**: GitHub Pages publica cada push a `main`; Render solo lo hace si el servicio tiene *Auto-Deploy* activo. Si no, hay que lanzar *Manual Deploy → Deploy latest commit* desde el dashboard.
+- **Redespliegue**: GitHub Pages publica cada push a `main`; para Render hay un workflow (`.github/workflows/render-deploy.yml`) que lanza el Deploy Hook en cada push, porque el servicio creado como *Public Git Repository* no recibe webhooks y su *Auto-Deploy* queda decorativo. Con el secreto `RENDER_DEPLOY_HOOK` configurado en GitHub, el despliegue es automático; sin él, el workflow no hace nada.
 - **Documentación**: botón *Deploy to Render*, variables de entorno, aviso de spin-down del plan free, comando `npm run set-api` y nota sobre dominio propio/canonical.
 
 **Desplegado**: `https://vibedom.onrender.com` (servicio `vibedom`, plan free, Frankfurt, Node 22). Las seis páginas declaran ese origen en `<meta name="vibedom-api">` y GitHub Pages escanea contra él.
@@ -255,6 +255,13 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **Reutilización**: ambas páginas cargan `src/landing/main.js` y `landing.css`, así que el formulario, los presets, el tema dinámico y el audio funcionan sin duplicar lógica. Se añadieron estilos para prosa, tarjetas de mapeo y listas de transparencia.
 - **Enlaces internos**: pies de las landings ES/EN y de los playgrounds, además de la propia página SEO hacia el otro idioma, la landing y el playground.
 - **Verificación**: **140 tests** en verde (nuevas pruebas de rutas, canonical/hreflang, JSON-LD, coincidencia FAQ visible/datos estructurados, enlaces locales y sitemap) y E2E con Chromium: ES/EN sin 404 ni errores JS, 3 presets y play/pausa, escaneo simulado con tema aplicado y responsive a 390 px sin overflow.
+
+### ✅ FASE 4.3: Auto-deploy de Render vía Deploy Hook (PREPARADO)
+
+- **Síntoma**: pushes a `main` actualizan GitHub Pages pero Render sigue en un commit antiguo (comprobable en `GET /api/health` → `commit`), aunque el panel muestre *Auto-Deploy: On Commit* y rama `main`.
+- **Causa**: el servicio se creó como **Public Git Repository**, no con la GitHub App. Evidencia: `GET /repos/germantes/vibedom/hooks` devuelve una lista vacía y el commit `0eab872` no tiene ningún check/status de Render (solo los de Pages). Render solo auto-despliega servicios con proveedor Git conectado; la región Frankfurt es irrelevante.
+- **Solución**: `.github/workflows/render-deploy.yml` hace `POST` al Deploy Hook del servicio en cada push a `main` (y permite `workflow_dispatch`). Requiere el secreto `RENDER_DEPLOY_HOOK` en GitHub → Settings → Secrets and variables → Actions; sin él el workflow no hace nada y no falla, así que no introduce ruido.
+- **Pendiente**: añadir el secreto y comprobar que `/api/health` pasa de `f1b2202` a `0eab872`.
 
 ### 🔎 Strudel frente a Tone.js (evaluado, no adoptado)
 

@@ -1,0 +1,41 @@
+name: render
+
+# Render no dispara auto-deploys cuando el servicio se creó como "Public Git
+# Repository" (su webhook nunca llega al repo). Este workflow lanza el Deploy
+# Hook del servicio en cada push a main.
+#
+# Requiere un único secreto en GitHub → Settings → Secrets and variables →
+# Actions: RENDER_DEPLOY_HOOK con la URL que da Render en
+# Service → Settings → Deploy Hook. Sin ese secreto el workflow no hace nada
+# (y no falla), así que el repo sigue funcionando igual.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+    steps:
+      - name: Lanzar deploy en Render
+        if: env.RENDER_DEPLOY_HOOK != ''
+        run: |
+          code=$(curl -sS -o /tmp/render-deploy.txt -w '%{http_code}' --max-time 30 -X POST "$RENDER_DEPLOY_HOOK")
+          echo "Render respondió $code"
+          cat /tmp/render-deploy.txt || true
+          case "$code" in
+            200|201|202) ;;
+            *) echo "El Deploy Hook falló (HTTP $code)"; exit 1 ;;
+          esac
+
+      - name: Sin secreto configurado
+        if: env.RENDER_DEPLOY_HOOK == ''
+        run: |
+          echo "RENDER_DEPLOY_HOOK no está configurado."
+          echo "Añádelo en Settings → Secrets and variables → Actions para activar el deploy automático."
