@@ -11,26 +11,11 @@
 //
 // No imprime la clave privada ni el token.
 
-import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 
 import { createTokenSource, loadServiceAccount } from "../src/backend/vertex-auth.js";
 import { DEFAULT_VERTEX_LOCATION, modelsFromEnv } from "../src/backend/providers.js";
-
-function loadDotEnv() {
-  if (process.env.VERTEX_PROJECT_ID) return;
-  try {
-    const raw = readFileSync(new URL("../.env", import.meta.url), "utf8");
-    for (const line of raw.split("\n")) {
-      const match = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
-      if (!match) continue;
-      const [, name, value] = match;
-      process.env[name] ??= value.replace(/^["']|["']$/g, "");
-    }
-  } catch {
-    /* sin .env */
-  }
-}
+import { loadDotEnv } from "../src/backend/dotenv.js";
 
 /** Ejecuta gcloud si está instalado; si no, devuelve cadena vacía. */
 function gcloud(args) {
@@ -42,7 +27,7 @@ function gcloud(args) {
   }
 }
 
-loadDotEnv();
+loadDotEnv(new URL("../.env", import.meta.url));
 
 // El proyecto puede venir de la variable o del proyecto activo de gcloud.
 const project = process.env.VERTEX_PROJECT_ID?.trim() || gcloud(["config", "get-value", "project"]);

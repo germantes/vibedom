@@ -17,6 +17,7 @@ import { cacheKey, createScanCache } from "./scan-cache.js";
 import { createGeminiLimiter } from "./gemini-limiter.js";
 import { composeLocalSeed } from "./local-seed.js";
 import { resolveEngine } from "./providers.js";
+import { loadDotEnv } from "./dotenv.js";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 export const DEFAULT_ROOT = resolve(HERE, "../..");
@@ -385,6 +386,8 @@ export function startServer({ port = DEFAULT_PORT, ...options } = {}) {
 
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
+  // En local las credenciales viven en `.env`; en Render llegan del entorno.
+  loadDotEnv(new URL("../../.env", import.meta.url));
   const server = await startServer().catch((err) => {
     console.error(`No se pudo arrancar el servidor: ${err.message}`);
     process.exit(1);

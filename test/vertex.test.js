@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createVerify, generateKeyPairSync } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { GeminiError, translate } from "../src/backend/translator.js";
 import {
@@ -11,7 +13,13 @@ import {
   resolveProvider,
   vertexEndpoint,
 } from "../src/backend/providers.js";
-import { createTokenSource, loadServiceAccount, parseServiceAccount, signJwt } from "../src/backend/vertex-auth.js";
+import {
+  createTokenSource,
+  loadServiceAccount,
+  parseServiceAccount,
+  signJwt,
+} from "../src/backend/vertex-auth.js";
+import { loadDotEnv } from "../src/backend/dotenv.js";
 
 const SEED = JSON.parse(readFileSync(new URL("../presets/cyberpunk.json", import.meta.url), "utf8"));
 const SIGNALS = { url: "https://studio.test", title: "Studio" };
@@ -58,6 +66,28 @@ function recordingFetch(handler) {
 }
 
 // ---- Credenciales ----------------------------------------------------------
+
+test("loadDotEnv carga el fichero sin pisar el entorno", () => {
+  const dir = mkdtempSync(join(tmpdir(), "vibedom-env-"));
+  const file = join(dir, ".env");
+  writeFileSync(
+    file,
+    ['VIBEDOM_TEST_ENV_A=desde-fichero', 'VIBEDOM_TEST_ENV_B="con comillas"', "# comentario", ""].join("\n"),
+  );
+  process.env.VIBEDOM_TEST_ENV_A = "entorno";
+
+  try {
+    assert.equal(loadDotEnv(file), true);
+    assert.equal(process.env.VIBEDOM_TEST_ENV_A, "entorno");
+    assert.equal(process.env.VIBEDOM_TEST_ENV_B, "con comillas");
+  } finally {
+    delete process.env.VIBEDOM_TEST_ENV_A;
+    delete process.env.VIBEDOM_TEST_ENV_B;
+    rmSync(dir, { recursive: true, force: true });
+  }
+
+  assert.equal(loadDotEnv(join(tmpdir(), "no-existe-vibedom.env")), false);
+});
 
 test("signJwt firma un RS256 verificable con los claims que espera Google", () => {
   const now = () => 1_700_000_000_000;
