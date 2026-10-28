@@ -207,6 +207,14 @@ const DICTS = {
     "playground.json.title": "Semilla Sonora (JSON)",
     "playground.json.sub":
       "Esto es lo único que se genera con IA. La música se sintetiza entera en tu navegador.",
+    "playground.embed.title": "Tu widget embebible",
+    "playground.embed.sub":
+      "Pega este código en Webflow, Framer o cualquier HTML. La semilla va dentro: sin llamadas a la IA ni coste por visitante.",
+    "playground.embed.copy": "Copiar código",
+    "playground.embed.copied": "Copiado",
+    "playground.embed.copyError": "No se pudo copiar",
+    "playground.embed.hint":
+      'El botón flotante carga Tone.js solo al pulsarlo. Puedes cambiar su texto con data-label="Escuchar mi web".',
     "playground.footer.samples": "Sin audio pregrabado · Tone.js bajo demanda",
     "playground.footer.github": "GitHub",
     "playground.arpOff": "Arpegio off",
@@ -463,6 +471,14 @@ const DICTS = {
     "playground.json.title": "Sound Seed (JSON)",
     "playground.json.sub":
       "This is the only thing AI generates. The music is synthesised entirely in your browser.",
+    "playground.embed.title": "Your embeddable widget",
+    "playground.embed.sub":
+      "Paste this code into Webflow, Framer or any HTML. The seed is inside: no AI calls and no cost per visitor.",
+    "playground.embed.copy": "Copy code",
+    "playground.embed.copied": "Copied",
+    "playground.embed.copyError": "Couldn't copy",
+    "playground.embed.hint":
+      'The floating button loads Tone.js only when pressed. Change its text with data-label="Listen to my site".',
     "playground.footer.samples": "No pre-recorded audio · Tone.js on demand",
     "playground.footer.github": "GitHub",
     "playground.arpOff": "Arpeggio off",

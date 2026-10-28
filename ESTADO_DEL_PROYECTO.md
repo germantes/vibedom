@@ -214,7 +214,7 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **Control**: `SCAN_FALLBACK=0` recupera el comportamiento anterior (429 amable con `Retry-After`). Si el scraper no puede cargar la web, se mantiene el `502` genérico: no se inventa una semilla sin señales.
 - **Verificación**: **105 tests** en verde (compositor local, determinismo, contrato, contraste, claro/oscuro, idioma, 429 cubierto, enfriamiento sin llamar a Gemini y modo sin fallback).
 
-### 🚧 FASE 3.12: Vertex AI como motor facturable (código completo; falta verificar la facturación)
+### ✅ FASE 3.12: Vertex AI como motor facturable (COMPLETADA)
 
 - **Motivo**: la API key de AI Studio puede vivir en un proyecto en **nivel gratuito** aunque la cuenta de facturación tenga crédito. En ese caso los 50 $ no se descuentan, la cuota diaria se agota y los escaneos caen al compositor local. Vertex AI se factura contra el proyecto de Google Cloud, así que los créditos se aplican desde la primera llamada.
 - **`src/backend/vertex-auth.js`**: service account → JWT RS256 (`node:crypto`) → access token de OAuth2, cacheado una hora con renovación tras un `401`. Sin dependencias npm.
@@ -227,7 +227,16 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **Límites**: con Vertex la facturación es por proyecto y las cuotas son mucho más altas, así que `GEMINI_MIN_INTERVAL_MS=2000` y `GEMINI_MAX_WAIT_MS=12000` (antes 8000/25000).
 - **`src/backend/scan-budget.js`**: tope diario de escaneos facturables, en memoria y con reinicio a medianoche UTC. `SCAN_DAILY_LIMIT` (200/día) y `SCAN_IP_DAILY_LIMIT` (30/día) cubren el caso de muchas IPs distintas, que el límite por minuto no frena. Al agotarse, el servidor responde con la semilla local sin llamar a Vertex; con `SCAN_FALLBACK=0` devuelve el 429 amable. La caché y los escaneos locales no consumen cupo. `/api/health` expone `budget` y `engine`. El contador se pierde al reiniciar el proceso (Render free duerme por inactividad), así que es una barrera de primera línea: el presupuesto con alertas de Google Cloud sigue siendo obligatorio.
 - **Verificación local**: escaneo real de `https://example.com` → `200` en **3,3 s**, `X-Vibedom-Source: vertex`, semilla de IA («Minimalismo crudo y documental», C major 65 BPM) y `tokens in=1929 out=364`. Con `SCAN_DAILY_LIMIT=1`, el segundo escaneo devolvió `X-Vibedom-Source: local` sin llamar a Vertex y `budget.usedToday` quedó en 1. **122 tests** en verde (10 de Vertex + 5 del presupuesto + integración).
-- **Pendiente**: definir `VERTEX_*` en Render (hecho), confirmar en Google Cloud Billing que el consumo de Vertex descuenta los 50 $, borrar la clave antigua y crear el presupuesto con alertas. Los créditos pertenecen a la cuenta de facturación, no al proyecto: hay que comprobar que el proyecto de la service account está vinculado a la misma cuenta que tiene el saldo.
+- **Facturación**: el proyecto `gen-lang-client-0008536547` está vinculado a la cuenta de facturación educativa de los 50 USD y el presupuesto de 5 USD/mes para Vertex tiene avisos en 2,50 / 4,50 / 5 USD. Los avisos no bloquean el gasto: el tope de 200 escaneos/día sigue siendo la barrera real. La clave expuesta en el chat (`931aaefa…`) ya no canjea tokens; la única activa es la `794f3d…` que usa la app. Queda confirmar en Billing que el consumo empieza a descontar de los 50 USD (puede tardar horas en reflejarse).
+
+### ✅ FASE 4: Widget embebible (COMPLETADA)
+
+- **`widget.js`** (**4.832 bytes**): script clásico sin dependencias. Lee la semilla de `data-seed` (base64 UTF-8), monta el botón flotante en **Shadow DOM** (`:host{all:initial}`) y usa `uiTheme` con contraste mínimo para que siga visible. Respeta `prefers-reduced-motion`, expone `aria-pressed` y acepta `data-label`; sin él, elige ES/EN según `<html lang>`. No descarga nada más hasta el clic.
+- **`widget-player.js`**: se importa desde `widget.js` solo al primer clic. Descarga Tone.js del CDN, configura el contexto dentro del gesto y crea el soundscape con la semilla incrustada. Sin backend, sin IA y sin coste por visitante.
+- **`src/embed.js`**: `encodeSeed()` (JSON → UTF-8 → base64, seguro dentro de un atributo) y `buildWidgetSnippet()`. El snippet apunta a `https://vibedom.dev`; en local, a `location.origin`.
+- **Playground ES/EN**: tarjeta «Tu widget embebible» con el snippet actualizado en caliente con los sliders y botón de copia (con fallback a `execCommand`).
+- **Servidor**: los estáticos responden con `Access-Control-Allow-Origin: *` para que `widget.js`, sus módulos y el motor se puedan importar desde otro dominio.
+- **Verificación**: **131 tests** en verde (tamaño < 5 KB, Shadow DOM, carga diferida, round-trip base64 con acentos/emojis y snippet sin `</script>` inyectado) y E2E con Chromium headless: el botón aparece, `widget-player.js` y Tone.js se cargan solo tras el clic, arranca y pausa; el snippet de 1.217 bytes se genera desde el playground y se copia al portapapeles sin errores 404.
 
 
 
@@ -238,18 +247,6 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 ---
 
 ## 4. Lo que queda por hacer (Roadmap)
-
-### Fase 4: Generador de Snippet Embebible y Componente Framer / Webflow
-
-- **Micro-widget (< 5 KB iniciales)**:
-  - Script vanilla JS autocontenido en **Shadow DOM**.
-  - Semilla Sonora inyectada como objeto plano.
-  - Botón flotante minimalista (onda animada SVG/CSS) con la paleta de `uiTheme`.
-  - Carga diferida de Tone.js solo al hacer clic.
-- **Generador de código en el Playground**:
-  - Bloque "Copia tu snippet" con el `<script>` listo para Webflow, Framer o HTML clásico.
-  - El snippet debe usar `location.origin` (o `https://vibedom.dev`) para apuntar al widget; el dominio ya existe, pero no conviene duplicarlo en el código.
-  - Componente nativo para Framer (`framer-code-components`).
 
 ### Mejoras opcionales
 - Verificar `vibedom.dev` en GitHub Pages con el TXT `_github-pages-challenge-germantes` (protección contra *takeover*) y añadir los `AAAA` de GitHub para IPv6.
@@ -285,6 +282,8 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 │   ├── og-es.png                              # Open Graph ES 1200×630
 │   └── og-en.png                              # Open Graph EN 1200×630
 ├── favicon.svg                                # Icono de la demo
+├── widget.js                                  # Botón flotante < 5 KB en Shadow DOM
+├── widget-player.js                           # Motor + Tone.js bajo demanda
 ├── package.json                               # Scripts (start, dev, test)
 ├── presets/                                   # Semillas de prueba
 │   ├── cyberpunk.json
@@ -293,6 +292,7 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 ├── src/
 │   ├── i18n.js                                # Diccionarios ES/EN y applyI18n
 │   ├── api.js                                 # /api/scan y backend externo
+│   ├── embed.js                               # Semilla en base64 + snippet del widget
 │   ├── host-mode.js                           # Detección de host estático
 │   ├── backend/
 │   │   ├── scraper.js                         # Extracción HTML/CSS sin dependencias
@@ -322,15 +322,23 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 │       ├── seed.js                            # Validación del contrato
 │       └── soundscape.js                      # Motor Tone.js
 └── test/
+    ├── embed.test.js
+    ├── gemini-limiter.test.js
     ├── generative.test.js
-    ├── scraper.test.js
+    ├── host-mode.test.js
+    ├── local-seed.test.js
+    ├── rate-limit.test.js
     ├── scales.test.js
     ├── scan-budget.test.js
+    ├── scan-cache.test.js
+    ├── scraper.test.js
     ├── seed.test.js
     ├── server.test.js
+    ├── theme.test.js
     ├── translator.test.js
+    ├── url-guard.test.js
     ├── vertex.test.js
-    └── url-guard.test.js
+    └── widget.test.js
 ```
 
 ---
@@ -353,6 +361,8 @@ npm run dev
 - Crea `.env` en la raíz con las variables `VERTEX_*` (recomendado) o `GEMINI_KEY=...` para escanear. Está gitignorado y el servidor estático lo bloquea.
 - Mantén `gemini-3.5-flash` como preferido. En Vertex confirma el nombre exacto con `npm run vertex:check` y ajústalo con `VERTEX_MODELS`. No uses `gemini-2.x` (retirado para esta clave) ni `gemini-3.8-flash` (latencia inaceptable).
 - Respeta la regla de cero dependencias npm en backend y el lazy-loading de Tone.js.
+- **Widget**: `widget.js` debe seguir por debajo de 5 KB y sin dependencias; no importes Tone.js ahí. El motor se carga en `widget-player.js` y el snippet se genera con `src/embed.js`. Los estáticos necesitan `Access-Control-Allow-Origin: *` para que se importen desde webs de terceros.
+- **Al publicar**: el snippet usa `https://vibedom.dev/widget.js`. Tras desplegar, comprueba que `/widget.js` y `/widget-player.js` responden tanto en GitHub Pages como en Render.
 - Si cambias el backend, reinicia `npm start` (el proceso en segundo plano no recarga solo).
 - El motor no debe importar Tone.js: se inyecta desde `main.js` para conservar el lazy-loading.
 - La verificación con Playwright se hizo con `playwright-core` instalado fuera del repo (`/tmp/opencode`) usando el Chromium cacheado; no añadir Playwright al `package.json` sin decisión explícita.

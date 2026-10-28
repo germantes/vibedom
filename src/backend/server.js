@@ -306,6 +306,8 @@ function makeStaticHandler(root) {
         "Content-Type": MIME[ext] ?? "application/octet-stream",
         "Content-Length": data.length,
         "Cache-Control": "no-cache",
+        // El widget y sus módulos se pueden importar desde webs de terceros.
+        "Access-Control-Allow-Origin": "*",
       });
       res.end(data);
     } catch {

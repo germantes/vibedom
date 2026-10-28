@@ -750,6 +750,11 @@ pre {
   font-size: 0.78rem;
 }
 
+#embed {
+  max-height: 220px;
+  overflow: auto;
+}
+
 .spacer {
   height: 160vh;
 }

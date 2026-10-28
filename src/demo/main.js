@@ -6,6 +6,7 @@ import { createAnalysis } from "./analysis.js";
 import { createControls, formatHz } from "./controls.js";
 import { createVisualizer } from "./visualizer.js";
 import { accentFor, normalizeHex, onColorFor, relativeLuminance, textFor } from "../landing/theme.js";
+import { buildWidgetSnippet } from "../embed.js";
 
 applyI18n();
 
@@ -174,6 +175,7 @@ function renderSeed(seed, { showSource = true } = {}) {
   $("vibe").textContent = copy.vibe;
   $("explanation").textContent = copy.explanation;
   $("json").textContent = JSON.stringify(seed, null, 2);
+  renderSnippet(seed);
   document.title = `vibedom · ${copy.vibe}`;
 
   const source = $("source-url");
@@ -200,7 +202,18 @@ function renderSeed(seed, { showSource = true } = {}) {
 function updateSeedView() {
   if (!activeSeed) return;
   $("json").textContent = JSON.stringify(activeSeed, null, 2);
+  renderSnippet(activeSeed);
   renderParams(activeSeed);
+}
+
+/** El snippet apunta al dominio público; en local, al servidor de desarrollo. */
+const WIDGET_LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+
+function renderSnippet(seed) {
+  const el = $("embed");
+  if (!el) return;
+  const base = WIDGET_LOCAL ? location.origin : "https://vibedom.dev";
+  el.textContent = buildWidgetSnippet(seed, { base });
 }
 
 // ---- Motor de audio --------------------------------------------------------
@@ -443,6 +456,33 @@ scanForm.addEventListener("submit", async (event) => {
 });
 
 // ---- Interacción -----------------------------------------------------------
+
+const copyEmbed = $("copy-embed");
+
+copyEmbed?.addEventListener("click", async () => {
+  const code = $("embed")?.textContent ?? "";
+  if (!code) return;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(code);
+    } else {
+      const area = document.createElement("textarea");
+      area.value = code;
+      area.setAttribute("readonly", "");
+      area.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand("copy");
+      area.remove();
+    }
+    copyEmbed.textContent = t("playground.embed.copied");
+  } catch {
+    copyEmbed.textContent = t("playground.embed.copyError");
+  }
+  setTimeout(() => {
+    copyEmbed.textContent = t("playground.embed.copy");
+  }, 2000);
+});
 
 toggle.addEventListener("click", () =>
   withBusy(async () => {

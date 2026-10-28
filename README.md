@@ -74,6 +74,25 @@ El playground reutiliza las mismas funciones en su propio `applyTheme`, pero con
 - **Visualizador enriquecido**: espectro de barras y osciloscopio en canvas, teñidos con la paleta de la web analizada.
 - **Tema adoptado**: fondo, texto, acento y familia tipográfica de la web escaneada se aplican a toda la interfaz.
 - **Semilla Sonora visible** y botón para volver a la landing; selector de idioma en la barra superior.
+- **Widget embebible**: bloque con el `<script>` listo para copiar, actualizado en caliente con los sliders.
+
+## Widget embebible
+
+El playground genera un snippet que se pega tal cual en Webflow, Framer o cualquier HTML:
+
+```html
+<!-- vibedom: música generativa de tu web -->
+<script src="https://vibedom.dev/widget.js"
+        data-seed="<semilla en base64>"
+        defer></script>
+```
+
+- **Menos de 5 KB iniciales** (`widget.js`): botón flotante en **Shadow DOM**, sin tocar el CSS ni el DOM de la web anfitriona. La semilla viaja dentro del atributo `data-seed`, así que cada visitante escucha la web sin llamar a la IA ni al backend.
+- **Tone.js solo al primer clic**: `widget.js` importa `widget-player.js` y este descarga Tone.js y el motor desde el CDN. Sin clic no hay audio, ni descarga, ni coste.
+- **Colores de la web analizada**: el botón usa `uiTheme` (`backgroundColor`, `accentColor`, `textColor`), con contraste mínimo para que siga siendo visible.
+- **Texto propio**: `data-label="Escuchar mi web"`. Si no se indica, se elige ES/EN según `<html lang>`.
+- **Accesibilidad**: `aria-pressed`, etiqueta dinámica, foco visible y respeto a `prefers-reduced-motion`.
+- El snippet apunta a `https://vibedom.dev` en producción y a `location.origin` cuando el playground se sirve en local. Los estáticos del servidor envían `Access-Control-Allow-Origin: *` para que los módulos se puedan importar desde otro dominio.
 
 ## Internacionalización
 
@@ -99,7 +118,10 @@ favicon.svg
 sitemap.xml                  sitemap bilingüe con hreflang
 robots.txt                   crawl abierto + referencia al sitemap
 render.yaml                  Blueprint de Render (servicio + env)
+widget.js                    botón flotante < 5 KB en Shadow DOM
+widget-player.js             motor + Tone.js bajo demanda (primer clic)
 src/i18n.js                  diccionarios ES/EN y utilidades
+src/embed.js                 codificación de la semilla y generador del snippet
 src/api.js                   resolución de /api/scan y backend externo
 src/host-mode.js             detección de host estático (Pages, dominio propio, file:)
 src/landing/main.js          demo, escaneo y audio de la landing
@@ -161,7 +183,7 @@ El esquema es el de la spec (sección 4). `normalizeSeed()` aplica dos política
 - **Resiliencia del escaneo**: si la IA devuelve `429` o falla después de descargar las señales, se responde `200` con una semilla local (`metadata.source: "local"`, cabecera `X-Vibedom-Source: local`). Durante un enfriamiento conocido (`429` previo) ni siquiera se espera la cola. La semilla local no se cachea: cuando la cuota vuelve, el siguiente escaneo usa la IA. Si el scraper no puede cargar la web, siguen aplicando `400` (URL), `429` (límite por IP) o `502` (`{ code: "ANALYSIS_FAILED" }`) con un mensaje localizado en `error`.
 - `GET /api/health` → `200` con `{ ok: true, service: "vibedom", commit, engine }`; sirve de health check, despierta el servicio en Render y permite comprobar qué commit y qué motor (`vertex`, `gemini` o `local`) están activos.
 - **Cabecera `X-Vibedom-Source`**: `vertex`, `gemini` o `local` indican qué produjo la semilla. Útil para verificar un despliegue sin mirar logs.
-- Archivos estáticos del repositorio en el resto de rutas.
+- Archivos estáticos del repositorio en el resto de rutas, con `Access-Control-Allow-Origin: *` para que `widget.js`, sus módulos y los presets se puedan importar desde webs de terceros.
 - **Sin dependencias npm**: `node:http`, `fetch` nativo y regex. Node ≥ 20.
 - Variables: `VERTEX_PROJECT_ID` (activa Vertex AI; recomendado), `VERTEX_LOCATION` (por defecto `global`; las regiones europeas pueden no tener los modelos más nuevos), `VERTEX_SA_KEY_B64` (JSON de la service account en base64), `VERTEX_SA_KEY_JSON` (la misma clave en crudo, para local), `VERTEX_ACCESS_TOKEN` (token de corta duración, solo para pruebas), `VERTEX_MODELS` (lista separada por comas), `GEMINI_KEY` (alternativa con API key; si no hay Vertex ni key se usa siempre la semilla local), `PORT` (3000 por defecto), `SCAN_RATE_LIMIT` (5 escaneos/min por IP; `0` lo desactiva), `SCAN_DAILY_LIMIT` (200 escaneos facturables al día en total; `0` lo desactiva), `SCAN_IP_DAILY_LIMIT` (30 al día por IP), `GEMINI_MIN_INTERVAL_MS` (8 s entre llamadas reales a la IA), `GEMINI_MAX_WAIT_MS` (25 s de espera máxima en cola), `GEMINI_QUEUE_LIMIT` (10 peticiones en cola), `SCAN_CACHE_TTL` (segundos que se recuerda una semilla; 3600 por defecto, `0` desactiva la caché), `SCAN_FALLBACK` (`0` desactiva la semilla local de emergencia), `SCAN_FALLBACK_COOLDOWN_S` (enfriamiento mínimo, en segundos, para saltarse la IA; `0` = cualquiera) y `VIBEDOM_ALLOW_PRIVATE=1` (solo desarrollo, permite escanear hosts privados).
 - El servidor valida cada salto de redirección y cada hoja de estilos para evitar SSRF, bloquea dotfiles y *path traversal*, limita el cuerpo de las peticiones a 16 KB y aplica la cuota antes de llamar a Gemini.
@@ -307,7 +329,7 @@ Para añadir uno, crea el JSON en `presets/` y regístralo en `PRESET_IDS` (`src
 npm test
 ```
 
-**105 tests** con `node:test`, sin dependencias:
+**131 tests** con `node:test`, sin dependencias:
 
 * escalas, acordes y conversión MIDI;
 * validación de la semilla y presets reales;
@@ -321,14 +343,14 @@ npm test
 * caché de semillas por URL (normalización, TTL, desalojo y acierto sin volver a llamar a Gemini);
 * tema dinámico (normalización de hex, luminancia, contraste WCAG, texto y acento corregidos, mezclas y `rgba()`);
 * detección de host estático (Pages, dominio propio, `file:` y API externa);
-* idioma de salida del traductor y separación de la caché por idioma.
+* idioma de salida del traductor y separación de la caché por idioma;
+* widget embebible (tamaño < 5 KB, Shadow DOM, carga diferida de Tone.js y `data-label`);
+* snippet (round-trip base64 con acentos y emojis, atributo seguro, origen sin doble barra y `</script>` escapado).
 
-El flujo real se validó en navegador con Playwright (fuera del repo): landing ES/EN, presets, play/pausa, espectro, escaneo mockeado, error de backend, responsive a 390 px, playground ES/EN, sliders, JSON y cambio de idioma. También se validó un escaneo real de `example.com` (~3 s). El tema dinámico se comprobó con escaneos mockeados (sitio claro, oscuro y un caso hostil blanco sobre blanco) y una auditoría de contraste de 26 elementos en ambos esquemas: 26/26 en claro y 26/26 en oscuro.
+El flujo real se validó en navegador con Playwright (fuera del repo): landing ES/EN, presets, play/pausa, espectro, escaneo mockeado, error de backend, responsive a 390 px, playground ES/EN, sliders, JSON y cambio de idioma. También se validó un escaneo real de `example.com` (~3 s). El tema dinámico se comprobó con escaneos mockeados (sitio claro, oscuro y un caso hostil blanco sobre blanco) y una auditoría de contraste de 26 elementos en ambos esquemas: 26/26 en claro y 26/26 en oscuro. El widget se probó con Chromium headless en una página anfitriona: `widget.js` → `widget-player.js` → Tone.js solo tras el clic, arranque y pausa, snippet de 1.217 bytes generado desde el playground y copiado al portapapeles sin errores 404.
 
 ## Roadmap
 
-* **Fase 4**: widget embebible < 5 KB con Shadow DOM, Tone.js bajo demanda y generador de snippet para Framer/Webflow.
 * Verificación en Search Console, envío del sitemap y página dedicada a «what does my website sound like».
 * Historial de escaneos recientes y compartir semilla por URL.
-
-> El snippet deberá apuntar al origen desplegado (`location.origin`) en lugar de una URL fija.
+* Exportar/importar Semilla Sonora y componente nativo para Framer.
