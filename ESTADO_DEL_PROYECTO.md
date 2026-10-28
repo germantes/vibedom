@@ -214,7 +214,7 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **Control**: `SCAN_FALLBACK=0` recupera el comportamiento anterior (429 amable con `Retry-After`). Si el scraper no puede cargar la web, se mantiene el `502` genérico: no se inventa una semilla sin señales.
 - **Verificación**: **105 tests** en verde (compositor local, determinismo, contrato, contraste, claro/oscuro, idioma, 429 cubierto, enfriamiento sin llamar a Gemini y modo sin fallback).
 
-### 🚧 FASE 3.12: Vertex AI como motor facturable (EN CURSO)
+### 🚧 FASE 3.12: Vertex AI como motor facturable (código completo; falta verificar la facturación)
 
 - **Motivo**: la API key de AI Studio puede vivir en un proyecto en **nivel gratuito** aunque la cuenta de facturación tenga crédito. En ese caso los 50 $ no se descuentan, la cuota diaria se agota y los escaneos caen al compositor local. Vertex AI se factura contra el proyecto de Google Cloud, así que los créditos se aplican desde la primera llamada.
 - **`src/backend/vertex-auth.js`**: service account → JWT RS256 (`node:crypto`) → access token de OAuth2, cacheado una hora con renovación tras un `401`. Sin dependencias npm.
@@ -225,8 +225,9 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **`role: "user"` obligatorio**: Vertex rechaza `contents` sin rol (`400 Please use a valid role: user, model`); la API key lo asumía y por eso el mismo body funcionaba con Gemini y no con Vertex.
 - **`.env` en local**: `src/backend/dotenv.js` carga el fichero solo al arrancar el servidor como proceso principal y en los scripts, nunca al importar módulos (los tests no heredan credenciales).
 - **Límites**: con Vertex la facturación es por proyecto y las cuotas son mucho más altas, así que `GEMINI_MIN_INTERVAL_MS=2000` y `GEMINI_MAX_WAIT_MS=12000` (antes 8000/25000).
-- **Verificación local**: escaneo real de `https://example.com` → `200` en **3,3 s**, `X-Vibedom-Source: vertex`, semilla de IA («Minimalismo crudo y documental», C major 65 BPM) y `tokens in=1929 out=364`. **115 tests** en verde (10 de Vertex: JWT, token cacheado, 401, `role`, endpoint global, `.env`).
-- **Pendiente**: definir `VERTEX_*` en Render y confirmar en Google Cloud Billing que el consumo de Vertex descuenta los 50 $. Los créditos pertenecen a la cuenta de facturación, no al proyecto: hay que comprobar que el proyecto de la service account está vinculado a la misma cuenta que tiene el saldo.
+- **`src/backend/scan-budget.js`**: tope diario de escaneos facturables, en memoria y con reinicio a medianoche UTC. `SCAN_DAILY_LIMIT` (200/día) y `SCAN_IP_DAILY_LIMIT` (30/día) cubren el caso de muchas IPs distintas, que el límite por minuto no frena. Al agotarse, el servidor responde con la semilla local sin llamar a Vertex; con `SCAN_FALLBACK=0` devuelve el 429 amable. La caché y los escaneos locales no consumen cupo. `/api/health` expone `budget` y `engine`.
+- **Verificación local**: escaneo real de `https://example.com` → `200` en **3,3 s**, `X-Vibedom-Source: vertex`, semilla de IA («Minimalismo crudo y documental», C major 65 BPM) y `tokens in=1929 out=364`. Con `SCAN_DAILY_LIMIT=1`, el segundo escaneo devolvió `X-Vibedom-Source: local` sin llamar a Vertex y `budget.usedToday` quedó en 1. **122 tests** en verde (10 de Vertex + 5 del presupuesto + integración).
+- **Pendiente**: definir `VERTEX_*` en Render (hecho), confirmar en Google Cloud Billing que el consumo de Vertex descuenta los 50 $, borrar la clave antigua y crear el presupuesto con alertas. Los créditos pertenecen a la cuenta de facturación, no al proyecto: hay que comprobar que el proyecto de la service account está vinculado a la misma cuenta que tiene el saldo.
 
 
 
@@ -298,6 +299,7 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 │   │   ├── server.js                          # node:http + API /api/scan + health
 │   │   ├── rate-limit.js                      # Cuota de escaneos por IP
 │   │   ├── scan-cache.js                      # Caché en memoria de semillas
+│   │   ├── scan-budget.js                     # Tope diario de escaneos facturables
 │   │   ├── local-seed.js                      # Compositor determinista sin IA
 │   │   ├── translator.js                      # IA con retries/fallback/timeout
 │   │   ├── providers.js                       # Vertex AI o Gemini API según entorno
@@ -323,6 +325,7 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
     ├── generative.test.js
     ├── scraper.test.js
     ├── scales.test.js
+    ├── scan-budget.test.js
     ├── seed.test.js
     ├── server.test.js
     ├── translator.test.js

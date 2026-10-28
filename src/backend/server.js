@@ -12,9 +12,10 @@ import { fileURLToPath } from "node:url";
 import { scrapeUrl } from "./scraper.js";
 import { resolveLang, translate } from "./translator.js";
 import { assertPublicUrl, UnsafeUrlError } from "./url-guard.js";
-import { createRateLimiter } from "./rate-limit.js";
+import { createRateLimiter, clientIp } from "./rate-limit.js";
 import { cacheKey, createScanCache } from "./scan-cache.js";
 import { createGeminiLimiter } from "./gemini-limiter.js";
+import { createScanBudget } from "./scan-budget.js";
 import { composeLocalSeed } from "./local-seed.js";
 import { resolveEngine } from "./providers.js";
 import { loadDotEnv } from "./dotenv.js";
@@ -134,6 +135,7 @@ function makeScanHandler({
   logger,
   cache,
   limiter,
+  scanBudget,
 }) {
   /**
    * Semilla de emergencia: el scrape ya trajo las señales, así que la web
@@ -201,6 +203,24 @@ function makeScanHandler({
       const cooldown = Number(limiter?.cooldownSeconds) || 0;
       if (composeFallback && cooldown > skipCooldownS) {
         return sendLocalSeed(res, signals, lang, `cuota en enfriamiento (${cooldown} s)`);
+      }
+
+      // Tope diario de escaneos facturables: corta el gasto antes de llamar a
+      // Vertex, no después. Las URLs en caché no llegan hasta aquí.
+      const budget = scanBudget.take(clientIp(req));
+      if (!budget.ok) {
+        const reason = budget.scope === "ip" ? "tope diario por IP" : "tope diario de IA";
+        if (composeFallback) return sendLocalSeed(res, signals, lang, reason);
+
+        const copy = SCAN_ERROR_COPY[lang] ?? SCAN_ERROR_COPY.es;
+        const retryAfter = Math.max(1, Math.ceil(Number(budget.retryAfter) || RATE_LIMIT_FALLBACK_S));
+        logger.warn(`[scan] ⏳ ${reason} · se reinicia en ${retryAfter} s`);
+        return json(
+          res,
+          429,
+          { code: "RATE_LIMITED", error: rateLimitedMessage(copy, retryAfter), retryAfter },
+          { "Retry-After": String(retryAfter) },
+        );
       }
 
       logger.log("[scan] Llamando a la IA…");
@@ -307,6 +327,7 @@ export function createVibedomServer({
   composeFallback = composeLocalSeed,
   skipCooldownS = DEFAULT_SKIP_COOLDOWN_S,
   geminiLimiter = createGeminiLimiter(),
+  scanBudget = createScanBudget(),
   validateUrl = assertPublicUrl,
   rateLimit = createRateLimiter(),
   cache = createScanCache(),
@@ -325,6 +346,7 @@ export function createVibedomServer({
     cache,
     logger,
     limiter: geminiLimiter,
+    scanBudget,
   });
   const handleStatic = makeStaticHandler(root);
 
@@ -346,6 +368,7 @@ export function createVibedomServer({
         service: "vibedom",
         commit: process.env.RENDER_GIT_COMMIT?.slice(0, 7) ?? null,
         engine: resolveEngine(),
+        budget: scanBudget.snapshot(),
       });
     }
 

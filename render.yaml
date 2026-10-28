@@ -19,6 +19,12 @@ services:
         value: "2000"
       - key: GEMINI_MAX_WAIT_MS
         value: "12000"
+      # Tope diario de escaneos facturables. Al agotarse, la demo responde con
+      # la semilla local sin llamar a la IA. `0` lo desactiva.
+      - key: SCAN_DAILY_LIMIT
+        value: "200"
+      - key: SCAN_IP_DAILY_LIMIT
+        value: "30"
       - key: GEMINI_QUEUE_LIMIT
         value: "10"
       # Cuando la cuota se agota, la demo sigue sonando con una semilla local

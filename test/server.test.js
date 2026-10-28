@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 
 import { startServer } from "../src/backend/server.js";
 import { createScanCache } from "../src/backend/scan-cache.js";
+import { createScanBudget } from "../src/backend/scan-budget.js";
 import { UnsafeUrlError } from "../src/backend/url-guard.js";
 
 const SEED = JSON.parse(readFileSync(new URL("../presets/editorial.json", import.meta.url), "utf8"));
@@ -34,6 +35,7 @@ before(async () => {
       return SEED;
     },
     rateLimit: () => ({ ok: true, remaining: 99, retryAfter: 0 }),
+    scanBudget: createScanBudget({ dailyLimit: 0, ipLimit: 0 }),
     cache: createScanCache({ ttlMs: 0 }),
   });
   base = `http://127.0.0.1:${server.address().port}`;
@@ -211,8 +213,17 @@ test("GET /api/health responde sin caché y con CORS", async () => {
   assert.equal(res.headers.get("cache-control"), "no-store");
   assert.equal(res.headers.get("access-control-allow-origin"), "*");
   const body = await res.json();
-  assert.deepEqual({ ...body, engine: undefined }, { ok: true, service: "vibedom", commit: null, engine: undefined });
+  assert.deepEqual({ ...body, engine: undefined, budget: undefined }, {
+    ok: true,
+    service: "vibedom",
+    commit: null,
+    engine: undefined,
+    budget: undefined,
+  });
   assert.ok(["local", "gemini", "vertex"].includes(body.engine));
+  assert.equal(body.budget.dailyLimit, 0);
+  assert.equal(body.budget.perIpDailyLimit, 0);
+  assert.equal(typeof body.budget.usedToday, "number");
 });
 
 test("un 429 de Gemini se cubre con una semilla local en vez de bloquear la demo", async () => {
@@ -347,6 +358,86 @@ test("durante el enfriamiento de Gemini no se espera la cola: semilla local dire
     assert.equal(res.status, 200);
     assert.equal(res.headers.get("x-vibedom-source"), "local");
     assert.equal(translated, 0);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("el tope diario corta la IA y responde con la semilla local", async () => {
+  let translated = 0;
+  const server = await startServer({
+    port: 0,
+    logger: silent,
+    validateUrl: async (url) => url,
+    scrape: async (url) => ({
+      url,
+      title: "Studio",
+      colors: { all: ["#101820"], background: "#101820", isDark: true },
+    }),
+    translateSeed: async () => {
+      translated += 1;
+      return SEED;
+    },
+    rateLimit: () => ({ ok: true, remaining: 99, retryAfter: 0 }),
+    scanBudget: createScanBudget({ dailyLimit: 1, ipLimit: 50 }),
+    cache: createScanCache({ ttlMs: 0 }),
+  });
+  const localBase = `http://127.0.0.1:${server.address().port}`;
+
+  const scan = (url) =>
+    fetch(`${localBase}/api/scan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, lang: "es" }),
+    });
+
+  try {
+    const first = await scan("https://studio.test/");
+    assert.equal(first.status, 200);
+    assert.equal(translated, 1);
+
+    const second = await scan("https://otra-web.test/");
+    assert.equal(second.status, 200);
+    assert.equal(translated, 1, "la segunda no debe llamar a la IA");
+    assert.equal(second.headers.get("x-vibedom-source"), "local");
+    const body = await second.json();
+    assert.equal(body.metadata.source, "local");
+    assert.ok(body.synthConfig.pad.filterFreq > 0);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("si el fallback local está desactivado, el tope diario devuelve 429 amable", async () => {
+  const server = await startServer({
+    port: 0,
+    logger: silent,
+    localFallback: false,
+    validateUrl: async (url) => url,
+    scrape: async (url) => ({ url, title: "Studio" }),
+    translateSeed: async () => SEED,
+    rateLimit: () => ({ ok: true, remaining: 99, retryAfter: 0 }),
+    scanBudget: createScanBudget({ dailyLimit: 1, ipLimit: 50 }),
+    cache: createScanCache({ ttlMs: 0 }),
+  });
+  const localBase = `http://127.0.0.1:${server.address().port}`;
+
+  const scan = (url) =>
+    fetch(`${localBase}/api/scan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, lang: "es" }),
+    });
+
+  try {
+    assert.equal((await scan("https://studio.test/")).status, 200);
+
+    const res = await scan("https://otra-web.test/");
+    assert.equal(res.status, 429);
+    assert.ok(Number(res.headers.get("retry-after")) > 0);
+    const body = await res.json();
+    assert.equal(body.code, "RATE_LIMITED");
+    assert.match(body.error, /límite de uso|saturado/);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
