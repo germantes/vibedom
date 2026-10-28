@@ -1,7 +1,8 @@
-// Traductor sinestésico: señales estéticas → Gemini Flash → Semilla Sonora.
+// Traductor sinestésico: señales estéticas → IA → Semilla Sonora.
 //
-// Gemini Flash devuelve 503/404 esporádicos y su latencia es muy variable, así que
-// la llamada se hace con:
+// El motor es Vertex AI (`VERTEX_PROJECT_ID`) o la API key de Gemini
+// (`GEMINI_KEY`); el resto del flujo es común. La IA devuelve 503/404
+// esporádicos y su latencia es muy variable, así que la llamada se hace con:
 //   • timeout por intento y deadline total,
 //   • reintentos con backoff exponencial + jitter,
 //   • cadena de modelos de respaldo (si uno falla, se prueba el siguiente),
@@ -9,11 +10,10 @@
 
 import { readFileSync } from "node:fs";
 import { normalizeSeed } from "../engine/seed.js";
+import { AI_MODELS, createGeminiProvider, modelsFromEnv, resolveProvider } from "./providers.js";
 
-/** El primero es el preferido; el resto solo entra si el anterior falla. */
-export const GEMINI_MODELS = Object.freeze(["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash"]);
-
-const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
+/** @deprecated usa AI_MODELS; se mantiene por compatibilidad con imports antiguos. */
+export const GEMINI_MODELS = AI_MODELS;
 
 const DEFAULT_ATTEMPTS_PER_MODEL = 2;
 const DEFAULT_RETRY_DELAY_MS = 700;
@@ -57,6 +57,15 @@ function loadKey() {
     /* no .env */
   }
   throw new GeminiError("GEMINI_KEY no encontrada: ponla en .env o como variable de entorno");
+}
+
+/** Vertex AI si hay proyecto configurado; si no, la API key de siempre. */
+function defaultProvider({ key } = {}) {
+  if (process.env.VERTEX_PROJECT_ID?.trim()) return resolveProvider();
+  return createGeminiProvider({
+    key: key ?? loadKey(),
+    models: modelsFromEnv(process.env.GEMINI_MODELS),
+  });
 }
 
 // ---- Prompt ----------------------------------------------------------------
@@ -241,7 +250,15 @@ function parseRetryAfter(res, bodyText) {
   return DEFAULT_RATE_LIMIT_RETRY_S;
 }
 
-async function requestModel({ model, key, body, fetchImpl, signal, timeoutMs }) {
+function providerHint(provider, status) {
+  if (provider.name !== "vertex") return "";
+  if (status === 403) return " (¿API Vertex AI habilitada y la service account con roles/aiplatform.user?)";
+  if (status === 404) return " (¿modelo disponible en esa región? revisa VERTEX_MODELS)";
+  return "";
+}
+
+async function requestModel({ provider, model, body, fetchImpl, signal, timeoutMs, logger }) {
+  const label = provider.name === "vertex" ? "Vertex" : "Gemini";
   const controller = new AbortController();
   let timedOut = false;
   const onExternalAbort = () => controller.abort();
@@ -252,20 +269,49 @@ async function requestModel({ model, key, body, fetchImpl, signal, timeoutMs }) 
     controller.abort();
   }, timeoutMs);
 
-  try {
-    const res = await fetchImpl(`${GEMINI_ENDPOINT}/${model}:generateContent?key=${key}`, {
+  const send = (target) =>
+    fetchImpl(target.url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...target.headers },
       body: JSON.stringify(body),
       signal: controller.signal,
     });
+
+  try {
+    let target;
+    try {
+      target = await provider.prepare(model);
+    } catch (err) {
+      throw new GeminiError(`${label}: ${err.message}`, {
+        retryable: false,
+        code: "PROVIDER_CONFIG",
+        cause: err,
+      });
+    }
+    // `prepare` es asíncrono (Vertex canjea el token): si el cliente canceló
+    // mientras tanto, no llegamos a lanzar la petición.
+    if (signal?.aborted) throw abortReason(signal);
+
+    let res = await send(target);
+
+    // Un token caducado o revocado devuelve 401: se descarta y se reintenta
+    // una sola vez con uno nuevo.
+    if (res.status === 401 && (await provider.refresh?.())) {
+      if (signal?.aborted) throw abortReason(signal);
+      target = await provider.prepare(model);
+      res = await send(target);
+    }
 
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       const detail = text.replace(/\s+/g, " ").trim().slice(0, 240);
       const rateLimited = res.status === 429;
-      const retryable = !rateLimited && (RETRYABLE_STATUS.has(res.status) || (res.status === 404 && !detail));
-      throw new GeminiError(`Gemini ${res.status}: ${detail || "sin detalle"}`, {
+      const retryable =
+        !rateLimited &&
+        (provider.retryNotFound
+          ? RETRYABLE_STATUS.has(res.status)
+          : res.status !== 404 && RETRYABLE_STATUS.has(res.status));
+      throw new GeminiError(`${label} ${res.status}: ${detail || "sin detalle"}${providerHint(provider, res.status)}`, {
         status: res.status,
         retryable,
         code: rateLimited ? "RATE_LIMITED" : undefined,
@@ -274,19 +320,25 @@ async function requestModel({ model, key, body, fetchImpl, signal, timeoutMs }) 
     }
 
     const data = await res.json();
+    const usage = data.usageMetadata;
+    if (usage) {
+      logger?.log?.(
+        `[${provider.name}] ${model} · tokens in=${usage.promptTokenCount ?? "?"} out=${usage.candidatesTokenCount ?? "?"} total=${usage.totalTokenCount ?? "?"}`,
+      );
+    }
     const raw = data.candidates?.[0]?.content?.parts
       ?.map((part) => part.text)
       .filter(Boolean)
       .join("");
-    if (!raw) throw new GeminiError("Gemini no devolvió contenido", { retryable: true });
+    if (!raw) throw new GeminiError(`${label} no devolvió contenido`, { retryable: true });
     return raw;
   } catch (err) {
     if (timedOut) {
-      throw new GeminiError(`Gemini no respondió en ${Math.round(timeoutMs / 1000)} s`, { retryable: true, cause: err });
+      throw new GeminiError(`${label} no respondió en ${Math.round(timeoutMs / 1000)} s`, { retryable: true, cause: err });
     }
     if (signal?.aborted) throw abortReason(signal);
     if (err instanceof GeminiError) throw err;
-    throw new GeminiError(`Error de red con Gemini: ${err.message}`, { retryable: true, cause: err });
+    throw new GeminiError(`Error de red con ${label}: ${err.message}`, { retryable: true, cause: err });
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener("abort", onExternalAbort);
@@ -301,7 +353,6 @@ export async function translate(signals, options = {}) {
   const {
     fetchImpl = globalThis.fetch,
     sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-    models = GEMINI_MODELS,
     attemptsPerModel = DEFAULT_ATTEMPTS_PER_MODEL,
     retryDelayMs = DEFAULT_RETRY_DELAY_MS,
     attemptTimeoutMs = DEFAULT_ATTEMPT_TIMEOUT_MS,
@@ -312,13 +363,14 @@ export async function translate(signals, options = {}) {
     logger = console,
   } = options;
 
-  const key = options.key ?? loadKey();
+  const provider = options.provider ?? defaultProvider(options);
+  const models = options.models ?? provider.models;
   const deadline = Date.now() + totalTimeoutMs;
   const failures = [];
   const schedule = limiter?.run ? (task) => limiter.run(task) : (task) => task();
 
   const body = {
-    system_instruction: { parts: [{ text: systemPrompt(lang) }] },
+    [provider.systemInstructionField]: { parts: [{ text: systemPrompt(lang) }] },
     contents: [
       {
         parts: [{ text: `Analiza esta web y genera la Semilla Sonora:\n\n${JSON.stringify(signals, null, 2)}` }],
@@ -349,7 +401,7 @@ export async function translate(signals, options = {}) {
       try {
         const raw = await schedule(async () => {
           try {
-            return await requestModel({ model, key, body, fetchImpl, signal, timeoutMs });
+            return await requestModel({ provider, model, body, fetchImpl, signal, timeoutMs, logger });
           } catch (err) {
             // Un 429 afecta a todo el proyecto: enfriamos la cola global antes
             // de liberar el turno para que la siguiente petición no lo repita.
@@ -379,13 +431,13 @@ export async function translate(signals, options = {}) {
                   retryAfter: err.retryAfter,
                   cause: err,
                 });
-          logger.warn(`[gemini] cuota agotada; reintentar en ${rateLimited.retryAfter ?? DEFAULT_RATE_LIMIT_RETRY_S} s`);
+          logger.warn(`[${provider.name}] cuota agotada; reintentar en ${rateLimited.retryAfter ?? DEFAULT_RATE_LIMIT_RETRY_S} s`);
           throw rateLimited;
         }
 
         const message = err instanceof Error ? err.message : String(err);
         failures.push(`${model}#${attempt}: ${message}`);
-        logger.warn(`[gemini] ${model} intento ${attempt} falló: ${message}`);
+        logger.warn(`[${provider.name}] ${model} intento ${attempt} falló: ${message}`);
 
         const retryable = err instanceof GeminiError ? err.retryable : false;
         if (!retryable || attempt === attemptsPerModel) break;

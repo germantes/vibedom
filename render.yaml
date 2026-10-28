@@ -27,6 +27,18 @@ services:
         value: "1"
       - key: SCAN_FALLBACK_COOLDOWN_S
         value: "0"
-      # Se pide al crear el servicio desde el Blueprint; nunca se guarda en el repo.
+      # Vertex AI se factura contra el proyecto de Google Cloud, así que los
+      # créditos se aplican desde la primera llamada (la API key puede quedarse
+      # en nivel gratuito). Si VERTEX_PROJECT_ID está definido, tiene prioridad.
+      - key: VERTEX_PROJECT_ID
+        sync: false
+      - key: VERTEX_LOCATION
+        value: europe-west4
+      - key: VERTEX_MODELS
+        value: gemini-3.5-flash,gemini-3.5-flash-lite,gemini-3.6-flash
+      # JSON de la service account en base64. Secreto: nunca en el repo.
+      - key: VERTEX_SA_KEY_B64
+        sync: false
+      # Alternativa con API key de AI Studio; se pide al crear el servicio.
       - key: GEMINI_KEY
         sync: false

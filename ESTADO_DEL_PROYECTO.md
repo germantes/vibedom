@@ -54,11 +54,11 @@ Implementado en `src/backend/`:
   - Resuelve DNS con timeout y caché (5 min) y bloquea hosts que resuelven a IPs privadas (incluido IPv4 mapeado en IPv6).
   - En desarrollo se puede desactivar con `VIBEDOM_ALLOW_PRIVATE=1`.
 - **`translator.js`**:
-  - Gemini con `responseSchema` (structured output) y `thinkingLevel: "low"`.
+  - Gemini o Vertex AI con `responseSchema` (structured output) y `thinkingLevel: "low"`.
   - **Cadena de modelos**: `gemini-3.5-flash` → `gemini-3.5-flash-lite` → `gemini-3.6-flash`.
   - Timeout por intento (20 s), deadline total (50 s), 2 intentos por modelo, backoff exponencial + jitter.
   - Reintenta 404/408/429/5xx (Gemini devuelve 404 vacío esporádico por throttling).
-  - Clave desde `GEMINI_KEY` o `.env`; salida saneada con `normalizeSeed()`.
+  - Motor desde `src/backend/providers.js`: Vertex si hay `VERTEX_PROJECT_ID`, si no `GEMINI_KEY`; salida saneada con `normalizeSeed()`.
 - **`server.js`**:
   - `node:http` nativo, `createVibedomServer()` / `startServer()` con dependencias inyectables para tests.
   - `POST /api/scan`, archivos estáticos, MIME correcto, CORS en la API.
@@ -130,7 +130,7 @@ Commits: `f64aec3` (Fase 2).
 ### ✅ FASE 3.6: Despliegue del analizador (COMPLETADA)
 
 - **`render.yaml`**: Blueprint de Render con runtime Node 22, plan free, health check en `/api/health`, `SCAN_RATE_LIMIT=5`, intervalo global de Gemini (`GEMINI_MIN_INTERVAL_MS=8000`, `GEMINI_MAX_WAIT_MS=25000`, `GEMINI_QUEUE_LIMIT=10`) y `GEMINI_KEY` como secreto solicitado al crear el servicio.
-- **`GET /api/health`**: respuesta `{ ok: true, service: "vibedom", commit }` sin caché, útil como health check, para despertar el plan gratuito y para comprobar qué commit está desplegado.
+- **`GET /api/health`**: respuesta `{ ok: true, service: "vibedom", commit, engine }` sin caché, útil como health check, para despertar el plan gratuito y para comprobar qué commit está desplegado.
 - **Rate limit por IP** (`src/backend/rate-limit.js`): ventana de 60 s, 5 escaneos/min por defecto, `SCAN_RATE_LIMIT=0` lo desactiva, usa la última IP de `X-Forwarded-For` (la que añade el proxy) y devuelve `429` + `Retry-After` antes de llamar a Gemini.
 - **Backend externo configurable** (`src/api.js` + `<meta name="vibedom-api">`): permite que la landing de GitHub Pages escanee contra Render sin CORS adicional (el servidor ya envía `Access-Control-Allow-Origin: *`). Al cargar, la landing hace un `GET /api/health` para despertar el servicio.
 - **Caché de semillas** (`src/backend/scan-cache.js`): guarda en memoria el resultado de cada URL una hora (`SCAN_CACHE_TTL`, `0` lo desactiva), con tope de 500 entradas y desalojo LRU. Repetir un escaneo responde al instante y no vuelve a llamar a Gemini; la cabecera `X-Vibedom-Cache` indica `HIT`/`MISS`.
@@ -214,6 +214,17 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **Control**: `SCAN_FALLBACK=0` recupera el comportamiento anterior (429 amable con `Retry-After`). Si el scraper no puede cargar la web, se mantiene el `502` genérico: no se inventa una semilla sin señales.
 - **Verificación**: **105 tests** en verde (compositor local, determinismo, contrato, contraste, claro/oscuro, idioma, 429 cubierto, enfriamiento sin llamar a Gemini y modo sin fallback).
 
+### 🚧 FASE 3.12: Vertex AI como motor facturable (EN CURSO)
+
+- **Motivo**: la API key de AI Studio puede vivir en un proyecto en **nivel gratuito** aunque la cuenta de facturación tenga crédito. En ese caso los 50 $ no se descuentan, la cuota diaria se agota y los escaneos caen al compositor local. Vertex AI se factura contra el proyecto de Google Cloud, así que los créditos se aplican desde la primera llamada.
+- **`src/backend/vertex-auth.js`**: service account → JWT RS256 (`node:crypto`) → access token de OAuth2, cacheado una hora con renovación tras un `401`. Sin dependencias npm.
+- **`src/backend/providers.js`**: dos proveedores con el mismo contrato (`prepare`, `models`, `systemInstructionField`, `refresh`). `VERTEX_PROJECT_ID` tiene prioridad; si no existe, se usa `GEMINI_KEY`; sin ninguna, el servidor compone en local. `resolveEngine()` alimenta `engine` en `/api/health` y la cabecera `X-Vibedom-Source` (`vertex` / `gemini` / `local`).
+- **`src/backend/translator.js`**: la cadena de modelos, el 429, el `Retry-After` y la semilla local siguen igual; solo cambia la URL y la autenticación. Vertex construye `https://{region}-aiplatform.googleapis.com/v1/projects/{project}/locations/{region}/publishers/google/models/{model}:generateContent` y usa `systemInstruction` en camelCase.
+- **`scripts/vertex-check.mjs`** (`npm run vertex:check`): canjea el token, lista el catálogo publicado en la región y hace una llamada mínima a cada modelo de `VERTEX_MODELS`; detecta nombres de modelo inexistentes antes de desplegar.
+- **Pendiente**: crear la service account, probar el catálogo real de Vertex, definir las variables en Render y verificar dos escaneos live con `X-Vibedom-Source: vertex`.
+
+
+
 ### 🔎 Strudel frente a Tone.js (evaluado, no adoptado)
 
 Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Tidal Cycles: su fuerte son los **patrones rítmicos y el live coding sobre samples**, no la síntesis procedural sin audio pregrabado. Adoptarlo implicaría reescribir la Semilla Sonora y el motor, añadir muestras (o cargar su banco) y cumplir la **AGPL-3.0** en un producto web. Se mantiene Tone.js; una prueba A/B con Strudel queda como experimento externo, no como dependencia del repo.
@@ -247,8 +258,8 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 
 ```
 .
-├── .env                                       # GEMINI_KEY (GITIGNORADO)
-├── .gitignore                                 # node_modules, .DS_Store, .env
+├── .env                                       # VERTEX_* o GEMINI_KEY (GITIGNORADO)
+├── .gitignore                                 # node_modules, .DS_Store, .env, claves
 ├── .nojekyll                                  # GitHub Pages sin Jekyll
 ├── sitemap.xml                                # Sitemap bilingüe con hreflang
 ├── robots.txt                                 # Crawl abierto + sitemap
@@ -283,7 +294,9 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 │   │   ├── rate-limit.js                      # Cuota de escaneos por IP
 │   │   ├── scan-cache.js                      # Caché en memoria de semillas
 │   │   ├── local-seed.js                      # Compositor determinista sin IA
-│   │   ├── translator.js                      # Gemini con retries/fallback/timeout
+│   │   ├── translator.js                      # IA con retries/fallback/timeout
+│   │   ├── providers.js                       # Vertex AI o Gemini API según entorno
+│   │   ├── vertex-auth.js                     # JWT de service account + token OAuth
 │   │   └── url-guard.js                       # Validación anti-SSRF
 │   ├── landing/
 │   │   ├── landing.css                        # Tema comercial de la landing
@@ -308,6 +321,7 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
     ├── seed.test.js
     ├── server.test.js
     ├── translator.test.js
+    ├── vertex.test.js
     └── url-guard.test.js
 ```
 
@@ -328,8 +342,8 @@ npm run dev
 
 ### Notas para el siguiente agente
 
-- Crea `.env` en la raíz con `GEMINI_KEY=...` para escanear. Está gitignorado y el servidor estático lo bloquea.
-- Mantén `gemini-3.5-flash` como preferido. No uses `gemini-2.x` (retirado para esta clave) ni `gemini-3.8-flash` (latencia inaceptable).
+- Crea `.env` en la raíz con las variables `VERTEX_*` (recomendado) o `GEMINI_KEY=...` para escanear. Está gitignorado y el servidor estático lo bloquea.
+- Mantén `gemini-3.5-flash` como preferido. En Vertex confirma el nombre exacto con `npm run vertex:check` y ajústalo con `VERTEX_MODELS`. No uses `gemini-2.x` (retirado para esta clave) ni `gemini-3.8-flash` (latencia inaceptable).
 - Respeta la regla de cero dependencias npm en backend y el lazy-loading de Tone.js.
 - Si cambias el backend, reinicia `npm start` (el proceso en segundo plano no recarga solo).
 - El motor no debe importar Tone.js: se inyecta desde `main.js` para conservar el lazy-loading.

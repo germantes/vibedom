@@ -16,6 +16,7 @@ import { createRateLimiter } from "./rate-limit.js";
 import { cacheKey, createScanCache } from "./scan-cache.js";
 import { createGeminiLimiter } from "./gemini-limiter.js";
 import { composeLocalSeed } from "./local-seed.js";
+import { resolveEngine } from "./providers.js";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 export const DEFAULT_ROOT = resolve(HERE, "../..");
@@ -207,7 +208,7 @@ function makeScanHandler({
         `[scan] ✔ ${seed.metadata.detectedVibe} — ${seed.musicalParams.rootNote} ${seed.musicalParams.scale} ${seed.musicalParams.bpm} BPM`,
       );
       cache.set(key, seed);
-      return json(res, 200, seed, { "X-Vibedom-Cache": "MISS" });
+      return json(res, 200, seed, { "X-Vibedom-Cache": "MISS", "X-Vibedom-Source": resolveEngine() });
     } catch (err) {
       if (clientGone || controller.signal.aborted) return;
 
@@ -343,6 +344,7 @@ export function createVibedomServer({
         ok: true,
         service: "vibedom",
         commit: process.env.RENDER_GIT_COMMIT?.slice(0, 7) ?? null,
+        engine: resolveEngine(),
       });
     }
 

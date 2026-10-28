@@ -1,3 +1,6 @@
 node_modules/
 .DS_Store
 .env
+# Claves de service account de Google Cloud: nunca al repositorio.
+service-account*.json
+vibedom-vertex.json

@@ -158,28 +158,83 @@ El esquema es el de la spec (sección 4). `normalizeSeed()` aplica dos política
 ## Backend
 
 - `POST /api/scan` con `{ "url": "https://...", "lang": "es" }` → `200` con la Semilla Sonora. `lang` (`es` o `en`) controla el idioma de `detectedVibe` y `explanation`; la caché guarda una entrada por idioma y la cabecera `X-Vibedom-Cache` indica `HIT` o `MISS`.
-- **Resiliencia del escaneo**: si Gemini devuelve `429` o falla después de descargar las señales, se responde `200` con una semilla local (`metadata.source: "local"`, cabecera `X-Vibedom-Source: local`). Durante un enfriamiento conocido (`429` previo) ni siquiera se espera la cola. La semilla local no se cachea: cuando la cuota vuelve, el siguiente escaneo usa Gemini. Si el scraper no puede cargar la web, siguen aplicando `400` (URL), `429` (límite por IP) o `502` (`{ code: "ANALYSIS_FAILED" }`) con un mensaje localizado en `error`.
-- `GET /api/health` → `200` con `{ ok: true, service: "vibedom", commit }`; sirve de health check, despierta el servicio en Render y permite comprobar qué commit está desplegado.
+- **Resiliencia del escaneo**: si la IA devuelve `429` o falla después de descargar las señales, se responde `200` con una semilla local (`metadata.source: "local"`, cabecera `X-Vibedom-Source: local`). Durante un enfriamiento conocido (`429` previo) ni siquiera se espera la cola. La semilla local no se cachea: cuando la cuota vuelve, el siguiente escaneo usa la IA. Si el scraper no puede cargar la web, siguen aplicando `400` (URL), `429` (límite por IP) o `502` (`{ code: "ANALYSIS_FAILED" }`) con un mensaje localizado en `error`.
+- `GET /api/health` → `200` con `{ ok: true, service: "vibedom", commit, engine }`; sirve de health check, despierta el servicio en Render y permite comprobar qué commit y qué motor (`vertex`, `gemini` o `local`) están activos.
+- **Cabecera `X-Vibedom-Source`**: `vertex`, `gemini` o `local` indican qué produjo la semilla. Útil para verificar un despliegue sin mirar logs.
 - Archivos estáticos del repositorio en el resto de rutas.
 - **Sin dependencias npm**: `node:http`, `fetch` nativo y regex. Node ≥ 20.
-- Variables: `GEMINI_KEY` (necesaria para el análisis con IA; sin ella se usa siempre la semilla local), `PORT` (3000 por defecto), `SCAN_RATE_LIMIT` (5 escaneos/min por IP; `0` lo desactiva), `GEMINI_MIN_INTERVAL_MS` (8 s entre llamadas reales a Gemini), `GEMINI_MAX_WAIT_MS` (25 s de espera máxima en cola), `GEMINI_QUEUE_LIMIT` (10 peticiones en cola), `SCAN_CACHE_TTL` (segundos que se recuerda una semilla; 3600 por defecto, `0` desactiva la caché), `SCAN_FALLBACK` (`0` desactiva la semilla local de emergencia), `SCAN_FALLBACK_COOLDOWN_S` (enfriamiento mínimo, en segundos, para saltarse Gemini; `0` = cualquiera) y `VIBEDOM_ALLOW_PRIVATE=1` (solo desarrollo, permite escanear hosts privados).
+- Variables: `VERTEX_PROJECT_ID` (activa Vertex AI; recomendado), `VERTEX_LOCATION` (por defecto `europe-west4`; `global` usa el endpoint global), `VERTEX_SA_KEY_B64` (JSON de la service account en base64), `VERTEX_SA_KEY_JSON` (la misma clave en crudo, para local), `VERTEX_ACCESS_TOKEN` (token de corta duración, solo para pruebas), `VERTEX_MODELS` (lista separada por comas), `GEMINI_KEY` (alternativa con API key; si no hay Vertex ni key se usa siempre la semilla local), `PORT` (3000 por defecto), `SCAN_RATE_LIMIT` (5 escaneos/min por IP; `0` lo desactiva), `GEMINI_MIN_INTERVAL_MS` (8 s entre llamadas reales a la IA), `GEMINI_MAX_WAIT_MS` (25 s de espera máxima en cola), `GEMINI_QUEUE_LIMIT` (10 peticiones en cola), `SCAN_CACHE_TTL` (segundos que se recuerda una semilla; 3600 por defecto, `0` desactiva la caché), `SCAN_FALLBACK` (`0` desactiva la semilla local de emergencia), `SCAN_FALLBACK_COOLDOWN_S` (enfriamiento mínimo, en segundos, para saltarse la IA; `0` = cualquiera) y `VIBEDOM_ALLOW_PRIVATE=1` (solo desarrollo, permite escanear hosts privados).
 - El servidor valida cada salto de redirección y cada hoja de estilos para evitar SSRF, bloquea dotfiles y *path traversal*, limita el cuerpo de las peticiones a 16 KB y aplica la cuota antes de llamar a Gemini.
 - La cuota gratuita de Gemini es **por proyecto, no por IP**: el limitador por IP no basta. Por eso las llamadas se serializan y se espacian (`GEMINI_MIN_INTERVAL_MS`); si Gemini devuelve `429`, no se reintenta ni se prueba otro modelo, se enfría la cola global y se compone la semilla local al instante. La cabecera `X-Vibedom-Source: local` y `metadata.source` lo hacen visible sin romper la experiencia. Si se desactiva `SCAN_FALLBACK`, el servidor vuelve al `429` con `Retry-After` y un mensaje que, a partir de 10 minutos, habla de límite de uso y horas.
 - La semilla de cada URL se guarda en memoria una hora (`SCAN_CACHE_TTL`): repetir un escaneo no vuelve a llamar a Gemini.
 - Modelos: `gemini-3.5-flash` → `gemini-3.5-flash-lite` → `gemini-3.6-flash`. No uses `gemini-2.x` (retirado para esta clave) ni `gemini-3.8-flash` (latencia inaceptable).
+
+### Vertex AI (recomendado si hay facturación de Google Cloud)
+
+La API key de AI Studio vive en un proyecto que puede quedarse en **nivel gratuito** aunque la cuenta de facturación tenga saldo: en ese caso los créditos no se descuentan y la cuota diaria se agota. **Vertex AI** se factura directamente contra el proyecto de Google Cloud, así que los créditos se aplican desde la primera llamada y las cuotas son por proyecto y región, no por una capa gratuita compartida.
+
+Cambiar de motor no requiere tocar el frontend ni el motor de audio: el traductor detecta `VERTEX_PROJECT_ID` y usa Vertex; si no está, sigue usando `GEMINI_KEY`. El fallback local se mantiene igual.
+
+**1. Requisitos en Google Cloud** (proyecto `vibedom`, el mismo de la facturación):
+
+```bash
+gcloud config set project vibedom
+gcloud services enable aiplatform.googleapis.com
+
+gcloud iam service-accounts create vibedom-vertex \
+  --display-name="Vibedom Vertex"
+
+gcloud projects add-iam-policy-binding vibedom \
+  --member="serviceAccount:vibedom-vertex@vibedom.iam.gserviceaccount.com" \
+  --role="roles/aiplatform.user"
+
+gcloud iam service-accounts keys create vibedom-vertex.json \
+  --iam-account=vibedom-vertex@vibedom.iam.gserviceaccount.com
+```
+
+El rol `roles/aiplatform.user` es el mínimo para invocar modelos: la cuenta no puede tocar nada más del proyecto.
+
+**2. Probar antes de desplegar:**
+
+```bash
+VERTEX_PROJECT_ID=vibedom \
+VERTEX_LOCATION=europe-west4 \
+VERTEX_SA_KEY_B64=$(base64 -w0 vibedom-vertex.json) \
+npm run vertex:check
+```
+
+El script canjea el token, lista los modelos Gemini publicados en esa región y hace una llamada mínima a cada uno de `VERTEX_MODELS`. Si un modelo no existe en Vertex (los nombres no siempre coinciden con AI Studio), lo dice antes de romper producción: ajústalo con `VERTEX_MODELS`.
+
+**3. Variables en Render:**
+
+| Variable | Valor |
+| --- | --- |
+| `VERTEX_PROJECT_ID` | `vibedom` |
+| `VERTEX_LOCATION` | `europe-west4` (o `global`) |
+| `VERTEX_SA_KEY_B64` | salida de `base64 -w0 vibedom-vertex.json` |
+| `VERTEX_MODELS` | opcional, p. ej. `gemini-3.5-flash,gemini-3.5-flash-lite` |
+
+`GEMINI_KEY` puede quedarse mientras conviven ambos: si `VERTEX_PROJECT_ID` está definido, Vertex tiene prioridad. Para volver atrás, borra `VERTEX_PROJECT_ID`.
+
+Notas de funcionamiento:
+
+- El token de OAuth se firma con `node:crypto` y se cachea una hora; no hay dependencias nuevas. Un `401` descarta el token y reintenta una sola vez.
+- Con Vertex las cuotas son mucho más altas, así que tras verificar se puede bajar `GEMINI_MIN_INTERVAL_MS` a 2000 y subir `GEMINI_MAX_WAIT_MS` a 12000.
+- Vertex no tiene capa gratuita para Gemini Flash: cada escaneo consume crédito. Crea un presupuesto con alertas en Google Cloud antes de desplegar.
+- El fichero de la clave **nunca** se commitea: se pasa en base64 por variable de entorno.
 
 ### Despliegue
 
 La combinación recomendada es **GitHub Pages para la landing** y **Render para el analizador**:
 
 - La landing y los presets cargan al instante desde Pages.
-- Solo el escaneo viaja al backend de Render, que tiene la `GEMINI_KEY` y acceso a Gemini.
+- Solo el escaneo viaja al backend de Render, que tiene las credenciales de Vertex AI (o la `GEMINI_KEY`) y acceso a Google Cloud.
 - El servidor ya envía CORS y un limitador por IP (`SCAN_RATE_LIMIT`, 5/min por defecto) para proteger la clave.
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/germantes/vibedom)
 
 1. Pulsa el botón, conecta GitHub y crea el servicio desde `render.yaml`.
-2. Introduce `GEMINI_KEY` cuando Render la pida.
+2. Introduce `VERTEX_PROJECT_ID`, `VERTEX_LOCATION` y `VERTEX_SA_KEY_B64` (o, en su defecto, `GEMINI_KEY`) cuando Render los pida.
 3. Copia la URL del servicio (por ejemplo `https://vibedom.onrender.com`).
 4. Declara ese origen en las cuatro páginas:
 
@@ -195,15 +250,21 @@ También puedes abrir directamente la URL de Render: el mismo servidor sirve lan
 
 | Variable | Obligatoria | Uso |
 | --- | --- | --- |
-| `GEMINI_KEY` | No | Clave de Google AI Studio para traducir la estética a la semilla. Sin ella se usa el compositor local. |
+| `VERTEX_PROJECT_ID` | No | Activa Vertex AI en ese proyecto. Tiene prioridad sobre `GEMINI_KEY`. |
+| `VERTEX_LOCATION` | No | Región de Vertex. Por defecto `europe-west4`; `global` usa el endpoint global. |
+| `VERTEX_SA_KEY_B64` | Si se usa Vertex | JSON de la service account en base64 (`base64 -w0 clave.json`). |
+| `VERTEX_SA_KEY_JSON` | No | La misma clave en crudo; cómodo en local, incómodo en Render. |
+| `VERTEX_ACCESS_TOKEN` | No | Token de corta duración para pruebas (`gcloud auth print-access-token`). |
+| `VERTEX_MODELS` | No | Cadena de modelos separada por comas para Vertex. |
+| `GEMINI_KEY` | No | Clave de Google AI Studio (alternativa a Vertex). Sin Vertex ni key se usa el compositor local. |
 | `PORT` | No | Render la inyecta; en local es 3000. |
 | `SCAN_RATE_LIMIT` | No | Escaneos por minuto y por IP. Por defecto 5; `0` desactiva el límite. |
-| `GEMINI_MIN_INTERVAL_MS` | No | Separación mínima entre llamadas reales a Gemini. Por defecto 8000 ms (≈7,5/min). |
+| `GEMINI_MIN_INTERVAL_MS` | No | Separación mínima entre llamadas reales a la IA. Por defecto 8000 ms (≈7,5/min). |
 | `GEMINI_MAX_WAIT_MS` | No | Espera máxima de una petición en la cola global. Por defecto 25000 ms. |
 | `GEMINI_QUEUE_LIMIT` | No | Peticiones que pueden esperar turno a la vez. Por defecto 10. |
 | `SCAN_CACHE_TTL` | No | Segundos que se recuerda la semilla de una URL. Por defecto 3600; `0` desactiva la caché. |
-| `SCAN_FALLBACK` | No | `0` desactiva la semilla local cuando Gemini falla. Activada por defecto. |
-| `SCAN_FALLBACK_COOLDOWN_S` | No | Si Gemini ya está en enfriamiento, se salta la cola y se compone en local. Por defecto `0` (cualquier enfriamiento). |
+| `SCAN_FALLBACK` | No | `0` desactiva la semilla local cuando la IA falla. Activada por defecto. |
+| `SCAN_FALLBACK_COOLDOWN_S` | No | Si la IA ya está en enfriamiento, se salta la cola y se compone en local. Por defecto `0` (cualquier enfriamiento). |
 | `VIBEDOM_ALLOW_PRIVATE` | No | Solo desarrollo: permite escanear hosts privados. No usar en producción. |
 
 #### Dominio propio

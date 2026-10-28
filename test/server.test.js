@@ -210,7 +210,9 @@ test("GET /api/health responde sin caché y con CORS", async () => {
   assert.match(res.headers.get("content-type"), /application\/json/);
   assert.equal(res.headers.get("cache-control"), "no-store");
   assert.equal(res.headers.get("access-control-allow-origin"), "*");
-  assert.deepEqual(await res.json(), { ok: true, service: "vibedom", commit: null });
+  const body = await res.json();
+  assert.deepEqual({ ...body, engine: undefined }, { ok: true, service: "vibedom", commit: null, engine: undefined });
+  assert.ok(["local", "gemini", "vertex"].includes(body.engine));
 });
 
 test("un 429 de Gemini se cubre con una semilla local en vez de bloquear la demo", async () => {
