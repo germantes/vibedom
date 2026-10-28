@@ -134,11 +134,11 @@ Commits: `f64aec3` (Fase 2).
 - **Rate limit por IP** (`src/backend/rate-limit.js`): ventana de 60 s, 5 escaneos/min por defecto, `SCAN_RATE_LIMIT=0` lo desactiva, usa la última IP de `X-Forwarded-For` (la que añade el proxy) y devuelve `429` + `Retry-After` antes de llamar a Gemini.
 - **Backend externo configurable** (`src/api.js` + `<meta name="vibedom-api">`): permite que la landing de GitHub Pages escanee contra Render sin CORS adicional (el servidor ya envía `Access-Control-Allow-Origin: *`). Al cargar, la landing hace un `GET /api/health` para despertar el servicio.
 - **Caché de semillas** (`src/backend/scan-cache.js`): guarda en memoria el resultado de cada URL una hora (`SCAN_CACHE_TTL`, `0` lo desactiva), con tope de 500 entradas y desalojo LRU. Repetir un escaneo responde al instante y no vuelve a llamar a Gemini; la cabecera `X-Vibedom-Cache` indica `HIT`/`MISS`.
-- **Script de configuración** (`scripts/set-api.mjs`): `npm run set-api -- https://...` declara el backend externo en las cuatro páginas y valida la URL; `--clear` lo quita. Sustituye al `sed` del README.
+- **Script de configuración** (`scripts/set-api.mjs`): `npm run set-api -- https://...` declara el backend externo en las páginas y valida la URL; `--clear` lo quita. Sustituye al `sed` del README.
 - **Redespliegue**: GitHub Pages publica cada push a `main`; Render solo lo hace si el servicio tiene *Auto-Deploy* activo. Si no, hay que lanzar *Manual Deploy → Deploy latest commit* desde el dashboard.
 - **Documentación**: botón *Deploy to Render*, variables de entorno, aviso de spin-down del plan free, comando `npm run set-api` y nota sobre dominio propio/canonical.
 
-**Desplegado**: `https://vibedom.onrender.com` (servicio `vibedom`, plan free, Frankfurt, Node 22). Las cuatro páginas declaran ese origen en `<meta name="vibedom-api">` y GitHub Pages escanea contra él.
+**Desplegado**: `https://vibedom.onrender.com` (servicio `vibedom`, plan free, Frankfurt, Node 22). Las seis páginas declaran ese origen en `<meta name="vibedom-api">` y GitHub Pages escanea contra él.
 
 Verificación en producción (2026-10-26, commit `34d7512`):
 
@@ -247,7 +247,14 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **Sin autoplay**: al abrir un enlace compartido se muestra la semilla y se pide pulsar Reproducir, respetando la política de gestos del navegador.
 - **Verificación**: **134 tests** (round-trip, base64url, fragmentos sin semilla y tokens corruptos) y E2E con Chromium: slider a 100 BPM → `#seed` cambia → «Copiar enlace» → otra pestaña restaura 100 BPM **sin ninguna petición a `/api/scan`**; enlace inválido → preset con aviso; ES/EN correctos y sin 404 ni errores JS.
 
+### ✅ FASE 4.2: Página SEO «what does my website sound like» (COMPLETADA)
 
+- **Rutas**: `/que-suena-mi-web/` (ES) y `/en/what-does-my-website-sound-like/` (EN). Cada una tiene su propio canonical, `hreflang` ES/EN/x-default, Open Graph/Twitter y `lastmod` en el sitemap.
+- **Contenido**: respuesta larga y distinta de la landing —cómo se traduce el diseño en música, seis señales visuales, qué lee el analizador, casos minimalistas y FAQ específica— con enlaces internos a la landing y al playground.
+- **JSON-LD**: `@graph` con `WebApplication`, `BreadcrumbList` y `FAQPage` (8 preguntas). Las respuestas visibles coinciden con los datos estructurados.
+- **Reutilización**: ambas páginas cargan `src/landing/main.js` y `landing.css`, así que el formulario, los presets, el tema dinámico y el audio funcionan sin duplicar lógica. Se añadieron estilos para prosa, tarjetas de mapeo y listas de transparencia.
+- **Enlaces internos**: pies de las landings ES/EN y de los playgrounds, además de la propia página SEO hacia el otro idioma, la landing y el playground.
+- **Verificación**: **140 tests** en verde (nuevas pruebas de rutas, canonical/hreflang, JSON-LD, coincidencia FAQ visible/datos estructurados, enlaces locales y sitemap) y E2E con Chromium: ES/EN sin 404 ni errores JS, 3 presets y play/pausa, escaneo simulado con tema aplicado y responsive a 390 px sin overflow.
 
 ### 🔎 Strudel frente a Tone.js (evaluado, no adoptado)
 
@@ -259,7 +266,7 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 
 ### Mejoras opcionales
 - Verificar `vibedom.dev` en GitHub Pages con el TXT `_github-pages-challenge-germantes` (protección contra *takeover*) y añadir los `AAAA` de GitHub para IPv6.
-- Alta en Search Console, envío del sitemap y una página dedicada a «what does my website sound like».
+- Alta en Search Console y envío del sitemap (las páginas SEO ya están publicadas).
 - Historial de escaneos recientes (localStorage).
 - Exportar/importar Semilla Sonora.
 - Tests de UI automatizados estables (los actuales son verificación manual con Playwright en `/tmp`).
@@ -282,7 +289,11 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 ├── ESTADO_DEL_PROYECTO.md                     # Este documento
 ├── index.html                                 # Landing ES
 ├── en/
-│   └── index.html                             # Landing EN
+│   ├── index.html                             # Landing EN
+│   └── what-does-my-website-sound-like/
+│       └── index.html                         # Página SEO EN
+├── que-suena-mi-web/
+│   └── index.html                             # Página SEO ES
 ├── playground/
 │   ├── index.html                             # Playground ES
 │   └── en/
@@ -342,6 +353,7 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
     ├── scan-cache.test.js
     ├── scraper.test.js
     ├── seed.test.js
+    ├── seo.test.js
     ├── server.test.js
     ├── theme.test.js
     ├── translator.test.js
@@ -376,7 +388,7 @@ npm run dev
 - Si cambias el backend, reinicia `npm start` (el proceso en segundo plano no recarga solo).
 - El motor no debe importar Tone.js: se inyecta desde `main.js` para conservar el lazy-loading.
 - La verificación con Playwright se hizo con `playwright-core` instalado fuera del repo (`/tmp/opencode`) usando el Chromium cacheado; no añadir Playwright al `package.json` sin decisión explícita.
-- **Bilingüe**: las rutas son estáticas (`/`, `/en/`, `/playground/`, `/playground/en/`). No convertir la elección de idioma en un toggle JS: rompería SEO, enlaces compartidos y el render sin JavaScript. Para añadir textos, edita `src/i18n.js` y usa `data-i18n` en el HTML.
+- **Bilingüe**: las rutas son estáticas (`/`, `/en/`, `/que-suena-mi-web/`, `/en/what-does-my-website-sound-like/`, `/playground/`, `/playground/en/`). No convertir la elección de idioma en un toggle JS: rompería SEO, enlaces compartidos y el render sin JavaScript. Para añadir textos, edita `src/i18n.js` y usa `data-i18n` en el HTML; el contenido único de la página SEO va directo en su HTML para que los buscadores lo lean sin ejecutar JS.
 - **Landing vs playground**: la landing no debe mostrar JSON ni sliders. La demo de la landing reutiliza `analysis.js`, `visualizer.js` y el motor; si cambias su API, revisa `src/landing/main.js` y `src/demo/main.js`.
 - **Render free**: duerme a los 15 min de inactividad. Para la demo se puede usar un monitor externo (cron-job.org o UptimeRobot) con `GET /api/health` cada 10 min; recuerda que el plan free tiene 750 h/mes y 24/7 consume casi todas, así que valora limitar la franja horaria.
 - **GitHub Pages es estático**: el escaneo no funcionará online hasta desplegar el backend. El código detecta `github.io` y muestra un aviso específico; no lo elimines pensando que es un bug.

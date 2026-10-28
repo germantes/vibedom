@@ -1,4 +1,4 @@
-// Declara el backend externo en las cuatro páginas.
+// Declara el backend externo en las páginas.
 //
 //   npm run set-api -- https://vibedom-api.onrender.com
 //   npm run set-api -- --clear
@@ -10,7 +10,14 @@ import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
-const PAGES = ["index.html", "en/index.html", "playground/index.html", "playground/en/index.html"];
+const PAGES = [
+  "index.html",
+  "en/index.html",
+  "que-suena-mi-web/index.html",
+  "en/what-does-my-website-sound-like/index.html",
+  "playground/index.html",
+  "playground/en/index.html",
+];
 const META = /(<meta name="vibedom-api" content=")([^"]*)(")/;
 
 const arg = process.argv[2];

@@ -15,6 +15,8 @@ const OLD = "https://germantes.github.io/vibedom";
 const FILES = [
   "index.html",
   "en/index.html",
+  "que-suena-mi-web/index.html",
+  "en/what-does-my-website-sound-like/index.html",
   "sitemap.xml",
   "robots.txt",
   "README.md",

@@ -196,6 +196,27 @@ test("sirve landing y playground bilingües en sus rutas estáticas", async () =
   assert.match(await robots.text(), /Sitemap: https:\/\/vibedom\.dev\/sitemap\.xml/);
 });
 
+test("sirve las páginas SEO bilingües en sus rutas estáticas", async () => {
+  const seoEs = await fetch(`${base}/que-suena-mi-web/`);
+  assert.equal(seoEs.status, 200);
+  assert.match(seoEs.headers.get("content-type"), /text\/html/);
+  const htmlEs = await seoEs.text();
+  assert.match(htmlEs, /lang="es"/);
+  assert.match(htmlEs, /La respuesta corta/);
+  assert.match(htmlEs, /"@type": "FAQPage"/);
+
+  const seoEn = await fetch(`${base}/en/what-does-my-website-sound-like/`);
+  assert.equal(seoEn.status, 200);
+  const htmlEn = await seoEn.text();
+  assert.match(htmlEn, /lang="en"/);
+  assert.match(htmlEn, /The short answer/);
+  assert.match(htmlEn, /"@type": "FAQPage"/);
+
+  const sitemap = await (await fetch(`${base}/sitemap.xml`)).text();
+  assert.match(sitemap, /https:\/\/vibedom\.dev\/que-suena-mi-web\//);
+  assert.match(sitemap, /https:\/\/vibedom\.dev\/en\/what-does-my-website-sound-like\//);
+});
+
 test("no sirve dotfiles ni permite directory traversal", async () => {
   const env = await fetch(`${base}/.env`);
   assert.equal(env.status, 404);

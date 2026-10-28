@@ -36,4 +36,22 @@
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
+  <url>
+    <loc>https://vibedom.dev/que-suena-mi-web/</loc>
+    <lastmod>2026-10-28</lastmod>
+    <xhtml:link rel="alternate" hreflang="es" href="https://vibedom.dev/que-suena-mi-web/" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://vibedom.dev/en/what-does-my-website-sound-like/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://vibedom.dev/que-suena-mi-web/" />
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://vibedom.dev/en/what-does-my-website-sound-like/</loc>
+    <lastmod>2026-10-28</lastmod>
+    <xhtml:link rel="alternate" hreflang="es" href="https://vibedom.dev/que-suena-mi-web/" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://vibedom.dev/en/what-does-my-website-sound-like/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://vibedom.dev/que-suena-mi-web/" />
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
 </urlset>

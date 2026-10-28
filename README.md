@@ -2,9 +2,10 @@
 
 Atmósferas sonoras procedurales para webs: una web se analiza, se traduce a una **Semilla Sonora** (JSON) y el navegador la convierte en un *soundscape* infinito con Tone.js.
 
-El producto tiene dos capas:
+El producto tiene tres frentes:
 
 - **Landing comercial** (`/` y `/en/`): propuesta, demo de presets, escaneo de URL, privacidad, FAQ y acceso al laboratorio.
+- **Página SEO** (`/que-suena-mi-web/` y `/en/what-does-my-website-sound-like/`): respuesta larga a la búsqueda «what does my website sound like», con la misma demo, FAQ y datos estructurados.
 - **Playground** (`/playground/` y `/playground/en/`): el laboratorio técnico con la semilla JSON, sliders en caliente, regeneración y visualizador.
 
 La interfaz está disponible en **español e inglés** mediante rutas estáticas (`/` y `/en/`), con `hreflang` y sin dependencia de JavaScript para elegir idioma.
@@ -32,6 +33,8 @@ Abre la landing, pega una URL y pulsa **Escuchar mi web**. También puedes proba
 | --- | --- |
 | `/` | Landing en español |
 | `/en/` | Landing en inglés |
+| `/que-suena-mi-web/` | Página SEO en español |
+| `/en/what-does-my-website-sound-like/` | Página SEO en inglés |
 | `/playground/` | Playground en español |
 | `/playground/en/` | Playground en inglés |
 
@@ -67,6 +70,16 @@ La paleta escaneada no es de fiar: un sitio puede tener texto blanco sobre blanc
 * el resto de variables (muted, líneas, brillos, sombra) se derivan con `color-mix()` de `--bg`, `--text` y `--accent`.
 
 El playground reutiliza las mismas funciones en su propio `applyTheme`, pero conserva su interfaz técnica (sliders, JSON y espectro).
+
+## Página SEO
+
+`/que-suena-mi-web/` y `/en/what-does-my-website-sound-like/` responden a la búsqueda «what does my website sound like» con contenido propio y reutilizan el hero, el formulario y la demo de la landing:
+
+- título, descripción, canonical, `hreflang` ES/EN/x-default y Open Graph específicos;
+- JSON-LD con `WebApplication`, `BreadcrumbList` y `FAQPage` (las respuestas visibles coinciden con los datos estructurados);
+- secciones sobre cómo se traduce el diseño en música, qué lee el analizador, casos minimalistas y enlaces internos a la landing y al playground;
+- el mismo `src/landing/main.js`, así que escaneo, presets, tema dinámico y audio funcionan igual;
+- `sitemap.xml` actualizado y enlaces desde los pies de las landings y del playground.
 
 ## Playground
 
@@ -120,6 +133,8 @@ El idioma se deduce de `<html lang>`. No hay toggle con JavaScript: cada idioma 
 ```
 index.html                   landing ES
 en/index.html                landing EN
+que-suena-mi-web/index.html  página SEO ES
+en/what-does-my-website-sound-like/index.html  página SEO EN
 playground/index.html        playground ES
 playground/en/index.html     playground EN
 assets/og-es.png              imagen Open Graph ES (1200×630)
@@ -156,7 +171,7 @@ src/engine/generative.js     Markov armónico, voice leading, arpegio, scroll
 src/engine/soundscape.js     motor Tone.js (grafo de audio y secuenciación)
 src/engine/reactivity.js     DOM → motor (scroll y hover)
 presets/*.json               semillas de ejemplo
-scripts/set-api.mjs          declara el backend externo en las 4 páginas
+scripts/set-api.mjs          declara el backend externo en todas las páginas
 test/                        tests unitarios con node:test
 ```
 
@@ -283,7 +298,7 @@ La combinación recomendada es **GitHub Pages para la landing** y **Render para 
 1. Pulsa el botón, conecta GitHub y crea el servicio desde `render.yaml`.
 2. Introduce `VERTEX_PROJECT_ID`, `VERTEX_LOCATION` y `VERTEX_SA_KEY_B64` (o, en su defecto, `GEMINI_KEY`) cuando Render los pida.
 3. Copia la URL del servicio (por ejemplo `https://vibedom.onrender.com`).
-4. Declara ese origen en las cuatro páginas:
+4. Declara ese origen en las seis páginas:
 
 ```bash
 npm run set-api -- https://TU-SERVICIO.onrender.com
@@ -340,7 +355,7 @@ Para añadir uno, crea el JSON en `presets/` y regístralo en `PRESET_IDS` (`src
 npm test
 ```
 
-**134 tests** con `node:test`, sin dependencias:
+**140 tests** con `node:test`, sin dependencias:
 
 * escalas, acordes y conversión MIDI;
 * validación de la semilla y presets reales;
@@ -357,12 +372,13 @@ npm test
 * idioma de salida del traductor y separación de la caché por idioma;
 * widget embebible (tamaño < 5 KB, Shadow DOM, carga diferida de Tone.js y `data-label`);
 * snippet (round-trip base64 con acentos y emojis, atributo seguro, origen sin doble barra y `</script>` escapado);
-* enlace compartido (base64url, restauración de la semilla, fragmentos ignorados y enlaces corruptos).
+* enlace compartido (base64url, restauración de la semilla, fragmentos ignorados y enlaces corruptos);
+* páginas SEO (rutas ES/EN, canonical y hreflang recíprocos, JSON-LD con FAQPage, enlaces internos sin romper y sitemap).
 
-El flujo real se validó en navegador con Playwright (fuera del repo): landing ES/EN, presets, play/pausa, espectro, escaneo mockeado, error de backend, responsive a 390 px, playground ES/EN, sliders, JSON y cambio de idioma. También se validó un escaneo real de `example.com` (~3 s). El tema dinámico se comprobó con escaneos mockeados (sitio claro, oscuro y un caso hostil blanco sobre blanco) y una auditoría de contraste de 26 elementos en ambos esquemas: 26/26 en claro y 26/26 en oscuro. El widget se probó con Chromium headless en una página anfitriona: `widget.js` → `widget-player.js` → Tone.js solo tras el clic, arranque y pausa, snippet de 1.217 bytes generado desde el playground y copiado al portapapeles sin errores 404. El enlace compartido se validó de extremo a extremo: mover un slider cambia el `#seed`, «Copiar enlace» copia la URL, abrirla en otra pestaña restaura la misma semilla (100 BPM) sin ninguna petición a `/api/scan`, un token corrupto cae en el preset con aviso y la versión inglesa traduce los botones.
+El flujo real se validó en navegador con Playwright (fuera del repo): landing ES/EN, presets, play/pausa, espectro, escaneo mockeado, error de backend, responsive a 390 px, playground ES/EN, sliders, JSON y cambio de idioma. También se validó un escaneo real de `example.com` (~3 s). El tema dinámico se comprobó con escaneos mockeados (sitio claro, oscuro y un caso hostil blanco sobre blanco) y una auditoría de contraste de 26 elementos en ambos esquemas: 26/26 en claro y 26/26 en oscuro. El widget se probó con Chromium headless en una página anfitriona: `widget.js` → `widget-player.js` → Tone.js solo tras el clic, arranque y pausa, snippet de 1.217 bytes generado desde el playground y copiado al portapapeles sin errores 404. El enlace compartido se validó de extremo a extremo: mover un slider cambia el `#seed`, «Copiar enlace» copia la URL, abrirla en otra pestaña restaura la misma semilla (100 BPM) sin ninguna petición a `/api/scan`, un token corrupto cae en el preset con aviso y la versión inglesa traduce los botones. Las páginas SEO se probaron en Chromium: ES/EN cargan sin 404 ni errores JS, los 3 presets y el play/pausa funcionan, el escaneo simulado aplica el tema y el responsive a 390 px no genera overflow.
 
 ## Roadmap
 
-* Verificación en Search Console, envío del sitemap y página dedicada a «what does my website sound like».
+* Verificación en Search Console y envío del sitemap.
 * Historial de escaneos recientes en `localStorage`.
 * Exportar/importar Semilla Sonora y componente nativo para Framer.

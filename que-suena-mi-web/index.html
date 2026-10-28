@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0a0a0c" />
+    <meta name="color-scheme" content="dark" />
+    <!-- Backend externo opcional para GitHub Pages, p. ej. https://vibedom.onrender.com -->
+    <meta name="vibedom-api" content="https://vibedom.onrender.com" />
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+    <title>¿A qué suena mi web? Escucha su música generativa · vibedom</title>
+    <meta
+      name="description"
+      content="Descubre a qué suena tu web. vibedom lee su paleta, tipografía y movimiento y los convierte en música generativa en tu navegador. Gratis, sin registro y sin samples."
+    />
+
+    <link rel="canonical" href="https://vibedom.dev/que-suena-mi-web/" />
+    <link rel="alternate" hreflang="es" href="https://vibedom.dev/que-suena-mi-web/" />
+    <link rel="alternate" hreflang="en" href="https://vibedom.dev/en/what-does-my-website-sound-like/" />
+    <link rel="alternate" hreflang="x-default" href="https://vibedom.dev/que-suena-mi-web/" />
+
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="vibedom" />
+    <meta property="og:title" content="¿A qué suena mi web? Escucha su música generativa" />
+    <meta
+      property="og:description"
+      content="Tu web ya tiene tempo, tonalidad y timbre. Pega su URL y escúchala convertida en música generativa, sin samples y sin subir nada."
+    />
+    <meta property="og:url" content="https://vibedom.dev/que-suena-mi-web/" />
+    <meta property="og:locale" content="es_ES" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:image" content="https://vibedom.dev/assets/og-es.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="vibedom: ¿a qué suena mi web? Pega una URL y escucha su música generativa." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="¿A qué suena mi web? Escucha su música generativa" />
+    <meta
+      name="twitter:description"
+      content="Tu web ya tiene tempo, tonalidad y timbre. Pega su URL y escúchala convertida en música generativa, sin samples y sin subir nada."
+    />
+    <meta name="twitter:image" content="https://vibedom.dev/assets/og-es.png" />
+    <meta name="twitter:image:alt" content="vibedom: ¿a qué suena mi web? Pega una URL y escucha su música generativa." />
+
+    <link rel="stylesheet" href="../src/landing/landing.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebApplication",
+            "name": "vibedom",
+            "url": "https://vibedom.dev/que-suena-mi-web/",
+            "description": "Convierte la paleta, la tipografía y el movimiento de cualquier web en música generativa en tu navegador.",
+            "applicationCategory": "MultimediaApplication",
+            "operatingSystem": "Any",
+            "browserRequirements": "Requires JavaScript and the Web Audio API",
+            "inLanguage": "es",
+            "isAccessibleForFree": true,
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" }
+          },
+          {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Inicio",
+                "item": "https://vibedom.dev/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "¿A qué suena mi web?",
+                "item": "https://vibedom.dev/que-suena-mi-web/"
+              }
+            ]
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "¿A qué suena mi web exactamente?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "A una pieza generativa construida con sus propios rasgos visuales. La paleta y el contraste fijan el modo y la energía; la tipografía sugiere los timbres; el movimiento marca el tempo y la densidad. No es una canción fija, sino una identidad sonora que se interpreta en directo."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "¿La misma web suena siempre igual?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. La semilla define la identidad —tonalidad, tempo, timbres y efectos—, pero el motor recorre escalas, acordes y arpegios con reglas armónicas. Cada reproducción cambia en los detalles y mantiene el carácter de la web."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "¿Necesito registrarme o pagar?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. La demo es gratuita y abierta. Solo necesitas una URL pública y un navegador moderno. Los presets funcionan incluso si el analizador no está disponible."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "¿Guardáis mi URL o el contenido de mi web?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. La petición se usa para descargar el HTML y las hojas de estilo públicas, extraer señales y devolver la semilla. No guardamos capturas, HTML ni contenido, y la semilla se cachea en memoria solo una hora."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "¿Funciona con WordPress, Webflow, Framer o Shopify?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Sí, siempre que la página sea pública y sirva HTML y CSS accesibles. Algunas webs bloquean a los bots o pintan todo con JavaScript; en esos casos el análisis puede quedarse corto, pero la demo responde igualmente con una semilla local."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "¿Puedo incrustar este sonido en mi propia web?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Sí. En el playground generas un snippet con la semilla incrustada. El widget ocupa menos de 5 KB, vive en Shadow DOM y solo carga Tone.js cuando alguien pulsa el botón, así que no hay coste por visitante ni llamadas a la IA."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "¿Qué navegadores y dispositivos necesito?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Cualquier navegador moderno con Web Audio API: Chrome, Edge, Firefox o Safari recientes, en escritorio o móvil. El audio siempre empieza tras un gesto (pulsar Reproducir o Escuchar mi web), como exigen las políticas de autoplay."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "¿Puedo compartir el sonido de una web?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Sí. El playground incluye un enlace compartible que lleva la semilla completa en el fragmento de la URL. Quien lo abra escucha la misma variación sin gastar IA ni pasar por el backend."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main" data-i18n="common.skip">Saltar al contenido</a>
+
+    <header class="site-header">
+      <div class="wrap nav">
+        <a class="brand" href="../" aria-label="vibedom">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          vibedom
+        </a>
+
+        <nav class="nav-links" aria-label="Principal">
+          <a href="#respuesta">La respuesta</a>
+          <a href="#como-suena">Cómo suena</a>
+          <a href="#faq">Preguntas</a>
+        </nav>
+
+        <div class="nav-actions">
+          <a
+            class="lang-switch"
+            href="../en/what-does-my-website-sound-like/"
+            hreflang="en"
+            lang="en"
+            data-i18n="nav.langSwitch"
+            data-i18n-aria-label="nav.langSwitchAria"
+            aria-label="Ver esta página en inglés"
+          >EN</a>
+          <a class="btn btn-ghost" href="../playground/" data-i18n="nav.playground">Abrir playground</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <nav class="breadcrumbs wrap" aria-label="Migas de pan">
+        <ol>
+          <li><a href="../">Inicio</a></li>
+          <li aria-current="page">¿A qué suena mi web?</li>
+        </ol>
+      </nav>
+
+      <section id="escuchar" class="hero wrap">
+        <div class="hero-copy">
+          <p class="badge">Web → música · guía y demo</p>
+          <h1>¿A qué suena mi web?</h1>
+          <p class="lead">
+            No es una metáfora: tu web ya tiene tempo, tonalidad y timbre. Están en su paleta, en su
+            tipografía y en la forma en que se mueve. Pega una URL y escúchala convertida en música
+            generativa. Sin samples, sin registro y sin subir nada.
+          </p>
+
+          <form id="scan-form" class="scan-form">
+            <label class="sr-only" for="url-input" data-i18n="landing.form.label">URL de tu web</label>
+            <input
+              id="url-input"
+              type="text"
+              inputmode="url"
+              data-i18n-placeholder="landing.form.placeholder"
+              placeholder="https://tuweb.com"
+              autocomplete="url"
+              autocapitalize="off"
+              spellcheck="false"
+              required
+            />
+            <button type="submit" id="scan-btn">
+              <span>Escuchar mi web</span>
+              <span class="spinner" aria-hidden="true"></span>
+            </button>
+          </form>
+          <p class="hint">
+            Tarda unos segundos. La música se sintetiza en tu navegador; no hay audio pregrabado.
+          </p>
+
+          <div id="analysis" class="analysis" hidden>
+            <div class="analysis-head">
+              <div class="analysis-pulse" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+              <div class="analysis-copy">
+                <p id="analysis-step" class="analysis-step"></p>
+                <p id="analysis-sub" class="analysis-sub" role="status" aria-live="polite"></p>
+              </div>
+              <button type="button" id="analysis-cancel" class="ghost" data-i18n="analysis.cancel">Cancelar</button>
+              <button type="button" id="analysis-retry" class="ghost" hidden data-i18n="analysis.retry">Reintentar</button>
+            </div>
+            <ol id="analysis-steps" class="analysis-steps"></ol>
+            <div class="analysis-track" aria-hidden="true"><div id="analysis-progress" class="analysis-progress"></div></div>
+          </div>
+
+          <ul class="trust">
+            <li><strong>0</strong> <span data-i18n="landing.trust.samples">samples</span></li>
+            <li><strong>100%</strong> <span data-i18n="landing.trust.synthesized">sintetizado</span></li>
+            <li><span data-i18n="landing.trust.account">Sin registro</span></li>
+          </ul>
+        </div>
+
+        <aside id="demo-card" class="demo-card" aria-labelledby="demo-title">
+          <div class="demo-head">
+            <p class="demo-eyebrow" id="demo-title" data-i18n="landing.demo.eyebrow">Demo en vivo</p>
+            <p class="demo-vibe" id="demo-vibe">Cyberpunk</p>
+          </div>
+
+          <div
+            class="preset-tabs"
+            role="radiogroup"
+            data-i18n-aria-label="landing.demo.presetsAria"
+            aria-label="Elige una demo"
+          >
+            <button type="button" class="preset" data-preset="cyberpunk" role="radio" aria-checked="true">Cyberpunk</button>
+            <button type="button" class="preset" data-preset="editorial" role="radio" aria-checked="false">Editorial</button>
+            <button type="button" class="preset" data-preset="indie-pastel" role="radio" aria-checked="false">Indie pastel</button>
+          </div>
+
+          <div class="demo-stage">
+            <button type="button" id="demo-toggle" class="demo-toggle" aria-pressed="false" disabled>
+              <span class="demo-toggle-icon" aria-hidden="true">
+                <svg class="icon-play" viewBox="0 0 24 24"><path d="M8 5.14v13.72L19 12z" /></svg>
+                <svg class="icon-pause" viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z" /></svg>
+              </span>
+              <span id="demo-toggle-label" data-i18n="landing.demo.play">Reproducir</span>
+            </button>
+            <div class="viz" aria-hidden="true">
+              <canvas id="spectrum"></canvas>
+              <canvas id="scope"></canvas>
+            </div>
+          </div>
+
+          <div class="demo-foot">
+            <div
+              id="palette"
+              class="palette"
+              data-i18n-aria-label="landing.demo.paletteAria"
+              aria-label="Paleta de la demo"
+            ></div>
+            <a id="demo-source" class="demo-source" href="#" target="_blank" rel="noreferrer noopener" hidden></a>
+          </div>
+
+          <p id="demo-status" class="demo-status" role="status" aria-live="polite" data-i18n="landing.demo.loading">
+            Cargando demos…
+          </p>
+        </aside>
+      </section>
+
+      <section id="respuesta" class="section wrap">
+        <div class="section-head">
+          <p class="eyebrow">La respuesta corta</p>
+          <h2>Suena a cómo está diseñada, no a lo que cuenta.</h2>
+        </div>
+        <div class="prose">
+          <p>
+            Cuando alguien pregunta <strong>a qué suena una web</strong>, suele esperar una canción
+            concreta. En realidad suena a la suma de sus decisiones visuales: el color de fondo, el
+            contraste, la familia tipográfica, el aire entre bloques y la velocidad con la que se mueve.
+            vibedom lee esas señales y las traduce a una <strong>semilla sonora</strong> —tonalidad,
+            tempo, timbres y efectos— que tu navegador interpreta en directo.
+          </p>
+          <p>
+            Por eso dos webs con el mismo texto pueden sonar completamente distintas. Una tienda de
+            cerámica con fondo marfil y serif clásica tiende a un lidio lento con pads suaves y reverb
+            amplia. Un portfolio ciberpunk con negro y verde ácido se va a un frigio grave, arpegios
+            metálicos y más eco. No hay una respuesta única: hay una identidad.
+          </p>
+          <p>
+            Y no, no se sube nada. Solo se leen HTML y CSS públicos para extraer señales; la música se
+            sintetiza en tu navegador con Tone.js. Cero samples, cero audio pregrabado y cero listas de
+            reproducción.
+          </p>
+        </div>
+      </section>
+
+      <section id="como-suena" class="section wrap">
+        <div class="section-head">
+          <p class="eyebrow">Diseño → sonido</p>
+          <h2>Seis señales visuales, seis decisiones musicales.</h2>
+          <p class="section-lead">
+            No es una correspondencia exacta ni un jingle: es un sistema de reglas. Estas son las
+            principales.
+          </p>
+        </div>
+        <div class="mapping-grid">
+          <article class="mapping-card">
+            <span class="mapping-tag">Color y contraste</span>
+            <h3>Modo y energía</h3>
+            <p>
+              Los fondos oscuros con acentos muy saturados suelen pedir modos graves y ataques lentos.
+              Los fondos claros y cálidos tienden a escalas mayores o lidias, con timbres más suaves.
+            </p>
+          </article>
+          <article class="mapping-card">
+            <span class="mapping-tag">Tipografía</span>
+            <h3>Timbre</h3>
+            <p>
+              Una serif editorial se convierte en pads de seno; una monoespaciada, en ondas cuadradas y
+              arpegios precisos; una sans geométrica, en triángulos limpios y brillantes.
+            </p>
+          </article>
+          <article class="mapping-card">
+            <span class="mapping-tag">Movimiento</span>
+            <h3>Tempo y densidad</h3>
+            <p>
+              Las animaciones y transiciones rápidas suben el BPM y la densidad del arpegio. Las webs
+              estáticas o pausadas bajan el pulso y dejan más silencio entre notas.
+            </p>
+          </article>
+          <article class="mapping-card">
+            <span class="mapping-tag">Espacio en blanco</span>
+            <h3>Reverb y aire</h3>
+            <p>
+              Los layouts amplios y luminosos se traducen en colas de reverb largas y notas aisladas. Los
+              layouts densos acortan la reverb y hacen que el ritmo ocupe más espacio.
+            </p>
+          </article>
+          <article class="mapping-card">
+            <span class="mapping-tag">Jerarquía</span>
+            <h3>Arpegio y registro</h3>
+            <p>
+              Una jerarquía fuerte, con titulares muy marcados, produce un arpegio claro y una separación
+              de octavas definida. Una página plana tiende a un drone más continuo y menos protagonismo
+              melódico.
+            </p>
+          </article>
+          <article class="mapping-card">
+            <span class="mapping-tag">Acentos</span>
+            <h3>Color armónico</h3>
+            <p>
+              El color de acento afina el brillo del filtro, la cantidad de delay y la profundidad del
+              chorus. Un acento ácido ilumina el espectro; uno terroso lo apaga y lo acerca al centro.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section wrap">
+        <div class="section-head">
+          <p class="eyebrow">Transparencia</p>
+          <h2>Lo que vibedom lee (y lo que nunca toca).</h2>
+          <p class="section-lead">
+            El análisis trabaja solo con lo que cualquier visitante puede ver. Si una web esconde su
+            contenido tras un login o lo pinta entero con JavaScript, el resultado puede quedarse corto.
+          </p>
+        </div>
+        <div class="seo-columns">
+          <article class="seo-panel">
+            <h3>Sí lee</h3>
+            <ul class="check-list">
+              <li>El HTML público de la página que le pasas.</li>
+              <li>Hasta cuatro hojas de estilo públicas.</li>
+              <li>Colores computados, contraste y fondo dominante.</li>
+              <li>Familias tipográficas y jerarquía de encabezados.</li>
+              <li>Animaciones, transiciones y señales de movimiento.</li>
+            </ul>
+          </article>
+          <article class="seo-panel">
+            <h3>No toca</h3>
+            <ul class="cross-list">
+              <li>Áreas privadas, paneles o contenido tras un login.</li>
+              <li>Imágenes, vídeos o texto para entrenar modelos.</li>
+              <li>Cookies, analytics o datos de tus visitantes.</li>
+              <li>Audio, capturas de pantalla o historial de navegación.</li>
+              <li>Tu URL o el HTML: no se guardan en disco.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="section wrap">
+        <div class="section-head">
+          <p class="eyebrow">Pruébalo</p>
+          <h2>De la curiosidad al play en menos de un minuto.</h2>
+        </div>
+        <ol class="steps">
+          <li>
+            <span class="step-num">01</span>
+            <h3>Pega tu URL</h3>
+            <p>
+              Usa el formulario de arriba. En unos segundos verás la atmósfera detectada y podrás
+              escucharla sin instalar nada.
+            </p>
+          </li>
+          <li>
+            <span class="step-num">02</span>
+            <h3>Ábrela en el playground</h3>
+            <p>
+              Si quieres ver la semilla JSON, mover tempo, brillo, espacialidad y densidad, o mirar el
+              espectro, el <a href="../playground/">laboratorio</a> tiene los controles.
+            </p>
+          </li>
+          <li>
+            <span class="step-num">03</span>
+            <h3>Compártela o incrústala</h3>
+            <p>
+              Copia un enlace con la semilla dentro o genera un snippet para Webflow, Framer o cualquier
+              HTML. El visitante escucha sin gastar IA.
+            </p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="section wrap">
+        <div class="prose">
+          <p class="eyebrow">Casos especiales</p>
+          <h2>¿Y si mi web es minimalista?</h2>
+          <p>
+            Mejor. Las webs con poco ruido visual suelen producir las atmósferas más limpias: menos
+            colores, menos movimiento y más espacio se traducen en drones largos, pocas notas y una
+            sensación muy definida. Una página en blanco y negro con una sola sans puede sonar más
+            interesante que un dashboard lleno de degradados.
+          </p>
+          <p>
+            Si tu web usa los estilos por defecto del navegador, vibedom también tiene con qué trabajar:
+            el contraste, la jerarquía y la tipografía del sistema siguen siendo señales. Y si el
+            analizador no puede acceder a la página, la demo responde con una semilla local para que
+            nunca te quedes sin escuchar nada.
+          </p>
+        </div>
+      </section>
+
+      <section id="faq" class="section wrap">
+        <div class="faq-grid">
+          <div class="section-head">
+            <p class="eyebrow">Preguntas</p>
+            <h2>Lo que suele preguntarse sobre el sonido de una web.</h2>
+          </div>
+          <div class="faq-list">
+            <details>
+              <summary>¿A qué suena mi web exactamente?</summary>
+              <p>
+                A una pieza generativa construida con sus propios rasgos visuales. La paleta y el
+                contraste fijan el modo y la energía; la tipografía sugiere los timbres; el movimiento
+                marca el tempo y la densidad. No es una canción fija, sino una identidad sonora que se
+                interpreta en directo.
+              </p>
+            </details>
+            <details>
+              <summary>¿La misma web suena siempre igual?</summary>
+              <p>
+                No. La semilla define la identidad —tonalidad, tempo, timbres y efectos—, pero el motor
+                recorre escalas, acordes y arpegios con reglas armónicas. Cada reproducción cambia en los
+                detalles y mantiene el carácter de la web.
+              </p>
+            </details>
+            <details>
+              <summary>¿Necesito registrarme o pagar?</summary>
+              <p>
+                No. La demo es gratuita y abierta. Solo necesitas una URL pública y un navegador moderno.
+                Los presets funcionan incluso si el analizador no está disponible.
+              </p>
+            </details>
+            <details>
+              <summary>¿Guardáis mi URL o el contenido de mi web?</summary>
+              <p>
+                No. La petición se usa para descargar el HTML y las hojas de estilo públicas, extraer
+                señales y devolver la semilla. No guardamos capturas, HTML ni contenido, y la semilla se
+                cachea en memoria solo una hora.
+              </p>
+            </details>
+            <details>
+              <summary>¿Funciona con WordPress, Webflow, Framer o Shopify?</summary>
+              <p>
+                Sí, siempre que la página sea pública y sirva HTML y CSS accesibles. Algunas webs bloquean
+                a los bots o pintan todo con JavaScript; en esos casos el análisis puede quedarse corto,
+                pero la demo responde igualmente con una semilla local.
+              </p>
+            </details>
+            <details>
+              <summary>¿Puedo incrustar este sonido en mi propia web?</summary>
+              <p>
+                Sí. En el playground generas un snippet con la semilla incrustada. El widget ocupa menos
+                de 5 KB, vive en Shadow DOM y solo carga Tone.js cuando alguien pulsa el botón, así que no
+                hay coste por visitante ni llamadas a la IA.
+              </p>
+            </details>
+            <details>
+              <summary>¿Qué navegadores y dispositivos necesito?</summary>
+              <p>
+                Cualquier navegador moderno con Web Audio API: Chrome, Edge, Firefox o Safari recientes,
+                en escritorio o móvil. El audio siempre empieza tras un gesto (pulsar Reproducir o
+                Escuchar mi web), como exigen las políticas de autoplay.
+              </p>
+            </details>
+            <details>
+              <summary>¿Puedo compartir el sonido de una web?</summary>
+              <p>
+                Sí. El playground incluye un enlace compartible que lleva la semilla completa en el
+                fragmento de la URL. Quien lo abra escucha la misma variación sin gastar IA ni pasar por el
+                backend.
+              </p>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <section class="section wrap">
+        <div class="cta-card">
+          <div>
+            <p class="eyebrow">Empieza por tu propia web</p>
+            <h2>La respuesta está a una URL de distancia.</h2>
+            <p>
+              Pega tu dominio y escucha. Si quieres ver la semilla, abre el playground; si quieres
+              incrustar el sonido, el snippet está listo.
+            </p>
+          </div>
+          <a class="btn btn-primary" href="#escuchar">Escuchar mi web</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-inner">
+        <a class="footer-brand" href="../">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          vibedom
+        </a>
+        <p>Atmósferas sonoras procedurales para la web.</p>
+        <div class="footer-links">
+          <a href="../">Inicio</a>
+          <a href="../playground/">Playground</a>
+          <a href="../en/what-does-my-website-sound-like/" hreflang="en" lang="en">English</a>
+          <a href="https://github.com/germantes/vibedom" target="_blank" rel="noreferrer noopener">GitHub</a>
+        </div>
+      </div>
+    </footer>
+
+    <script type="module" src="../src/landing/main.js"></script>
+  </body>
+</html>
