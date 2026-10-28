@@ -256,12 +256,12 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **Enlaces internos**: pies de las landings ES/EN y de los playgrounds, además de la propia página SEO hacia el otro idioma, la landing y el playground.
 - **Verificación**: **140 tests** en verde (nuevas pruebas de rutas, canonical/hreflang, JSON-LD, coincidencia FAQ visible/datos estructurados, enlaces locales y sitemap) y E2E con Chromium: ES/EN sin 404 ni errores JS, 3 presets y play/pausa, escaneo simulado con tema aplicado y responsive a 390 px sin overflow.
 
-### ✅ FASE 4.3: Auto-deploy de Render vía Deploy Hook (PREPARADO)
+### ✅ FASE 4.3: Auto-deploy de Render vía Deploy Hook (COMPLETADA)
 
 - **Síntoma**: pushes a `main` actualizan GitHub Pages pero Render sigue en un commit antiguo (comprobable en `GET /api/health` → `commit`), aunque el panel muestre *Auto-Deploy: On Commit* y rama `main`.
 - **Causa**: el servicio se creó como **Public Git Repository**, no con la GitHub App. Evidencia: `GET /repos/germantes/vibedom/hooks` devuelve una lista vacía y el commit `0eab872` no tiene ningún check/status de Render (solo los de Pages). Render solo auto-despliega servicios con proveedor Git conectado; la región Frankfurt es irrelevante.
 - **Solución**: `.github/workflows/render-deploy.yml` hace `POST` al Deploy Hook del servicio en cada push a `main` (y permite `workflow_dispatch`). Requiere el secreto `RENDER_DEPLOY_HOOK` en GitHub → Settings → Secrets and variables → Actions; sin él el workflow no hace nada y no falla, así que no introduce ruido.
-- **Pendiente**: añadir el secreto y comprobar que `/api/health` pasa de `f1b2202` a `0eab872`.
+- **Verificación**: con `RENDER_DEPLOY_HOOK` añadido en GitHub, el workflow desplegó `c5936cf` y `/api/health` pasó de `f1b2202` a `c5936cf`; `/que-suena-mi-web/`, `/en/what-does-my-website-sound-like/`, `/playground/`, `/playground/en/`, `/widget.js` y `/widget-player.js` responden `200` en `onrender.com`, sin 404 ni errores JS, y el playground vuelve a mostrar el botón de compartir.
 
 ### 🔎 Strudel frente a Tone.js (evaluado, no adoptado)
 
