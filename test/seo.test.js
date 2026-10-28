@@ -107,6 +107,17 @@ for (const page of PAGES) {
   });
 }
 
+test("las landings conservan la verificación de Search Console", () => {
+  for (const file of ["index.html", "en/index.html"]) {
+    const html = read(file);
+    assert.match(
+      html,
+      /<meta name="google-site-verification" content="google7f928a8ec81cb8b1" \/>/,
+      `falta la etiqueta de verificación en ${file}`,
+    );
+  }
+});
+
 test("el sitemap incluye las dos páginas SEO con alternates recíprocos", () => {
   const xml = read("sitemap.xml");
   assert.match(xml, /<loc>https:\/\/vibedom\.dev\/que-suena-mi-web\/<\/loc>/);
