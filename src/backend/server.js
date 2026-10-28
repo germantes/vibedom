@@ -203,7 +203,7 @@ function makeScanHandler({
         return sendLocalSeed(res, signals, lang, `cuota en enfriamiento (${cooldown} s)`);
       }
 
-      logger.log("[scan] Llamando a Gemini…");
+      logger.log("[scan] Llamando a la IA…");
       const seed = await translateSeed(signals, { signal: controller.signal, lang, logger, limiter });
       logger.log(
         `[scan] ✔ ${seed.metadata.detectedVibe} — ${seed.musicalParams.rootNote} ${seed.musicalParams.scale} ${seed.musicalParams.bpm} BPM`,

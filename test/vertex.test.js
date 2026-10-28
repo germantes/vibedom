@@ -167,6 +167,7 @@ test("translate usa Vertex con Bearer, systemInstruction y el schema", async () 
   assert.equal(headers.Authorization, "Bearer tok-vertex");
   assert.ok(body.systemInstruction.parts[0].text);
   assert.equal(body.system_instruction, undefined);
+  assert.equal(body.contents[0].role, "user");
   assert.ok(body.generationConfig.responseSchema);
   assert.equal(body.generationConfig.thinkingConfig.thinkingLevel, "low");
 });

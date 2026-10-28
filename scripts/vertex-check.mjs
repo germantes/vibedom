@@ -58,7 +58,7 @@ if (!project || !authLabel) {
       "",
       "Opción con service account (la que necesita Render):",
       "  VERTEX_PROJECT_ID=vibedom \\",
-      "  VERTEX_LOCATION=europe-west4 \\",
+      "  VERTEX_LOCATION=global \\",
       "  VERTEX_SA_KEY_B64=$(base64 -w0 vibedom-vertex.json) \\",
       "  npm run vertex:check",
     ].join("\n"),
@@ -66,8 +66,11 @@ if (!project || !authLabel) {
   process.exit(1);
 }
 
-const host = location === "global" ? "aiplatform.googleapis.com" : `${location}-aiplatform.googleapis.com`;
-const base = `https://${host}/v1/projects/${encodeURIComponent(project)}/locations/${encodeURIComponent(location)}`;
+const baseFor = (loc) => {
+  const host = loc === "global" ? "aiplatform.googleapis.com" : `${loc}-aiplatform.googleapis.com`;
+  return `https://${host}/v1/projects/${encodeURIComponent(project)}/locations/${encodeURIComponent(loc)}`;
+};
+const base = baseFor(location);
 
 const tokens = createTokenSource({ credentials, accessToken });
 
@@ -86,33 +89,48 @@ try {
 console.log("✔ token de OAuth obtenido\n");
 
 const headers = { Authorization: `Bearer ${token}` };
+const jsonHeaders = { ...headers, "Content-Type": "application/json" };
 
-// ---- Modelos publicados ----------------------------------------------------
+// ---- Catálogo --------------------------------------------------------------
 
-try {
-  const res = await fetch(`${base}/publishers/google/models?pageSize=200`, { headers });
-  const data = await res.json();
-  if (!res.ok) throw new Error(`${res.status}: ${JSON.stringify(data).slice(0, 300)}`);
-  const published = (data.publisherModels ?? data.models ?? [])
-    .map((model) => String(model.name ?? "").split("/").pop())
-    .filter((name) => name.includes("gemini"))
-    .sort();
-  console.log(`modelos Gemini publicados en ${location}: ${published.length}`);
-  for (const name of published) console.log(`  · ${name}`);
-  console.log("");
-} catch (err) {
-  console.warn(`⚠ no se pudo listar el catálogo (${err.message}); se prueban igualmente los modelos\n`);
+async function listPublished(target) {
+  const res = await fetch(`${target}/publishers/google/models?pageSize=1000`, { headers });
+  const type = res.headers.get("content-type") ?? "";
+  const text = await res.text();
+  if (!res.ok) return { ok: false, reason: `HTTP ${res.status}` };
+  if (!type.includes("json")) return { ok: false, reason: `respuesta ${type || "sin tipo"}` };
+  try {
+    const data = JSON.parse(text);
+    const names = (data.publisherModels ?? data.models ?? [])
+      .map((model) => String(model.name ?? "").split("/").pop())
+      .filter(Boolean);
+    return { ok: true, names };
+  } catch {
+    return { ok: false, reason: "JSON ilegible" };
+  }
+}
+
+let published = null;
+for (const loc of [...new Set([location, "global"])]) {
+  const catalog = await listPublished(baseFor(loc));
+  if (catalog.ok) {
+    published = catalog.names.filter((name) => name.includes("gemini")).sort();
+    console.log(`modelos Gemini publicados en ${loc}: ${published.length}`);
+    for (const name of published) console.log(`  · ${name}`);
+    console.log("");
+    break;
+  }
+  console.log(`⚠ catálogo en ${loc}: no disponible (${catalog.reason})`);
 }
 
 // ---- Llamada mínima --------------------------------------------------------
 
-let failures = 0;
-for (const model of models) {
+async function probe(target, model) {
   const started = Date.now();
   try {
-    const res = await fetch(`${base}/publishers/google/models/${encodeURIComponent(model)}:generateContent`, {
+    const res = await fetch(`${target}/publishers/google/models/${encodeURIComponent(model)}:generateContent`, {
       method: "POST",
-      headers: { ...headers, "Content-Type": "application/json" },
+      headers: jsonHeaders,
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ text: "Responde solo con la palabra ok." }] }],
         generationConfig: { maxOutputTokens: 16, temperature: 0 },
@@ -122,36 +140,96 @@ for (const model of models) {
     const text = await res.text();
     const ms = Date.now() - started;
     if (!res.ok) {
-      failures += 1;
-      console.log(`✖ ${model} → ${res.status} en ${ms} ms: ${text.replace(/\s+/g, " ").slice(0, 200)}`);
-      continue;
+      return { ok: false, ms, status: res.status, detail: text.replace(/\s+/g, " ").slice(0, 180) };
     }
-    const answer = JSON.parse(text)?.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") ?? "";
-    const usage = JSON.parse(text)?.usageMetadata ?? {};
-    console.log(
-      `✔ ${model} → ${ms} ms · "${answer.trim().slice(0, 40)}" · tokens in=${usage.promptTokenCount ?? "?"} out=${usage.candidatesTokenCount ?? "?"}`,
-    );
+    const data = JSON.parse(text);
+    const answer = data?.candidates?.[0]?.content?.parts?.map((part) => part.text).join("") ?? "";
+    return { ok: true, ms, answer: answer.trim().slice(0, 40), usage: data.usageMetadata ?? {} };
   } catch (err) {
-    failures += 1;
-    console.log(`✖ ${model} → ${err.name === "TimeoutError" ? "timeout 30 s" : err.message}`);
+    return { ok: false, ms: Date.now() - started, status: 0, detail: err.name === "TimeoutError" ? "timeout 30 s" : err.message };
+  }
+}
+
+function report(model, result) {
+  if (!result.ok) {
+    console.log(`✖ ${model} → ${result.status || "error"} en ${result.ms} ms: ${result.detail}`);
+    return;
+  }
+  console.log(
+    `✔ ${model} → ${result.ms} ms · "${result.answer}" · tokens in=${result.usage.promptTokenCount ?? "?"} out=${result.usage.candidatesTokenCount ?? "?"}`,
+  );
+}
+
+const working = [];
+for (const model of models) {
+  const result = await probe(base, model);
+  report(model, result);
+  if (result.ok) working.push(model);
+}
+
+// Nombres habituales en Vertex, por si la cadena de AI Studio no existe aquí.
+const EXTRA_MODELS = [
+  "gemini-3-flash-preview",
+  "gemini-3-pro-preview",
+  "gemini-3-flash",
+  "gemini-3-pro",
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-2.5-pro",
+  "gemini-2.0-flash",
+  "gemini-2.0-flash-001",
+  "gemini-flash-latest",
+];
+
+if (!working.length) {
+  console.log("\nProbando nombres alternativos…");
+  const tried = new Set(models);
+  for (const model of EXTRA_MODELS) {
+    if (tried.has(model)) continue;
+    tried.add(model);
+    const result = await probe(base, model);
+    if (result.ok) {
+      report(model, result);
+      working.push(model);
+    }
+  }
+
+  // Los modelos más nuevos suelen vivir solo en el endpoint global.
+  if (!working.length && location !== "global") {
+    console.log("\nNada en la región; probando el endpoint global…");
+    for (const model of [...models, ...EXTRA_MODELS]) {
+      if (!tried.has(model)) continue;
+      const result = await probe(baseFor("global"), model);
+      if (result.ok) {
+        report(model, result);
+        working.push(`${model} (global)`);
+        break;
+      }
+    }
   }
 }
 
 console.log("");
-if (failures) {
-  console.error(`${failures} modelo(s) fallaron. Ajusta VERTEX_MODELS antes de desplegar.`);
-  process.exit(1);
+if (working.length) {
+  console.log(`Modelos que responden: ${working.join(", ")}`);
+  console.log(`Configura VERTEX_MODELS="${working.map((m) => m.replace(" (global)", "")).join(",")}"`);
+  if (working.some((m) => m.includes("(global)"))) {
+    console.log('Atención: ese modelo solo respondió en `global`; usa VERTEX_LOCATION="global".');
+  }
+  console.log("Después: copia VERTEX_PROJECT_ID, VERTEX_LOCATION y VERTEX_SA_KEY_B64 en Render.");
+  process.exit(0);
 }
-if (credentials) {
-  console.log("Todo listo: copia VERTEX_PROJECT_ID, VERTEX_LOCATION y VERTEX_SA_KEY_B64 en Render.");
-} else {
-  console.log(
-    [
-      "Modelos y permisos OK.",
-      "Para Render falta la service account: el token de tu sesión caduca en 1 h.",
-      "  gcloud iam service-accounts keys create vibedom-vertex.json \\",
-      "    --iam-account=vibedom-vertex@vibedom.iam.gserviceaccount.com",
-      "  base64 -w0 vibedom-vertex.json   # → VERTEX_SA_KEY_B64 en Render",
-    ].join("\n"),
-  );
+
+if (published?.length) {
+  console.log("El catálogo sí lista modelos, pero ninguno de los probados respondió.");
+  console.log("Prueba a poner en VERTEX_MODELS alguno de los nombres de la lista de arriba.");
 }
+console.error(
+  [
+    "Ningún modelo respondió.",
+    "Si el catálogo aparece vacío o da 404, habilita el modelo en Model Garden:",
+    "  https://console.cloud.google.com/vertex-ai/model-garden",
+    "Los modelos preview (gemini-3-*-preview) pueden requerir acceso explícito.",
+  ].join("\n"),
+);
+process.exit(1);

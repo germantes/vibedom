@@ -15,7 +15,9 @@ import { createTokenSource, loadServiceAccount } from "./vertex-auth.js";
 export const AI_MODELS = Object.freeze(["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash"]);
 
 const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
-export const DEFAULT_VERTEX_LOCATION = "europe-west4";
+// Los modelos más nuevos (Gemini 3.x) solo se publican en el endpoint global;
+// las regiones europeas pueden devolver 404. Se puede forzar con VERTEX_LOCATION.
+export const DEFAULT_VERTEX_LOCATION = "global";
 
 /** Lista de modelos separada por comas, con la de por defecto como respaldo. */
 export function modelsFromEnv(raw, fallback = AI_MODELS) {

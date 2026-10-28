@@ -13,12 +13,12 @@ services:
         value: "22"
       - key: SCAN_RATE_LIMIT
         value: "5"
-      # La cuota de Gemini es por proyecto, no por IP. Estas llamadas se
-      # serializan y se espacian 8 s (≈7,5/min) para no agotarla entre visitantes.
+      # Vertex factura por proyecto y tiene cuotas mucho más altas que la capa
+      # gratuita, así que basta con espaciar 2 s y esperar hasta 12 s en cola.
       - key: GEMINI_MIN_INTERVAL_MS
-        value: "8000"
+        value: "2000"
       - key: GEMINI_MAX_WAIT_MS
-        value: "25000"
+        value: "12000"
       - key: GEMINI_QUEUE_LIMIT
         value: "10"
       # Cuando la cuota se agota, la demo sigue sonando con una semilla local
@@ -33,7 +33,7 @@ services:
       - key: VERTEX_PROJECT_ID
         sync: false
       - key: VERTEX_LOCATION
-        value: europe-west4
+        value: global
       - key: VERTEX_MODELS
         value: gemini-3.5-flash,gemini-3.5-flash-lite,gemini-3.6-flash
       # JSON de la service account en base64. Secreto: nunca en el repo.

@@ -373,6 +373,7 @@ export async function translate(signals, options = {}) {
     [provider.systemInstructionField]: { parts: [{ text: systemPrompt(lang) }] },
     contents: [
       {
+        role: "user",
         parts: [{ text: `Analiza esta web y genera la Semilla Sonora:\n\n${JSON.stringify(signals, null, 2)}` }],
       },
     ],
