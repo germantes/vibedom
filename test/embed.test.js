@@ -1,7 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
-import { buildWidgetSnippet, encodeSeed, DEFAULT_WIDGET_BASE } from "../src/embed.js";
+import {
+  buildShareHash,
+  buildWidgetSnippet,
+  decodeShareToken,
+  encodeSeed,
+  encodeShareToken,
+  readShareHash,
+  DEFAULT_WIDGET_BASE,
+} from "../src/embed.js";
 
 const SEED = {
   metadata: {
@@ -44,4 +53,26 @@ test("el origen del snippet no duplica la barra final", () => {
 test("el snippet no rompe el HTML con </script> en los textos", () => {
   const snippet = buildWidgetSnippet({ ...SEED, metadata: { ...SEED.metadata, explanation: "</script><b>x</b>" } });
   assert.equal(snippet.match(/<\/script>/g).length, 1);
+});
+
+test("el enlace compartido usa base64url y recupera la semilla completa", () => {
+  const hash = buildShareHash(SEED);
+  assert.match(hash, /^#seed=[A-Za-z0-9_-]+$/);
+  assert.deepEqual(readShareHash(hash), SEED);
+  assert.deepEqual(decodeShareToken(encodeShareToken(SEED)), SEED);
+});
+
+test("readShareHash ignora fragmentos sin semilla y rechaza tokens corruptos", () => {
+  assert.equal(readShareHash(""), null);
+  assert.equal(readShareHash("#otra-cosa"), null);
+  assert.equal(readShareHash("#seed=%%%"), null);
+  assert.throws(() => decodeShareToken("%%%"), /inválido/);
+  assert.throws(() => decodeShareToken("bm8tZXMtanNvbg"), SyntaxError);
+});
+
+test("el enlace de un preset real cabe en una URL normal", () => {
+  const preset = JSON.parse(readFileSync(new URL("../presets/editorial.json", import.meta.url), "utf8"));
+  const url = `https://vibedom.dev/playground/${buildShareHash(preset)}`;
+  assert.ok(url.length < 2000, `el enlace mide ${url.length} caracteres`);
+  assert.deepEqual(readShareHash(buildShareHash(preset)), preset);
 });

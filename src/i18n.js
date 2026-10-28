@@ -215,6 +215,13 @@ const DICTS = {
     "playground.embed.copyError": "No se pudo copiar",
     "playground.embed.hint":
       'El botón flotante carga Tone.js solo al pulsarlo. Puedes cambiar su texto con data-label="Escuchar mi web".',
+    "playground.share.copy": "Copiar enlace",
+    "playground.share.copied": "Enlace copiado",
+    "playground.share.error": "No se pudo copiar",
+    "playground.share.hint":
+      "El enlace contiene la semilla completa: quien lo abra escucha esta misma variación sin gastar IA.",
+    "playground.status.shared": "Semilla compartida cargada. Pulsa Reproducir.",
+    "playground.status.sharedInvalid": "El enlace compartido no era válido. Hemos cargado un preset.",
     "playground.footer.samples": "Sin audio pregrabado · Tone.js bajo demanda",
     "playground.footer.github": "GitHub",
     "playground.arpOff": "Arpegio off",
@@ -479,6 +486,13 @@ const DICTS = {
     "playground.embed.copyError": "Couldn't copy",
     "playground.embed.hint":
       'The floating button loads Tone.js only when pressed. Change its text with data-label="Listen to my site".',
+    "playground.share.copy": "Copy link",
+    "playground.share.copied": "Link copied",
+    "playground.share.error": "Couldn't copy",
+    "playground.share.hint":
+      "The link contains the full seed: whoever opens it hears this same variation without spending AI.",
+    "playground.status.shared": "Shared seed loaded. Press Play.",
+    "playground.status.sharedInvalid": "That shared link wasn't valid. We loaded a preset instead.",
     "playground.footer.samples": "No pre-recorded audio · Tone.js on demand",
     "playground.footer.github": "GitHub",
     "playground.arpOff": "Arpeggio off",

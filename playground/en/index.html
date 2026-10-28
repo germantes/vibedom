@@ -190,9 +190,15 @@
       </section>
 
       <section class="card">
-        <h2 data-i18n="playground.json.title">Sound Seed (JSON)</h2>
-        <p class="card-sub" data-i18n="playground.json.sub">This is the only thing AI generates. The music is synthesised entirely in your browser.</p>
+        <div class="card-head">
+          <div>
+            <h2 data-i18n="playground.json.title">Sound Seed (JSON)</h2>
+            <p class="card-sub" data-i18n="playground.json.sub">This is the only thing AI generates. The music is synthesised entirely in your browser.</p>
+          </div>
+          <button type="button" id="share-seed" class="ghost" disabled data-i18n="playground.share.copy">Copy link</button>
+        </div>
         <pre id="json"></pre>
+        <p class="hint" data-i18n="playground.share.hint">The link contains the full seed: whoever opens it hears this same variation without spending AI.</p>
       </section>
 
       <section class="card">

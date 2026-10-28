@@ -14,6 +14,8 @@ La interfaz está disponible en **español e inglés** mediante rutas estáticas
 Online: **https://vibedom.dev/**
 
 > El escaneo funciona online: la landing de GitHub Pages llama al backend desplegado en Render (`https://vibedom.onrender.com`). Ese servicio se duerme tras 15 minutos sin uso y la página lo despierta con `GET /api/health`, así que el primer análisis del día puede tardar unos segundos más.
+>
+> **Evitar el cold start**: un monitor externo (cron-job.org, UptimeRobot…) puede hacer `GET /api/health` cada 10 minutos para mantenerlo despierto. Ojo con el plan free de Render: 750 h/mes; 24/7 consume casi todas (720–744 h según el mes), así que conviene limitar la franja horaria o pasar a un plan de pago si necesitas disponibilidad continua.
 
 ```bash
 # Crea .env en la raíz con GEMINI_KEY=...
@@ -75,6 +77,15 @@ El playground reutiliza las mismas funciones en su propio `applyTheme`, pero con
 - **Tema adoptado**: fondo, texto, acento y familia tipográfica de la web escaneada se aplican a toda la interfaz.
 - **Semilla Sonora visible** y botón para volver a la landing; selector de idioma en la barra superior.
 - **Widget embebible**: bloque con el `<script>` listo para copiar, actualizado en caliente con los sliders.
+- **Enlace compartible**: la semilla activa vive en el fragmento `#seed=...`; «Copiar enlace» guarda la variación sin backend ni IA.
+
+## Compartir una semilla
+
+El playground refleja la semilla activa en el fragmento de la URL (`#seed=...`, base64url de ~1,4 KB). El botón **Copiar enlace** copia la URL completa; al abrirla, el playground valida el JSON con `normalizeSeed()` y carga la misma variación **sin llamar a la IA ni al backend**. Los sliders actualizan el enlace en caliente con `history.replaceState()`.
+
+- El enlace no depende de ninguna base de datos: la semilla viaja dentro del propio fragmento y no se envía al servidor.
+- Si el enlace está corrupto o la semilla no cumple el contrato, se carga el preset por defecto y se avisa sin romper la página.
+- El formato base64url evita `+`, `/`, `=` y cualquier escape dentro de la URL.
 
 ## Widget embebible
 
@@ -121,7 +132,7 @@ render.yaml                  Blueprint de Render (servicio + env)
 widget.js                    botón flotante < 5 KB en Shadow DOM
 widget-player.js             motor + Tone.js bajo demanda (primer clic)
 src/i18n.js                  diccionarios ES/EN y utilidades
-src/embed.js                 codificación de la semilla y generador del snippet
+src/embed.js                 semilla base64, enlace compartido y snippet del widget
 src/api.js                   resolución de /api/scan y backend externo
 src/host-mode.js             detección de host estático (Pages, dominio propio, file:)
 src/landing/main.js          demo, escaneo y audio de la landing
@@ -329,7 +340,7 @@ Para añadir uno, crea el JSON en `presets/` y regístralo en `PRESET_IDS` (`src
 npm test
 ```
 
-**131 tests** con `node:test`, sin dependencias:
+**134 tests** con `node:test`, sin dependencias:
 
 * escalas, acordes y conversión MIDI;
 * validación de la semilla y presets reales;
@@ -345,12 +356,13 @@ npm test
 * detección de host estático (Pages, dominio propio, `file:` y API externa);
 * idioma de salida del traductor y separación de la caché por idioma;
 * widget embebible (tamaño < 5 KB, Shadow DOM, carga diferida de Tone.js y `data-label`);
-* snippet (round-trip base64 con acentos y emojis, atributo seguro, origen sin doble barra y `</script>` escapado).
+* snippet (round-trip base64 con acentos y emojis, atributo seguro, origen sin doble barra y `</script>` escapado);
+* enlace compartido (base64url, restauración de la semilla, fragmentos ignorados y enlaces corruptos).
 
-El flujo real se validó en navegador con Playwright (fuera del repo): landing ES/EN, presets, play/pausa, espectro, escaneo mockeado, error de backend, responsive a 390 px, playground ES/EN, sliders, JSON y cambio de idioma. También se validó un escaneo real de `example.com` (~3 s). El tema dinámico se comprobó con escaneos mockeados (sitio claro, oscuro y un caso hostil blanco sobre blanco) y una auditoría de contraste de 26 elementos en ambos esquemas: 26/26 en claro y 26/26 en oscuro. El widget se probó con Chromium headless en una página anfitriona: `widget.js` → `widget-player.js` → Tone.js solo tras el clic, arranque y pausa, snippet de 1.217 bytes generado desde el playground y copiado al portapapeles sin errores 404.
+El flujo real se validó en navegador con Playwright (fuera del repo): landing ES/EN, presets, play/pausa, espectro, escaneo mockeado, error de backend, responsive a 390 px, playground ES/EN, sliders, JSON y cambio de idioma. También se validó un escaneo real de `example.com` (~3 s). El tema dinámico se comprobó con escaneos mockeados (sitio claro, oscuro y un caso hostil blanco sobre blanco) y una auditoría de contraste de 26 elementos en ambos esquemas: 26/26 en claro y 26/26 en oscuro. El widget se probó con Chromium headless en una página anfitriona: `widget.js` → `widget-player.js` → Tone.js solo tras el clic, arranque y pausa, snippet de 1.217 bytes generado desde el playground y copiado al portapapeles sin errores 404. El enlace compartido se validó de extremo a extremo: mover un slider cambia el `#seed`, «Copiar enlace» copia la URL, abrirla en otra pestaña restaura la misma semilla (100 BPM) sin ninguna petición a `/api/scan`, un token corrupto cae en el preset con aviso y la versión inglesa traduce los botones.
 
 ## Roadmap
 
 * Verificación en Search Console, envío del sitemap y página dedicada a «what does my website sound like».
-* Historial de escaneos recientes y compartir semilla por URL.
+* Historial de escaneos recientes en `localStorage`.
 * Exportar/importar Semilla Sonora y componente nativo para Framer.

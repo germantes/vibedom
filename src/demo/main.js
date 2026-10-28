@@ -1,12 +1,13 @@
 import { attachReactivity } from "../engine/reactivity.js";
 import { configureContext, createSoundscape } from "../engine/soundscape.js";
+import { normalizeSeed } from "../engine/seed.js";
 import { analysisCopy, applyI18n, getLang, presetCopy, rateLimitCopy, t } from "../i18n.js";
 import { API_URL, CAN_SCAN, STATIC_HOST, warmApi } from "../api.js";
 import { createAnalysis } from "./analysis.js";
 import { createControls, formatHz } from "./controls.js";
 import { createVisualizer } from "./visualizer.js";
 import { accentFor, normalizeHex, onColorFor, relativeLuminance, textFor } from "../landing/theme.js";
-import { buildWidgetSnippet } from "../embed.js";
+import { buildShareHash, buildWidgetSnippet, readShareHash } from "../embed.js";
 
 applyI18n();
 
@@ -176,6 +177,9 @@ function renderSeed(seed, { showSource = true } = {}) {
   $("explanation").textContent = copy.explanation;
   $("json").textContent = JSON.stringify(seed, null, 2);
   renderSnippet(seed);
+  syncShareUrl(seed);
+  const share = $("share-seed");
+  if (share) share.disabled = false;
   document.title = `vibedom · ${copy.vibe}`;
 
   const source = $("source-url");
@@ -203,6 +207,7 @@ function updateSeedView() {
   if (!activeSeed) return;
   $("json").textContent = JSON.stringify(activeSeed, null, 2);
   renderSnippet(activeSeed);
+  syncShareUrl(activeSeed);
   renderParams(activeSeed);
 }
 
@@ -214,6 +219,18 @@ function renderSnippet(seed) {
   if (!el) return;
   const base = WIDGET_LOCAL ? location.origin : "https://vibedom.dev";
   el.textContent = buildWidgetSnippet(seed, { base });
+}
+
+/** Refleja la semilla activa en la barra de direcciones para poder compartirla. */
+function syncShareUrl(seed) {
+  if (!seed) return;
+  try {
+    const url = new URL(location.href);
+    url.hash = buildShareHash(seed);
+    history.replaceState(null, "", url);
+  } catch {
+    // Historial bloqueado (iframe sandbox): el botón de compartir sigue funcionando.
+  }
 }
 
 // ---- Motor de audio --------------------------------------------------------
@@ -457,31 +474,64 @@ scanForm.addEventListener("submit", async (event) => {
 
 // ---- Interacción -----------------------------------------------------------
 
+async function copyText(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const area = document.createElement("textarea");
+  area.value = text;
+  area.setAttribute("readonly", "");
+  area.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+  document.body.appendChild(area);
+  area.select();
+  const ok = document.execCommand("copy");
+  area.remove();
+  if (!ok) throw new Error("No se pudo copiar");
+}
+
+/** Cambia la etiqueta de un botón durante 2 s y la restaura. */
+function flashLabel(button, key, restoreKey) {
+  clearTimeout(Number(button.dataset.labelTimer) || 0);
+  button.textContent = t(key);
+  const timer = setTimeout(() => {
+    button.textContent = t(restoreKey);
+    delete button.dataset.labelTimer;
+  }, 2000);
+  button.dataset.labelTimer = String(timer);
+}
+
 const copyEmbed = $("copy-embed");
 
 copyEmbed?.addEventListener("click", async () => {
   const code = $("embed")?.textContent ?? "";
   if (!code) return;
   try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(code);
-    } else {
-      const area = document.createElement("textarea");
-      area.value = code;
-      area.setAttribute("readonly", "");
-      area.style.cssText = "position:fixed;top:0;left:0;opacity:0";
-      document.body.appendChild(area);
-      area.select();
-      document.execCommand("copy");
-      area.remove();
-    }
-    copyEmbed.textContent = t("playground.embed.copied");
+    await copyText(code);
+    flashLabel(copyEmbed, "playground.embed.copied", "playground.embed.copy");
   } catch {
-    copyEmbed.textContent = t("playground.embed.copyError");
+    flashLabel(copyEmbed, "playground.embed.copyError", "playground.embed.copy");
   }
-  setTimeout(() => {
-    copyEmbed.textContent = t("playground.embed.copy");
-  }, 2000);
+});
+
+const shareBtn = $("share-seed");
+
+shareBtn?.addEventListener("click", async () => {
+  if (!activeSeed) return;
+  const url = new URL(location.href);
+  url.hash = buildShareHash(activeSeed);
+
+  try {
+    await copyText(url.href);
+    try {
+      history.replaceState(null, "", url);
+    } catch {
+      // La copia ya se hizo; el historial puede estar bloqueado.
+    }
+    flashLabel(shareBtn, "playground.share.copied", "playground.share.copy");
+  } catch {
+    flashLabel(shareBtn, "playground.share.error", "playground.share.copy");
+  }
 });
 
 toggle.addEventListener("click", () =>
@@ -510,7 +560,34 @@ try {
     }),
   );
   presets = Object.fromEntries(entries);
-  await selectPreset(PRESET_IDS[0]);
+
+  // Enlace compartido: #seed=<base64url>. Se valida como cualquier semilla
+  // externa antes de tocar el motor o el DOM.
+  let sharedSeed = null;
+  let sharedInvalid = false;
+  const hasSharedToken = /(?:^#|&)seed=/.test(location.hash);
+  if (hasSharedToken) {
+    try {
+      const raw = readShareHash(location.hash);
+      if (raw) {
+        sharedSeed = normalizeSeed(raw);
+        if (raw.metadata?.source === "local") sharedSeed.metadata.source = "local";
+      } else {
+        sharedInvalid = true;
+      }
+    } catch (err) {
+      console.warn("[vibedom] enlace compartido inválido:", err.message);
+      sharedInvalid = true;
+    }
+  }
+
+  if (sharedSeed) {
+    await loadSeed(sharedSeed);
+    setStatus(t("playground.status.shared"));
+  } else {
+    await selectPreset(PRESET_IDS[0]);
+    if (sharedInvalid) setStatus(t("playground.status.sharedInvalid"));
+  }
 } catch (err) {
   console.error(err);
   setStatus(t("playground.status.presetsError"));

@@ -190,9 +190,15 @@
       </section>
 
       <section class="card">
-        <h2 data-i18n="playground.json.title">Semilla Sonora (JSON)</h2>
-        <p class="card-sub" data-i18n="playground.json.sub">Esto es lo único que se genera con IA. La música se sintetiza entera en tu navegador.</p>
+        <div class="card-head">
+          <div>
+            <h2 data-i18n="playground.json.title">Semilla Sonora (JSON)</h2>
+            <p class="card-sub" data-i18n="playground.json.sub">Esto es lo único que se genera con IA. La música se sintetiza entera en tu navegador.</p>
+          </div>
+          <button type="button" id="share-seed" class="ghost" disabled data-i18n="playground.share.copy">Copiar enlace</button>
+        </div>
         <pre id="json"></pre>
+        <p class="hint" data-i18n="playground.share.hint">El enlace contiene la semilla completa: quien lo abra escucha esta misma variación sin gastar IA.</p>
       </section>
 
       <section class="card">
