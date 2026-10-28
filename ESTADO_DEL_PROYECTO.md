@@ -270,7 +270,8 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **Imagen** (`src/backend/share-image.js`): `GET /s/<token>.png` genera al vuelo una tarjeta 1200×630 con el fondo y el acento de `uiTheme`, tres muestras de color y una onda cuya amplitud sale del BPM y la densidad del arpegio. PNG a mano con `node:zlib` y CRC32: cero dependencias, cacheado como inmutable.
 - **Enlaces**: `buildShareLink()` en `src/embed.js`; el playground copia la vista previa cuando hay API y cae al `#seed` local en un host estático sin backend. Un token corrupto responde `400` con enlace al playground.
 - **CI** (`.github/workflows/test.yml`): `npm test` en cada push y PR; sin `npm install` porque el proyecto no tiene dependencias.
-- **Verificación**: **145 tests** (vista previa, redirección ES/EN, token corrupto, cabecera IHDR 1200×630, muestras de color idénticas a `uiTheme`, `buildShareLink` y tamaño del enlace real) y comprobación del PNG decodificado píxel a píxel.
+- **Verificación**: **146 tests** (vista previa, redirección ES/EN, token corrupto, cabecera IHDR 1200×630, muestras de color idénticas a `uiTheme`, `buildShareLink` y tamaño del enlace real) y comprobación del PNG decodificado píxel a píxel.
+- **Producción (2026-10-28, `53f1e1e`)**: el workflow `tests` pasa en 10 s y `render` despliega en 6 s; `/api/health` confirma el commit. Un enlace real devuelve `200` con OG completo, la imagen pesa 25 KB (1200×630) y el `<meta refresh>` apunta a `https://vibedom.dev/playground/#seed=…` (`/en/` con `?l=en`). El destino existe: `/playground/` y `/playground/en/` responden `200` en el dominio propio.
 
 ### 🔎 Strudel frente a Tone.js (evaluado, no adoptado)
 
