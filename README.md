@@ -94,10 +94,18 @@ El playground reutiliza las mismas funciones en su propio `applyTheme`, pero con
 
 ## Compartir una semilla
 
-El playground refleja la semilla activa en el fragmento de la URL (`#seed=...`, base64url de ~1,4 KB). El botón **Copiar enlace** copia la URL completa; al abrirla, el playground valida el JSON con `normalizeSeed()` y carga la misma variación **sin llamar a la IA ni al backend**. Los sliders actualizan el enlace en caliente con `history.replaceState()`.
+El playground refleja la semilla activa en el fragmento de la URL (`#seed=...`, base64url de ~1,4 KB). El botón **Copiar enlace** copia un enlace que incluye la semilla y al abrirlo se carga la misma variación **sin llamar a la IA ni al backend**. Los sliders actualizan el enlace en caliente con `history.replaceState()`.
 
-- El enlace no depende de ninguna base de datos: la semilla viaja dentro del propio fragmento y no se envía al servidor.
-- Si el enlace está corrupto o la semilla no cumple el contrato, se carga el preset por defecto y se avisa sin romper la página.
+Hay dos formatos, según haya backend o no:
+
+| Formato | Cuándo se usa | Qué hace |
+|---|---|---|
+| `https://vibedom.onrender.com/s/<token>` | Hay API disponible | Vista previa con Open Graph propio (título, descripción y PNG con la paleta) que redirige al playground con `#seed` |
+| `https://vibedom.dev/playground/#seed=<token>` | Host estático sin API | El playground lee el fragmento y restaura la semilla en local |
+
+- El enlace no depende de ninguna base de datos: la semilla viaja dentro del propio enlace y el backend no la guarda.
+- `GET /s/<token>` sirve HTML con `og:title`, `og:description` y `og:image` calculados desde la semilla, más `noindex, follow`; `GET /s/<token>.png` genera la tarjeta 1200×630 al vuelo (fondo, acento, tres muestras y una onda con el BPM y la densidad de la semilla). Sin dependencias: PNG a mano con `node:zlib`.
+- Si el enlace está corrupto o la semilla no cumple el contrato, `/s/` responde `400` con un enlace al playground y el fragmento cae en el preset por defecto avisando.
 - El formato base64url evita `+`, `/`, `=` y cualquier escape dentro de la URL.
 
 ## Widget embebible
@@ -159,7 +167,11 @@ src/backend/local-seed.js    compositor determinista sin IA (cuota agotada)
 src/backend/url-guard.js     validación anti-SSRF (DNS, IPs privadas, redirects)
 src/backend/rate-limit.js    cuota de escaneos por IP
 src/backend/scan-cache.js    caché en memoria de semillas por URL
-src/backend/server.js        servidor node:http (estáticos + /api/scan + health)
+src/backend/server.js        servidor node:http (estáticos + /api/scan + health + /s/)
+src/backend/share-preview.js vista previa OG de un enlace compartido
+src/backend/share-image.js   tarjeta PNG 1200×630 generada desde la semilla
+.github/workflows/test.yml   145 tests en cada push y PR
+.github/workflows/render-deploy.yml  Deploy Hook de Render tras cada push a main
 src/demo/main.js             orquestación del playground
 src/demo/analysis.js         estados y animación del panel de análisis
 src/demo/controls.js         sliders y mapeo logarítmico de brillo
@@ -367,7 +379,7 @@ Para añadir uno, crea el JSON en `presets/` y regístralo en `PRESET_IDS` (`src
 npm test
 ```
 
-**140 tests** con `node:test`, sin dependencias:
+**145 tests** con `node:test`, sin dependencias:
 
 * escalas, acordes y conversión MIDI;
 * validación de la semilla y presets reales;
@@ -385,9 +397,10 @@ npm test
 * widget embebible (tamaño < 5 KB, Shadow DOM, carga diferida de Tone.js y `data-label`);
 * snippet (round-trip base64 con acentos y emojis, atributo seguro, origen sin doble barra y `</script>` escapado);
 * enlace compartido (base64url, restauración de la semilla, fragmentos ignorados y enlaces corruptos);
-* páginas SEO (rutas ES/EN, canonical y hreflang recíprocos, JSON-LD con FAQPage, enlaces internos sin romper y sitemap).
+* páginas SEO (rutas ES/EN, canonical y hreflang recíprocos, JSON-LD con FAQPage, enlaces internos sin romper y sitemap);
+* vista previa compartida (`/s/<token>` con OG, redirección al playground, token corrupto y PNG 1200×630 con los colores de la semilla).
 
-El flujo real se validó en navegador con Playwright (fuera del repo): landing ES/EN, presets, play/pausa, espectro, escaneo mockeado, error de backend, responsive a 390 px, playground ES/EN, sliders, JSON y cambio de idioma. También se validó un escaneo real de `example.com` (~3 s). El tema dinámico se comprobó con escaneos mockeados (sitio claro, oscuro y un caso hostil blanco sobre blanco) y una auditoría de contraste de 26 elementos en ambos esquemas: 26/26 en claro y 26/26 en oscuro. El widget se probó con Chromium headless en una página anfitriona: `widget.js` → `widget-player.js` → Tone.js solo tras el clic, arranque y pausa, snippet de 1.217 bytes generado desde el playground y copiado al portapapeles sin errores 404. El enlace compartido se validó de extremo a extremo: mover un slider cambia el `#seed`, «Copiar enlace» copia la URL, abrirla en otra pestaña restaura la misma semilla (100 BPM) sin ninguna petición a `/api/scan`, un token corrupto cae en el preset con aviso y la versión inglesa traduce los botones. Las páginas SEO se probaron en Chromium: ES/EN cargan sin 404 ni errores JS, los 3 presets y el play/pausa funcionan, el escaneo simulado aplica el tema y el responsive a 390 px no genera overflow.
+El flujo real se validó en navegador con Playwright (fuera del repo): landing ES/EN, presets, play/pausa, espectro, escaneo mockeado, error de backend, responsive a 390 px, playground ES/EN, sliders, JSON y cambio de idioma. También se validó un escaneo real de `example.com` (~3 s). El tema dinámico se comprobó con escaneos mockeados (sitio claro, oscuro y un caso hostil blanco sobre blanco) y una auditoría de contraste de 26 elementos en ambos esquemas: 26/26 en claro y 26/26 en oscuro. El widget se probó con Chromium headless en una página anfitriona: `widget.js` → `widget-player.js` → Tone.js solo tras el clic, arranque y pausa, snippet de 1.217 bytes generado desde el playground y copiado al portapapeles sin errores 404. El enlace compartido se validó de extremo a extremo: mover un slider cambia el `#seed`, «Copiar enlace» copia la URL, abrirla en otra pestaña restaura la misma semilla (100 BPM) sin ninguna petición a `/api/scan`, un token corrupto cae en el preset con aviso y la versión inglesa traduce los botones. La vista previa `/s/<token>` se comprobó con `curl` y decodificando el PNG generado: cabecera IHDR 1200×630, muestras de color idénticas a `uiTheme` y Open Graph con el host y el BPM de la semilla. Las páginas SEO se probaron en Chromium: ES/EN cargan sin 404 ni errores JS, los 3 presets y el play/pausa funcionan, el escaneo simulado aplica el tema y el responsive a 390 px no genera overflow.
 
 ## Roadmap
 

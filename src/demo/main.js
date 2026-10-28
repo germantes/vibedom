@@ -7,11 +7,15 @@ import { createAnalysis } from "./analysis.js";
 import { createControls, formatHz } from "./controls.js";
 import { createVisualizer } from "./visualizer.js";
 import { accentFor, normalizeHex, onColorFor, relativeLuminance, textFor } from "../landing/theme.js";
-import { buildShareHash, buildWidgetSnippet, readShareHash } from "../embed.js";
+import { buildShareHash, buildShareLink, buildWidgetSnippet, readShareHash } from "../embed.js";
 
 applyI18n();
 
 const TONE_URL = "https://cdn.jsdelivr.net/npm/tone@15.1.22/+esm";
+// Origen con backend para la vista previa de enlaces compartidos. En un host
+// estático sin API externa el enlace cae al `#seed` local.
+const SHARE_ORIGIN = CAN_SCAN ? API_URL.origin : null;
+
 const backendMissingMessage = () =>
   t(CAN_SCAN ? "status.backendMissing" : "status.backendMissingStatic");
 
@@ -521,8 +525,10 @@ shareBtn?.addEventListener("click", async () => {
   const url = new URL(location.href);
   url.hash = buildShareHash(activeSeed);
 
+  const link = buildShareLink(activeSeed, { origin: SHARE_ORIGIN, lang: getLang() });
+
   try {
-    await copyText(url.href);
+    await copyText(link || url.href);
     try {
       history.replaceState(null, "", url);
     } catch {

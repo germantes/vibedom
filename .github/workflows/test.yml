@@ -1,0 +1,26 @@
+name: tests
+
+# Los 145 tests son la única red de seguridad del motor, la API y las páginas
+# estáticas (aquí no hay bundler ni tipos). Se ejecutan en cada push y PR.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # El proyecto no tiene dependencias npm: `npm test` basta.
+      - name: Tests
+        run: npm test

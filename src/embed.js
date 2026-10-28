@@ -52,6 +52,17 @@ export function buildShareHash(seed) {
   return `#seed=${encodeShareToken(seed)}`;
 }
 
+/**
+ * Enlace absoluto a la vista previa compartible (`/s/<token>`), pensado para
+ * pegar en redes: el servidor devuelve Open Graph propio y redirige al
+ * playground con el mismo `#seed`. Devuelve `null` sin origen.
+ */
+export function buildShareLink(seed, { origin, lang } = {}) {
+  const base = String(origin ?? "").replace(/\/+$/, "");
+  if (!base) return null;
+  return `${base}/s/${encodeShareToken(seed)}${lang === "en" ? "?l=en" : ""}`;
+}
+
 /** Lee `#seed=...`; devuelve `null` si el fragmento no contiene una semilla. */
 export function readShareHash(hash) {
   const match = /(?:^#|&)seed=([A-Za-z0-9_-]+)/.exec(String(hash ?? ""));

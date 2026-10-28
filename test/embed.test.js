@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 import {
   buildShareHash,
+  buildShareLink,
   buildWidgetSnippet,
   decodeShareToken,
   encodeSeed,
@@ -70,9 +71,22 @@ test("readShareHash ignora fragmentos sin semilla y rechaza tokens corruptos", (
   assert.throws(() => decodeShareToken("bm8tZXMtanNvbg"), SyntaxError);
 });
 
+test("buildShareLink apunta a la vista previa del backend y respeta el idioma", () => {
+  const es = buildShareLink(SEED, { origin: "https://vibedom.onrender.com/" });
+  assert.match(es, /^https:\/\/vibedom\.onrender\.com\/s\/[A-Za-z0-9_-]+$/);
+  assert.deepEqual(decodeShareToken(es.split("/s/")[1]), SEED);
+
+  const en = buildShareLink(SEED, { origin: "https://vibedom.onrender.com", lang: "en" });
+  assert.match(en, /\?l=en$/);
+  assert.equal(buildShareLink(SEED, { origin: "" }), null);
+});
+
 test("el enlace de un preset real cabe en una URL normal", () => {
   const preset = JSON.parse(readFileSync(new URL("../presets/editorial.json", import.meta.url), "utf8"));
   const url = `https://vibedom.dev/playground/${buildShareHash(preset)}`;
   assert.ok(url.length < 2000, `el enlace mide ${url.length} caracteres`);
   assert.deepEqual(readShareHash(buildShareHash(preset)), preset);
+
+  const preview = buildShareLink(preset, { origin: "https://vibedom.onrender.com" });
+  assert.ok(preview.length < 2000, `la vista previa mide ${preview.length} caracteres`);
 });

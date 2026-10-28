@@ -36,6 +36,10 @@ services:
       # Vertex AI se factura contra el proyecto de Google Cloud, así que los
       # créditos se aplican desde la primera llamada (la API key puede quedarse
       # en nivel gratuito). Si VERTEX_PROJECT_ID está definido, tiene prioridad.
+      # Los enlaces compartidos viven en /s/ (Render) pero redirigen a la web
+      # estática: quien abre la tarjeta acaba en vibedom.dev, no en onrender.com.
+      - key: PUBLIC_SITE
+        value: https://vibedom.dev
       - key: VERTEX_PROJECT_ID
         sync: false
       - key: VERTEX_LOCATION

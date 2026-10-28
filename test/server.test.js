@@ -7,6 +7,7 @@ import { startServer } from "../src/backend/server.js";
 import { createScanCache } from "../src/backend/scan-cache.js";
 import { createScanBudget } from "../src/backend/scan-budget.js";
 import { UnsafeUrlError } from "../src/backend/url-guard.js";
+import { encodeShareToken } from "../src/embed.js";
 
 const SEED = JSON.parse(readFileSync(new URL("../presets/editorial.json", import.meta.url), "utf8"));
 const silent = { log() {}, warn() {}, error() {} };
@@ -486,6 +487,68 @@ test("el rate limit devuelve 429 con Retry-After antes de procesar el escaneo", 
   } finally {
     await new Promise((resolve) => limited.close(resolve));
   }
+});
+
+test("la vista previa compartida expone Open Graph de la semilla y redirige al playground", async () => {
+  const token = encodeShareToken(SEED);
+  const origin = new URL(base).origin;
+
+  const page = await fetch(`${base}/s/${token}`);
+  assert.equal(page.status, 200);
+  assert.match(page.headers.get("content-type"), /text\/html/);
+  assert.equal(page.headers.get("x-robots-tag"), "noindex, follow");
+
+  const html = await page.text();
+  assert.match(html, new RegExp(`<meta property="og:image" content="${origin}/s/${token}\\.png"`));
+  assert.match(html, /property="og:title"/);
+  assert.match(html, new RegExp(`#seed=${token}`));
+  assert.match(html, /\/playground\/#seed=/);
+
+  const en = await (await fetch(`${base}/s/${token}?l=en`)).text();
+  assert.match(en, /<html lang="en">/);
+  assert.match(en, /\/playground\/en\/#seed=/);
+
+  const head = await fetch(`${base}/s/${token}`, { method: "HEAD" });
+  assert.equal(head.status, 200);
+  assert.equal(await head.text(), "");
+});
+
+test("la imagen OG del enlace compartido es un PNG 1200×630 con los colores de la semilla", async () => {
+  const token = encodeShareToken(SEED);
+  const res = await fetch(`${base}/s/${token}.png`);
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get("content-type"), "image/png");
+  assert.match(res.headers.get("cache-control"), /immutable/);
+
+  const png = Buffer.from(await res.arrayBuffer());
+  assert.deepEqual([...png.subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  assert.equal(png.readUInt32BE(16), 1200);
+  assert.equal(png.readUInt32BE(20), 630);
+  assert.ok(png.length > 5000, `la imagen pesa ${png.length} bytes`);
+});
+
+test("la vista previa envía a la web estática salvo en local", async () => {
+  const token = encodeShareToken(SEED);
+  const html = await (await fetch(`${base}/s/${token}`)).text();
+  assert.match(html, new RegExp(`${new URL(base).origin}/playground/#seed=${token}`));
+
+  process.env.PUBLIC_SITE = "https://vibedom.dev";
+  try {
+    const prod = await (await fetch(`${base}/s/${token}`)).text();
+    assert.match(prod, new RegExp(`https://vibedom\\.dev/playground/#seed=${token}`));
+    assert.match(prod, /<link rel="canonical" href="https:\/\/vibedom\.dev\/playground\/" \/>/);
+    assert.match(prod, new RegExp(`og:image" content="${new URL(base).origin}/s/${token}\\.png`));
+  } finally {
+    delete process.env.PUBLIC_SITE;
+  }
+});
+
+test("un token corrupto en /s/ devuelve 400 sin redirección", async () => {
+  const broken = await fetch(`${base}/s/bm8tZXMtanNvbg`);
+  assert.equal(broken.status, 400);
+  const html = await broken.text();
+  assert.match(html, /no lleva una semilla válida/);
+  assert.doesNotMatch(html, /http-equiv="refresh"/);
 });
 
 test("responde al preflight CORS y a HEAD", async () => {

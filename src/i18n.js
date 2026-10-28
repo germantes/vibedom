@@ -219,7 +219,7 @@ const DICTS = {
     "playground.share.copied": "Enlace copiado",
     "playground.share.error": "No se pudo copiar",
     "playground.share.hint":
-      "El enlace contiene la semilla completa: quien lo abra escucha esta misma variación sin gastar IA.",
+      "El enlace lleva la semilla completa y una vista previa con su paleta: quien lo abra escucha esta misma variación sin gastar IA.",
     "playground.status.shared": "Semilla compartida cargada. Pulsa Reproducir.",
     "playground.status.sharedInvalid": "El enlace compartido no era válido. Hemos cargado un preset.",
     "playground.footer.samples": "Sin audio pregrabado · Tone.js bajo demanda",
@@ -490,7 +490,7 @@ const DICTS = {
     "playground.share.copied": "Link copied",
     "playground.share.error": "Couldn't copy",
     "playground.share.hint":
-      "The link contains the full seed: whoever opens it hears this same variation without spending AI.",
+      "The link carries the full seed and a preview with its palette: whoever opens it hears this same variation without spending AI.",
     "playground.status.shared": "Shared seed loaded. Press Play.",
     "playground.status.sharedInvalid": "That shared link wasn't valid. We loaded a preset instead.",
     "playground.footer.samples": "No pre-recorded audio · Tone.js on demand",

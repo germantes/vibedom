@@ -19,12 +19,50 @@ import { createScanBudget } from "./scan-budget.js";
 import { composeLocalSeed } from "./local-seed.js";
 import { resolveEngine } from "./providers.js";
 import { loadDotEnv } from "./dotenv.js";
+import { decodeShareToken } from "../embed.js";
+import { normalizeSeed } from "../engine/seed.js";
+import { renderShareError, renderSharePage } from "./share-preview.js";
+import { renderShareImage } from "./share-image.js";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 export const DEFAULT_ROOT = resolve(HERE, "../..");
 const DEFAULT_PORT = Number(process.env.PORT) || 3000;
 const MAX_BODY_BYTES = 16 * 1024;
 const RATE_LIMIT_FALLBACK_S = 30;
+
+/** Enlaces compartidos: base64url de una semilla (~1,5 KB) y su imagen OG. */
+const SHARE_PATH = /^\/s\/([A-Za-z0-9_-]{1,6000})(\.png)?$/;
+const FALLBACK_ORIGIN = "https://vibedom.onrender.com";
+
+/**
+ * Origen público para construir URLs absolutas (OG y redirección). En Render
+ * viene de `X-Forwarded-Proto`; `PUBLIC_ORIGIN` permite fijarlo a mano.
+ */
+function publicOrigin(req) {
+  const configured = String(process.env.PUBLIC_ORIGIN ?? "").trim().replace(/\/+$/, "");
+  if (configured) return configured;
+
+  const host = String(req.headers.host ?? "").trim();
+  if (!/^[a-z0-9.\-:[\]]+$/i.test(host)) return FALLBACK_ORIGIN;
+
+  const forwarded = String(req.headers["x-forwarded-proto"] ?? "").split(",")[0].trim();
+  const local = /^(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i.test(host);
+  const proto = forwarded === "http" || forwarded === "https" ? forwarded : local ? "http" : "https";
+  return `${proto}://${host}`;
+}
+
+/**
+ * Destino para las personas que abren un enlace compartido: el sitio estático
+ * (rápido y con el dominio propio), no el backend. En local se queda en el
+ * mismo origen para no salir a producción durante el desarrollo.
+ */
+function publicSite(origin) {
+  const configured = String(process.env.PUBLIC_SITE ?? "").trim().replace(/\/+$/, "");
+  if (configured) return configured;
+  return /^(?:https?:\/\/)(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/.test(origin)
+    ? origin
+    : "https://vibedom.dev";
+}
 
 /** SCAN_FALLBACK=0 desactiva la semilla local de emergencia. */
 const DEFAULT_LOCAL_FALLBACK = process.env.SCAN_FALLBACK !== "0";
@@ -389,6 +427,59 @@ export function createVibedomServer({
         );
       }
       return handleScan(req, res);
+    }
+
+    // Enlace compartido: HTML con Open Graph de la semilla y su imagen.
+    if ((req.method === "GET" || req.method === "HEAD") && req.url.startsWith("/s/")) {
+      let parsed;
+      try {
+        parsed = new URL(req.url, "http://localhost");
+      } catch {
+        return json(res, 400, { error: "Bad request" });
+      }
+      const lang = parsed.searchParams.get("l") === "en" ? "en" : "es";
+      const match = SHARE_PATH.exec(parsed.pathname);
+
+      if (!match) {
+        res.writeHead(400, {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "no-store",
+          "X-Robots-Tag": "noindex",
+        });
+        return res.end(req.method === "HEAD" ? undefined : renderShareError(lang));
+      }
+
+      const [, token, png] = match;
+      let seed;
+      try {
+        seed = normalizeSeed(decodeShareToken(token));
+      } catch {
+        res.writeHead(400, {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "no-store",
+          "X-Robots-Tag": "noindex",
+        });
+        return res.end(req.method === "HEAD" ? undefined : renderShareError(lang));
+      }
+
+      if (png) {
+        const image = renderShareImage(seed);
+        res.writeHead(200, {
+          "Content-Type": "image/png",
+          "Content-Length": image.length,
+          "Cache-Control": "public, max-age=31536000, immutable",
+        });
+        return res.end(req.method === "HEAD" ? undefined : image);
+      }
+
+      const origin = publicOrigin(req);
+      const html = renderSharePage(seed, { origin, token, lang, site: publicSite(origin) });
+      res.writeHead(200, {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "public, max-age=300",
+        "X-Robots-Tag": "noindex, follow",
+      });
+      return res.end(req.method === "HEAD" ? undefined : html);
     }
 
     if (req.method === "GET" || req.method === "HEAD") return handleStatic(req, res);
