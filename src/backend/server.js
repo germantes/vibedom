@@ -16,6 +16,7 @@ import { createRateLimiter, clientIp } from "./rate-limit.js";
 import { cacheKey, createScanCache } from "./scan-cache.js";
 import { createGeminiLimiter } from "./gemini-limiter.js";
 import { createScanBudget } from "./scan-budget.js";
+import { createAiUsage } from "./ai-usage.js";
 import { composeLocalSeed } from "./local-seed.js";
 import { resolveEngine } from "./providers.js";
 import { loadDotEnv } from "./dotenv.js";
@@ -417,6 +418,7 @@ export function createVibedomServer({
   skipCooldownS = DEFAULT_SKIP_COOLDOWN_S,
   geminiLimiter = createGeminiLimiter(),
   scanBudget = createScanBudget(),
+  aiUsage = createAiUsage(),
   validateUrl = assertPublicUrl,
   rateLimit = createRateLimiter(),
   cache = createScanCache(),
@@ -426,7 +428,12 @@ export function createVibedomServer({
   // El limitador global se aplica a todas las llamadas a Gemini del proceso.
   const translateWithLimit =
     translateSeed ??
-    ((signals, options = {}) => translate(signals, { ...options, limiter: options.limiter ?? geminiLimiter }));
+    ((signals, options = {}) =>
+      translate(signals, {
+        ...options,
+        limiter: options.limiter ?? geminiLimiter,
+        onUsage: options.onUsage ?? aiUsage.record,
+      }));
   const handleScan = makeScanHandler({
     scrape,
     translateSeed: translateWithLimit,
@@ -470,6 +477,7 @@ export function createVibedomServer({
         commit: process.env.RENDER_GIT_COMMIT?.slice(0, 7) ?? null,
         engine: resolveEngine(),
         budget: scanBudget.snapshot(),
+        usage: aiUsage.snapshot(),
       });
     }
 

@@ -263,3 +263,45 @@ test("translate respeta la cancelación externa", async () => {
 
   await assert.rejects(promise, /cancelado por el usuario/);
 });
+
+test("translate comunica los tokens facturables con onUsage", async () => {
+  const fetchImpl = fakeFetch(
+    () =>
+      new Response(
+        JSON.stringify({
+          candidates: [{ content: { parts: [{ text: JSON.stringify(SEED) }] } }],
+          usageMetadata: { promptTokenCount: 2285, candidatesTokenCount: 355, totalTokenCount: 2640 },
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+  );
+  const calls = [];
+
+  await translate(SIGNALS, {
+    fetchImpl,
+    key: "k",
+    logger: silent,
+    onUsage: (usage) => calls.push(usage),
+  });
+
+  assert.deepEqual(calls, [
+    { model: "gemini-3.5-flash", promptTokens: 2285, outputTokens: 355, totalTokens: 2640 },
+  ]);
+});
+
+test("translate no anota uso cuando la respuesta falla", async () => {
+  const fetchImpl = fakeFetch(() => geminiError(503, "high demand"));
+  const calls = [];
+
+  await assert.rejects(
+    translate(SIGNALS, {
+      fetchImpl,
+      key: "k",
+      models: ["gemini-3.5-flash"],
+      attemptsPerModel: 1,
+      logger: silent,
+      onUsage: (usage) => calls.push(usage),
+    }),
+  );
+  assert.deepEqual(calls, []);
+});

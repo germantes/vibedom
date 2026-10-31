@@ -271,17 +271,20 @@ test("GET /api/health responde sin caché y con CORS", async () => {
   assert.equal(res.headers.get("cache-control"), "no-store");
   assert.equal(res.headers.get("access-control-allow-origin"), "*");
   const body = await res.json();
-  assert.deepEqual({ ...body, engine: undefined, budget: undefined }, {
+  assert.deepEqual({ ...body, engine: undefined, budget: undefined, usage: undefined }, {
     ok: true,
     service: "vibedom",
     commit: null,
     engine: undefined,
     budget: undefined,
+    usage: undefined,
   });
   assert.ok(["local", "gemini", "vertex"].includes(body.engine));
   assert.equal(body.budget.dailyLimit, 0);
   assert.equal(body.budget.perIpDailyLimit, 0);
   assert.equal(typeof body.budget.usedToday, "number");
+  assert.equal(body.usage.calls, 0);
+  assert.equal(body.usage.estimatedUsd, 0);
 });
 
 test("un 429 de Gemini se cubre con una semilla local en vez de bloquear la demo", async () => {

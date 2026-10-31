@@ -21,10 +21,15 @@ services:
         value: "12000"
       # Tope diario de escaneos facturables. Al agotarse, la demo responde con
       # la semilla local sin llamar a la IA. `0` lo desactiva.
+      # Con ~2.600 tokens por escaneo y Gemini 3.5 Flash, 25/día son unos
+      # 3-5 USD/mes de techo; la caché de 6 h lo reduce en la práctica.
       - key: SCAN_DAILY_LIMIT
-        value: "200"
+        value: "25"
       - key: SCAN_IP_DAILY_LIMIT
-        value: "30"
+        value: "8"
+      # Repetir la misma URL dentro de 6 h no vuelve a llamar a la IA.
+      - key: SCAN_CACHE_TTL
+        value: "21600"
       - key: GEMINI_QUEUE_LIMIT
         value: "10"
       # Cuando la cuota se agota, la demo sigue sonando con una semilla local

@@ -259,7 +259,7 @@ function providerHint(provider, status) {
   return "";
 }
 
-async function requestModel({ provider, model, body, fetchImpl, signal, timeoutMs, logger }) {
+async function requestModel({ provider, model, body, fetchImpl, signal, timeoutMs, logger, onUsage }) {
   const label = provider.name === "vertex" ? "Vertex" : "Gemini";
   const controller = new AbortController();
   let timedOut = false;
@@ -327,6 +327,14 @@ async function requestModel({ provider, model, body, fetchImpl, signal, timeoutM
       logger?.log?.(
         `[${provider.name}] ${model} · tokens in=${usage.promptTokenCount ?? "?"} out=${usage.candidatesTokenCount ?? "?"} total=${usage.totalTokenCount ?? "?"}`,
       );
+      // Solo se anotan respuestas correctas: un error no se factura como uso
+      // útil y además podría repetir tokens de un reintento.
+      onUsage?.({
+        model,
+        promptTokens: usage.promptTokenCount,
+        outputTokens: usage.candidatesTokenCount,
+        totalTokens: usage.totalTokenCount,
+      });
     }
     const raw = data.candidates?.[0]?.content?.parts
       ?.map((part) => part.text)
@@ -363,6 +371,7 @@ export async function translate(signals, options = {}) {
     lang = "es",
     limiter,
     logger = console,
+    onUsage,
   } = options;
 
   const provider = options.provider ?? defaultProvider(options);
@@ -404,7 +413,7 @@ export async function translate(signals, options = {}) {
       try {
         const raw = await schedule(async () => {
           try {
-            return await requestModel({ provider, model, body, fetchImpl, signal, timeoutMs, logger });
+            return await requestModel({ provider, model, body, fetchImpl, signal, timeoutMs, logger, onUsage });
           } catch (err) {
             // Un 429 afecta a todo el proyecto: enfriamos la cola global antes
             // de liberar el turno para que la siguiente petición no lo repita.
