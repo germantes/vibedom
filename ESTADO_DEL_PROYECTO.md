@@ -273,6 +273,16 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **Verificación**: **146 tests** (vista previa, redirección ES/EN, token corrupto, cabecera IHDR 1200×630, muestras de color idénticas a `uiTheme`, `buildShareLink` y tamaño del enlace real) y comprobación del PNG decodificado píxel a píxel.
 - **Producción (2026-10-28, `53f1e1e`)**: el workflow `tests` pasa en 10 s y `render` despliega en 6 s; `/api/health` confirma el commit. Un enlace real devuelve `200` con OG completo, la imagen pesa 25 KB (1200×630) y el `<meta refresh>` apunta a `https://vibedom.dev/playground/#seed=…` (`/en/` con `?l=en`). El destino existe: `/playground/` y `/playground/en/` responden `200` en el dominio propio.
 
+### ✅ FASE 4.5: Escaneo fiable de webs que bloquean al bot (COMPLETADA)
+
+- **Síntoma reportado**: `https://estebantorressagra.blogspot.com/` devolvía `502` en producción (a veces tras ~60 s) mientras en local funcionaba.
+- **Causa 1 — bloqueo de IP**: Google responde al bot de Render con `302 → www.google.com` y luego `HTTP 429`; con el UA de un navegador, igual. La IP del datacenter está bloqueada aunque el mismo UA funcione en local.
+- **Causa 2 — regex cuadrático (la grave)**: cuando Google sí servía la página, `findBackgroundColor()` usaba `([^{}]+)\{([^{}]*)\}`. Blogger añade ~293 KB de atributos `style=` sin llaves al final del CSS: los 349 KB tardaban **61 s** en Node, bloqueaban el event loop (la traza se corta en `css 349KB`) y Render reiniciaba la instancia por health check fallido, devolviendo `502` sin cuerpo a mitad del escaneo.
+- **Arreglo del regex**: recorrido con `indexOf("{")`/`indexOf("}")` y selector más interno para `@media`; mismo resultado en **18 ms** y test de regresión con un tramo largo sin llaves.
+- **Arreglo del bloqueo**: reintento único con cabeceras de navegador solo ante `403/429/5xx`; presupuesto de 20 s para el scrape; 30 s para la IA; watchdog de 45 s por petición que aborta lo que quede en vuelo. Si nada se puede leer, `200` con semilla local (`metadata.source=local`, `metadata.unreadable=true`) y explicación honesta («esta web bloquea la lectura automática»), nunca un `502`; el rastro viaja en `X-Vibedom-Diagnostic`.
+- **Diagnóstico**: `src/backend/events.js` persiste en `/tmp` los saltos del scraper (host, estado, KB, ms) y el ciclo de cada escaneo; `GET /api/diagnostics` los expone con `uptimeS` y RSS. Sin rutas ni parámetros de las webs escaneadas. Los cuerpos descartados (redirecciones, 4xx) se cancelan para no dejar sockets abiertos.
+- **Verificación (2026-10-31, `4b3093e`)**: 153 tests. En producción el blog responde `200` en 5,5 s con `engine: vertex` y la paleta real (`#006600` / `#4d90fe`), luego `HIT` en caché en 0,7 s y 0,16 s; la instancia sigue sana (`uptime` creciente) y la traza muestra `css 349KB → señales 8 colores 6 fuentes` en 200 ms.
+
 ### 🔎 Strudel frente a Tone.js (evaluado, no adoptado)
 
 Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Tidal Cycles: su fuerte son los **patrones rítmicos y el live coding sobre samples**, no la síntesis procedural sin audio pregrabado. Adoptarlo implicaría reescribir la Semilla Sonora y el motor, añadir muestras (o cargar su banco) y cumplir la **AGPL-3.0** en un producto web. Se mantiene Tone.js; una prueba A/B con Strudel queda como experimento externo, no como dependencia del repo.
@@ -340,6 +350,7 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 │   │   ├── scan-cache.js                      # Caché en memoria de semillas
 │   │   ├── scan-budget.js                     # Tope diario de escaneos facturables
 │   │   ├── local-seed.js                      # Compositor determinista sin IA
+│   │   ├── events.js                          # Traza de escaneos para diagnosticar caídas
 │   │   ├── translator.js                      # IA con retries/fallback/timeout
 │   │   ├── providers.js                       # Vertex AI o Gemini API según entorno
 │   │   ├── vertex-auth.js                     # JWT de service account + token OAuth
@@ -409,6 +420,8 @@ npm run dev
 - La verificación con Playwright se hizo con `playwright-core` instalado fuera del repo (`/tmp/opencode`) usando el Chromium cacheado; no añadir Playwright al `package.json` sin decisión explícita.
 - **Bilingüe**: las rutas son estáticas (`/`, `/en/`, `/que-suena-mi-web/`, `/en/what-does-my-website-sound-like/`, `/playground/`, `/playground/en/`). No convertir la elección de idioma en un toggle JS: rompería SEO, enlaces compartidos y el render sin JavaScript. Para añadir textos, edita `src/i18n.js` y usa `data-i18n` en el HTML; el contenido único de la página SEO va directo en su HTML para que los buscadores lo lean sin ejecutar JS.
 - **Landing vs playground**: la landing no debe mostrar JSON ni sliders. La demo de la landing reutiliza `analysis.js`, `visualizer.js` y el motor; si cambias su API, revisa `src/landing/main.js` y `src/demo/main.js`.
+- **CSS de terceros**: no vuelvas a recorrer bloques con `([^{}]+)\{([^{}]*)\}`. Los atributos `style=` de Blogger son cientos de KB sin llaves y ese patrón es cuadrático (61 s con 349 KB). `findBackgroundColor()` usa `indexOf` y hay un test que falla si vuelve a degradarse.
+- **502 sin cuerpo tras ~60 s**: casi siempre es el proceso bloqueado o caído, no un timeout de red. Mira `GET /api/diagnostics` (`uptimeS`, últimas líneas de la traza); si `uptimeS` es pequeño, Render reinició la instancia. `/tmp/vibedom-events.log` sobrevive al reinicio del proceso, no al despliegue.
 - **Render free**: duerme a los 15 min de inactividad. Para la demo se puede usar un monitor externo (cron-job.org o UptimeRobot) con `GET /api/health` cada 10 min; recuerda que el plan free tiene 750 h/mes y 24/7 consume casi todas, así que valora limitar la franja horaria.
 - **GitHub Pages es estático**: el escaneo no funcionará online hasta desplegar el backend. El código detecta `github.io` y muestra un aviso específico; no lo elimines pensando que es un bug.
 - El servidor de desarrollo puede seguir sirviendo archivos actualizados sin reinicio; si cambias código del backend (`src/backend/`), reinicia `npm start`.

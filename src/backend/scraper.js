@@ -25,6 +25,15 @@ const MAX_CSS_FETCHES = 4;
 const MAX_REDIRECTS = 5;
 const MAX_BYTES = 2_000_000;
 const TEXTUAL = /^(text\/|application\/(?:xhtml\+xml|xml|json|javascript|css)|$)/i;
+/** Host de una URL, para trazas sin rutas ni parámetros privados. */
+function hostOf(value) {
+  try {
+    return new URL(value).host;
+  } catch {
+    return "?";
+  }
+}
+
 const RETRYABLE =
   /^(?:HTTP (?:403|429|5\d\d)|ECONNRESET|ECONNREFUSED|EPIPE|UND_ERR_[A-Z_]+|fetch failed)(?: \d+ms)?$/;
 
@@ -110,7 +119,7 @@ async function safeFetch(
       }
 
       const text = await res.text();
-      note(`leída ${current.slice(0, 60)} ${Math.round(text.length / 1024)}KB ${Date.now() - startedHop}ms`);
+      note(`leída ${hostOf(current)} ${Math.round(text.length / 1024)}KB ${Date.now() - startedHop}ms`);
       return { text: text.length > MAX_BYTES ? text.slice(0, MAX_BYTES) : text, url: current };
     } catch (err) {
       if (signal?.aborted) throw signal.reason ?? err;
@@ -355,7 +364,7 @@ export async function scrapeUrl(url, options = {}) {
   const note = (line) => onTrace?.(line);
   const deadline = Date.now() + SCRAPE_BUDGET_MS;
   const trace = [];
-  note(`scrape ${url}`);
+  note(`scrape ${hostOf(url)}`);
   let page = await safeFetch(url, { ...options, trace, deadline });
 
   // Segundo intento como navegador solo ante bloqueos del servidor: es el caso
