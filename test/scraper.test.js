@@ -114,6 +114,19 @@ test("extractColors usa theme-color si no hay CSS y aclara fondos claros", () =>
   assert.equal(light.isDark, false);
 });
 
+test("extractColors no se vuelve cuadrático con tramos largos sin llaves", { timeout: 5000 }, () => {
+  // Los atributos style= de Blogger añaden cientos de KB sin llaves al final del
+  // CSS. Con el recorrido cuadrático anterior esto tardaba ~60 s y bloqueaba el
+  // proceso hasta que Render lo reiniciaba a mitad de escaneo.
+  const css = `.card { color: #ff0000; }\n${"padding:0;color:#ff0000;".repeat(2000)}`;
+  const started = Date.now();
+  const colors = extractColors(css);
+  const elapsed = Date.now() - started;
+
+  assert.equal(colors.background, "#ff0000");
+  assert.ok(elapsed < 250, `tardó ${elapsed} ms en CSS de ${Math.round(css.length / 1024)} KB`);
+});
+
 test("extractFonts clasifica familias y deduplica categorías", () => {
   const fonts = extractFonts(`
     h1 { font-family: "Space Mono", ui-monospace, monospace; }

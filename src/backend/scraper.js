@@ -261,12 +261,29 @@ function colorFromValue(value) {
   return null;
 }
 
+// Recorrido lineal de reglas CSS. El regex anterior (`([^{}]+)\{([^{}]*)\}`)
+// era cuadrático cuando el CSS tenía un tramo largo sin llaves —los atributos
+// style= de Blogger son un caso real—: 349 KB tardaban más de 60 s y dejaban el
+// proceso sin responder hasta que Render lo reiniciaba.
 function findBackgroundColor(css) {
-  for (const [, selectors, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-    if (!/(?:^|,)\s*(?:html|body|:root)\b/i.test(selectors)) continue;
-    const match = body.match(/(?:^|;)\s*background(?:-color)?\s*:\s*([^;}]+)/i);
-    const color = match && colorFromValue(match[1]);
-    if (color) return color;
+  let i = 0;
+  while (i < css.length) {
+    const open = css.indexOf("{", i);
+    if (open === -1) break;
+    const close = css.indexOf("}", open + 1);
+    if (close === -1) break;
+
+    // Con reglas anidadas (@media) interesa solo el selector más interno.
+    const raw = css.slice(i, open);
+    const cut = Math.max(raw.lastIndexOf("{"), raw.lastIndexOf("}"));
+    const selectors = cut === -1 ? raw : raw.slice(cut + 1);
+
+    if (/(?:^|,)\s*(?:html|body|:root)\b/i.test(selectors)) {
+      const match = css.slice(open + 1, close).match(/(?:^|;)\s*background(?:-color)?\s*:\s*([^;}]+)/i);
+      const color = match && colorFromValue(match[1]);
+      if (color) return color;
+    }
+    i = close + 1;
   }
   return null;
 }
