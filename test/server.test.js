@@ -601,3 +601,41 @@ test("métodos no soportados devuelven 405", async () => {
   const res = await fetch(`${base}/api/scan`, { method: "PUT", body: "{}" });
   assert.equal(res.status, 405);
 });
+
+test("si la IA se cuelga, el presupuesto de la petición responde con la semilla local", async () => {
+  const slow = await startServer({
+    port: 0,
+    logger: silent,
+    requestBudgetMs: 1000,
+    validateUrl: async (url) => url,
+    scrape: async (url) => ({ url, title: "Studio", colors: { all: ["#101820"], background: "#101820", isDark: true } }),
+    translateSeed: (signals, { signal }) =>
+      new Promise((_, reject) => {
+        signal.addEventListener("abort", () => reject(signal.reason ?? new Error("abortado")), { once: true });
+      }),
+    rateLimit: () => ({ ok: true, remaining: 99, retryAfter: 0 }),
+    cache: createScanCache({ ttlMs: 0 }),
+  });
+  const slowBase = `http://127.0.0.1:${slow.address().port}`;
+
+  try {
+    const started = Date.now();
+    const res = await fetch(`${slowBase}/api/scan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: "https://lenta.test/" }),
+    });
+    assert.equal(res.status, 200);
+    assert.ok(Date.now() - started < 5000);
+    assert.equal(res.headers.get("x-vibedom-source"), "local");
+    assert.match(res.headers.get("x-vibedom-diagnostic"), /tiempo agotado/);
+
+    const body = await res.json();
+    assert.equal(body.metadata.source, "local");
+    // Aquí sí había señales: la copia describe la web, no es el caso «ilegible».
+    assert.equal(body.metadata.unreadable, undefined);
+    assert.equal(body.uiTheme.backgroundColor, "#101820");
+  } finally {
+    await new Promise((resolve) => slow.close(resolve));
+  }
+});

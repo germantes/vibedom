@@ -18,7 +18,9 @@ export const GEMINI_MODELS = AI_MODELS;
 const DEFAULT_ATTEMPTS_PER_MODEL = 2;
 const DEFAULT_RETRY_DELAY_MS = 700;
 const DEFAULT_ATTEMPT_TIMEOUT_MS = 20_000;
-const DEFAULT_TOTAL_TIMEOUT_MS = 50_000;
+// Con el scrape (20 s) y la cola de Gemini por delante, 30 s dejan margen
+// suficiente bajo el corte de ~60 s de Render.
+const DEFAULT_TOTAL_TIMEOUT_MS = 30_000;
 
 /** Idiomas admitidos para la copia generada. Cualquier otro valor cae en español. */
 const OUTPUT_LANGUAGES = {

@@ -66,6 +66,10 @@ function publicSite(origin) {
 
 /** SCAN_FALLBACK=0 desactiva la semilla local de emergencia. */
 const DEFAULT_LOCAL_FALLBACK = process.env.SCAN_FALLBACK !== "0";
+// Render corta con un 502 sin cuerpo las peticiones que pasan de ~60 s. El
+// escaneo tiene su propio tope (20 s) y la IA el suyo, pero si algo se cuelga
+// por el camino respondemos igual con la semilla local antes de ese corte.
+const DEFAULT_REQUEST_BUDGET_MS = 45_000;
 
 /**
  * Si Gemini ya está en enfriamiento (429 previo), no tiene sentido esperar la
@@ -174,6 +178,7 @@ function makeScanHandler({
   cache,
   limiter,
   scanBudget,
+  requestBudgetMs = DEFAULT_REQUEST_BUDGET_MS,
 }) {
   /**
    * Semilla de emergencia: el scrape ya trajo las señales, así que la web
@@ -230,6 +235,7 @@ function makeScanHandler({
     // Si el navegador cancela el análisis, se aborta la descarga y la llamada a Gemini.
     const controller = new AbortController();
     let clientGone = false;
+    let deadlineHit = false;
     const onClose = () => {
       if (!res.writableEnded) {
         clientGone = true;
@@ -237,6 +243,13 @@ function makeScanHandler({
       }
     };
     res.on("close", onClose);
+    // Presupuesto de la petición completa. Si se agota, se aborta lo que esté
+    // en vuelo y el catch responde con la semilla local en vez de callar.
+    const watchdog = setTimeout(() => {
+      if (res.writableEnded) return;
+      deadlineHit = true;
+      controller.abort();
+    }, requestBudgetMs);
 
     let signals = null;
     try {
@@ -279,7 +292,7 @@ function makeScanHandler({
       cache.set(key, seed);
       return json(res, 200, seed, { "X-Vibedom-Cache": "MISS", "X-Vibedom-Source": resolveEngine() });
     } catch (err) {
-      if (clientGone || controller.signal.aborted) return;
+      if (clientGone) return;
 
       if (err instanceof UnsafeUrlError) {
         logger.error(`[scan] ✖ ${err.message}`);
@@ -295,7 +308,11 @@ function makeScanHandler({
           // Si ni siquiera se pudo leer la web, la semilla local usa la URL
           // como única señal: sale una variación genérica, pero honesta y
           // estable en vez de un 502.
-          return sendLocalSeed(res, signals ?? { url: target }, lang, err?.message ?? "IA no disponible", err, {
+          const reason = deadlineHit
+            ? `tiempo agotado (${Math.round(requestBudgetMs / 1000)} s)`
+            : err?.message ?? "IA no disponible";
+          const diagnostic = deadlineHit ? { diagnostic: reason } : err;
+          return sendLocalSeed(res, signals ?? { url: target }, lang, reason, diagnostic, {
             unreadable: !signals,
           });
         } catch (fallbackErr) {
@@ -317,6 +334,7 @@ function makeScanHandler({
       logger.error(`[scan] ✖ ${err.message}`);
       return json(res, 502, { code: "ANALYSIS_FAILED", error: copy.unavailable });
     } finally {
+      clearTimeout(watchdog);
       res.off("close", onClose);
     }
   };
@@ -387,6 +405,7 @@ export function createVibedomServer({
   rateLimit = createRateLimiter(),
   cache = createScanCache(),
   logger = console,
+  requestBudgetMs = DEFAULT_REQUEST_BUDGET_MS,
 } = {}) {
   // El limitador global se aplica a todas las llamadas a Gemini del proceso.
   const translateWithLimit =
@@ -402,6 +421,7 @@ export function createVibedomServer({
     logger,
     limiter: geminiLimiter,
     scanBudget,
+    requestBudgetMs,
   });
   const handleStatic = makeStaticHandler(root);
 
