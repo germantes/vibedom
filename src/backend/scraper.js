@@ -17,6 +17,10 @@ const BROWSER_HEADERS = {
   "Accept-Language": "es-ES,es;q=0.9,en;q=0.7",
 };
 const FETCH_TIMEOUT = 8000;
+// Presupuesto total del escaneo. Render corta las peticiones que pasan de ~60 s
+// con un 502 sin cuerpo; con este tope siempre llegamos a responder (semilla
+// local) y a decir por qué.
+const SCRAPE_BUDGET_MS = 20000;
 const MAX_CSS_FETCHES = 4;
 const MAX_REDIRECTS = 5;
 const MAX_BYTES = 2_000_000;
@@ -34,17 +38,23 @@ export class ScrapeError extends Error {
 }
 
 /** Fetch con timeout, redirecciones controladas y User-Agent. */
-async function safeFetch(url, { fetchImpl = fetch, validateUrl = null, signal, headers = {}, trace } = {}) {
+async function safeFetch(url, { fetchImpl = fetch, validateUrl = null, signal, headers = {}, trace, deadline } = {}) {
   let current = url;
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const remaining = deadline ? deadline - Date.now() : FETCH_TIMEOUT;
+    if (remaining <= 0) {
+      trace?.push("tiempo agotado");
+      return null;
+    }
+
     if (validateUrl) await validateUrl(current);
     if (signal?.aborted) throw signal.reason ?? new Error("Escaneo cancelado");
 
     const controller = new AbortController();
     const onAbort = () => controller.abort();
     signal?.addEventListener("abort", onAbort, { once: true });
-    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+    const timer = setTimeout(() => controller.abort(), Math.min(FETCH_TIMEOUT, remaining));
 
     try {
       const res = await fetchImpl(current, {
@@ -59,8 +69,9 @@ async function safeFetch(url, { fetchImpl = fetch, validateUrl = null, signal, h
           trace?.push(`${res.status} sin Location`);
           return null;
         }
-        trace?.push(String(res.status));
-        current = new URL(location, current).href;
+        const next = new URL(location, current);
+        trace?.push(`${res.status}→${next.host}`);
+        current = next.href;
         continue;
       }
 
@@ -87,7 +98,9 @@ async function safeFetch(url, { fetchImpl = fetch, validateUrl = null, signal, h
       if (signal?.aborted) throw signal.reason ?? err;
       const reason =
         err?.name === "AbortError"
-          ? "timeout"
+          ? deadline && Date.now() >= deadline
+            ? "tiempo agotado"
+            : "timeout"
           : err?.cause?.code || err?.code || err?.message || "error de red";
       trace?.push(String(reason).slice(0, 60));
       return null;
@@ -303,15 +316,15 @@ export function detectMotion(css) {
 // ---- API pública -----------------------------------------------------------
 
 export async function scrapeUrl(url, options = {}) {
-  const { signal } = options;
+  const deadline = Date.now() + SCRAPE_BUDGET_MS;
   const trace = [];
-  let page = await safeFetch(url, { ...options, trace });
+  let page = await safeFetch(url, { ...options, trace, deadline });
 
   // Segundo intento como navegador solo ante bloqueos del servidor: es el caso
   // típico de un WAF que rechaza al bot, no el de un timeout o un PDF.
   if (!page && RETRYABLE.test(trace.at(-1) ?? "")) {
     trace.push("reintento como navegador");
-    page = await safeFetch(url, { ...options, trace, headers: BROWSER_HEADERS });
+    page = await safeFetch(url, { ...options, trace, deadline, headers: BROWSER_HEADERS });
   }
 
   if (!page) {
@@ -325,7 +338,7 @@ export async function scrapeUrl(url, options = {}) {
   const semantic = extractSemantic(html);
   const themeColor = extractThemeColor(html);
   // Las rutas relativas se resuelven contra la URL final tras redirecciones.
-  const css = await gatherCSS(html, page.url, options);
+  const css = await gatherCSS(html, page.url, { ...options, deadline });
   const colors = extractColors(css, themeColor);
   const fonts = extractFonts(css);
   const motion = detectMotion(css);
