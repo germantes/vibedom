@@ -8,14 +8,33 @@
 //   signal      AbortSignal para cancelar el escaneo
 
 const UA = "Mozilla/5.0 (compatible; VibeDomBot/1.0; +https://github.com/germantes/vibedom)";
+// Algunos WAF (Blogger incluido) rechazan el UA de bot desde IPs de datacenter.
+// Si el primer intento falla con 403/429/5xx, se repite una vez como navegador.
+const BROWSER_HEADERS = {
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "Accept-Language": "es-ES,es;q=0.9,en;q=0.7",
+};
 const FETCH_TIMEOUT = 8000;
 const MAX_CSS_FETCHES = 4;
 const MAX_REDIRECTS = 5;
 const MAX_BYTES = 2_000_000;
 const TEXTUAL = /^(text\/|application\/(?:xhtml\+xml|xml|json|javascript|css)|$)/i;
+const RETRYABLE = /^(?:HTTP (?:403|429|5\d\d)|ECONNRESET|ECONNREFUSED|EPIPE|UND_ERR_[A-Z_]+|fetch failed)$/;
+
+/** Fallo al descargar la portada, con el rastro de lo que respondió el servidor. */
+export class ScrapeError extends Error {
+  constructor(message, { trace = [] } = {}) {
+    super(message);
+    this.name = "ScrapeError";
+    this.code = "SCRAPE_FAILED";
+    this.diagnostic = trace.join(" → ");
+  }
+}
 
 /** Fetch con timeout, redirecciones controladas y User-Agent. */
-async function safeFetch(url, { fetchImpl = fetch, validateUrl = null, signal } = {}) {
+async function safeFetch(url, { fetchImpl = fetch, validateUrl = null, signal, headers = {}, trace } = {}) {
   let current = url;
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
@@ -30,29 +49,47 @@ async function safeFetch(url, { fetchImpl = fetch, validateUrl = null, signal } 
     try {
       const res = await fetchImpl(current, {
         signal: controller.signal,
-        headers: { "User-Agent": UA, Accept: "text/html,text/css,application/xhtml+xml,*/*;q=0.5" },
+        headers: { "User-Agent": UA, Accept: "text/html,text/css,application/xhtml+xml,*/*;q=0.5", ...headers },
         redirect: "manual",
       });
 
       if (res.status >= 300 && res.status < 400) {
         const location = res.headers.get("location");
-        if (!location) return null;
+        if (!location) {
+          trace?.push(`${res.status} sin Location`);
+          return null;
+        }
+        trace?.push(String(res.status));
         current = new URL(location, current).href;
         continue;
       }
 
-      if (!res.ok) return null;
+      if (!res.ok) {
+        trace?.push(`HTTP ${res.status}`);
+        return null;
+      }
 
       const type = (res.headers.get("content-type") ?? "").trim();
-      if (type && !TEXTUAL.test(type)) return null;
+      if (type && !TEXTUAL.test(type)) {
+        trace?.push(`contenido ${type.split(/[;\s]/)[0]}`);
+        return null;
+      }
 
       const length = Number(res.headers.get("content-length"));
-      if (Number.isFinite(length) && length > MAX_BYTES) return null;
+      if (Number.isFinite(length) && length > MAX_BYTES) {
+        trace?.push(`demasiado grande (${Math.round(length / 1024)} KB)`);
+        return null;
+      }
 
       const text = await res.text();
       return { text: text.length > MAX_BYTES ? text.slice(0, MAX_BYTES) : text, url: current };
     } catch (err) {
       if (signal?.aborted) throw signal.reason ?? err;
+      const reason =
+        err?.name === "AbortError"
+          ? "timeout"
+          : err?.cause?.code || err?.code || err?.message || "error de red";
+      trace?.push(String(reason).slice(0, 60));
       return null;
     } finally {
       clearTimeout(timer);
@@ -60,6 +97,7 @@ async function safeFetch(url, { fetchImpl = fetch, validateUrl = null, signal } 
     }
   }
 
+  trace?.push("demasiadas redirecciones");
   return null;
 }
 
@@ -266,8 +304,22 @@ export function detectMotion(css) {
 
 export async function scrapeUrl(url, options = {}) {
   const { signal } = options;
-  const page = await safeFetch(url, options);
-  if (!page) throw new Error(`No se pudo cargar ${url}`);
+  const trace = [];
+  let page = await safeFetch(url, { ...options, trace });
+
+  // Segundo intento como navegador solo ante bloqueos del servidor: es el caso
+  // típico de un WAF que rechaza al bot, no el de un timeout o un PDF.
+  if (!page && RETRYABLE.test(trace.at(-1) ?? "")) {
+    trace.push("reintento como navegador");
+    page = await safeFetch(url, { ...options, trace, headers: BROWSER_HEADERS });
+  }
+
+  if (!page) {
+    throw new ScrapeError(
+      `No se pudo cargar ${url}${trace.length ? ` (${trace.join(" → ")})` : ""}`,
+      { trace },
+    );
+  }
 
   const html = page.text;
   const semantic = extractSemantic(html);

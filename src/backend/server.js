@@ -179,13 +179,20 @@ function makeScanHandler({
    * Semilla de emergencia: el scrape ya trajo las señales, así que la web
    * suena igualmente. Se marca como local para que la UI lo diga sin rodeos.
    */
-  function sendLocalSeed(res, signals, lang, reason) {
+  function sendLocalSeed(res, signals, lang, reason, error) {
     const seed = structuredClone(composeFallback(signals, { lang, reason }));
     seed.metadata.source = "local";
     logger.warn(
       `[scan] ⚠ ${reason}: semilla local (${seed.musicalParams.rootNote} ${seed.musicalParams.scale}, ${seed.musicalParams.bpm} BPM)`,
     );
-    return json(res, 200, seed, { "X-Vibedom-Cache": "MISS", "X-Vibedom-Source": "local" });
+    const headers = { "X-Vibedom-Cache": "MISS", "X-Vibedom-Source": "local" };
+    if (error?.diagnostic) {
+      // Rastro corto y ASCII para diagnosticar bloqueos desde `curl -I`.
+      headers["X-Vibedom-Diagnostic"] = String(error.diagnostic)
+        .replace(/[^\x20-\x7e]/g, "")
+        .slice(0, 160);
+    }
+    return json(res, 200, seed, headers);
   }
 
   return async function handleScan(req, res) {
@@ -280,9 +287,12 @@ function makeScanHandler({
 
       // Cualquier fallo de la IA con las señales ya descargadas se cubre con
       // una semilla local determinista. La demo nunca se queda sin sonido.
-      if (composeFallback && signals) {
+      if (composeFallback) {
         try {
-          return sendLocalSeed(res, signals, lang, err?.code ?? "IA no disponible");
+          // Si ni siquiera se pudo leer la web, la semilla local usa la URL
+          // como única señal: sale una variación genérica, pero honesta y
+          // estable en vez de un 502.
+          return sendLocalSeed(res, signals ?? { url: target }, lang, err?.message ?? "IA no disponible", err);
         } catch (fallbackErr) {
           logger.error(`[scan] ✖ la semilla local también falló: ${fallbackErr.message}`);
         }

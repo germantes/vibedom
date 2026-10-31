@@ -10,6 +10,7 @@ import {
   extractThemeColor,
   hexToRgb,
   rgbToHex,
+  ScrapeError,
   scrapeUrl,
 } from "../src/backend/scraper.js";
 
@@ -200,5 +201,30 @@ test("scrapeUrl rechaza respuestas no textuales y fallos de red", async () => {
       },
     }),
     /No se pudo cargar/,
+  );
+});
+
+test("reintenta como navegador si el WAF responde 403 y explica el fallo definitivo", async () => {
+  const attempts = [];
+  const fetchImpl = async (url, options) => {
+    attempts.push(options.headers["User-Agent"]);
+    return attempts.length === 1 ? textResponse("bloqueado", "text/html", 403) : textResponse(HTML);
+  };
+
+  const signals = await scrapeUrl("https://blog.test/", { fetchImpl });
+  assert.equal(signals.title, "Estudio & Diseño");
+  assert.match(attempts[0], /VibeDomBot/);
+  assert.match(attempts[1], /Chrome\//);
+
+  await assert.rejects(
+    scrapeUrl("https://muro.test/", {
+      fetchImpl: async () => textResponse("nope", "text/html", 403),
+    }),
+    (err) => {
+      assert.ok(err instanceof ScrapeError);
+      assert.match(err.message, /HTTP 403/);
+      assert.equal(err.diagnostic, "HTTP 403 → reintento como navegador → HTTP 403");
+      return true;
+    },
   );
 });

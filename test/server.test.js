@@ -130,17 +130,50 @@ test("POST /api/scan valida el cuerpo y la URL", async () => {
   assert.match((await blocked.json()).error, /bloqueado/);
 });
 
-test("POST /api/scan devuelve 502 genérico si el escaneo falla", async () => {
+test("si la web no se puede leer, la demo responde con una semilla local", async () => {
   const res = await fetch(`${base}/api/scan`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ url: "https://rota.test/" }),
   });
-  assert.equal(res.status, 502);
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get("x-vibedom-source"), "local");
+
   const body = await res.json();
-  assert.equal(body.code, "ANALYSIS_FAILED");
-  assert.match(body.error, /No se pudo analizar/);
-  assert.doesNotMatch(body.error, /no responde/);
+  assert.equal(body.metadata.source, "local");
+  assert.equal(body.metadata.url, "https://rota.test/");
+  assert.ok(body.musicalParams.bpm > 0);
+});
+
+test("sin fallback local, un escaneo roto sigue devolviendo un 502 genérico", async () => {
+  const bare = await startServer({
+    port: 0,
+    logger: silent,
+    localFallback: false,
+    validateUrl: async (url) => url,
+    scrape: async (url) => {
+      throw Object.assign(new Error("HTTP 403 desde blogspot"), { code: "SCRAPE_FAILED" });
+    },
+    translateSeed: async () => SEED,
+    rateLimit: () => ({ ok: true, remaining: 99, retryAfter: 0 }),
+    cache: createScanCache({ ttlMs: 0 }),
+  });
+  const bareBase = `http://127.0.0.1:${bare.address().port}`;
+
+  try {
+    const res = await fetch(`${bareBase}/api/scan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: "https://rota.test/" }),
+    });
+    assert.equal(res.status, 502);
+    const body = await res.json();
+    assert.equal(body.code, "ANALYSIS_FAILED");
+    assert.match(body.error, /No se pudo analizar/);
+    assert.doesNotMatch(body.error, /blogspot/);
+  } finally {
+    await new Promise((resolve) => bare.close(resolve));
+  }
 });
 
 test("POST /api/scan rechaza cuerpos demasiado grandes", async () => {
