@@ -223,7 +223,7 @@ test("reintenta como navegador si el WAF responde 403 y explica el fallo definit
     (err) => {
       assert.ok(err instanceof ScrapeError);
       assert.match(err.message, /HTTP 403/);
-      assert.equal(err.diagnostic, "HTTP 403 → reintento como navegador → HTTP 403");
+      assert.match(err.diagnostic, /^HTTP 403 \d+ms → reintento como navegador → HTTP 403 \d+ms$/);
       return true;
     },
   );

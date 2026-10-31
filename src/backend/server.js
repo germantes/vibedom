@@ -23,6 +23,7 @@ import { decodeShareToken } from "../embed.js";
 import { normalizeSeed } from "../engine/seed.js";
 import { renderShareError, renderSharePage } from "./share-preview.js";
 import { renderShareImage } from "./share-image.js";
+import { readEvents, recordEvent } from "./events.js";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 export const DEFAULT_ROOT = resolve(HERE, "../..");
@@ -252,9 +253,22 @@ function makeScanHandler({
     }, requestBudgetMs);
 
     let signals = null;
+    const startedScan = Date.now();
+    const host = (() => {
+      try {
+        return new URL(target).host;
+      } catch {
+        return "?";
+      }
+    })();
+    recordEvent(`scan ${host} lang=${lang} rss=${Math.round(process.memoryUsage().rss / 1048576)}MB`);
     try {
       logger.log(`[scan] Scrapeando ${target}…`);
-      signals = await scrape(target, { validateUrl, signal: controller.signal });
+      signals = await scrape(target, {
+        validateUrl,
+        signal: controller.signal,
+        onTrace: (line) => recordEvent(`${host} ${line}`),
+      });
       logger.log(
         `[scan] Señales: ${signals.colors?.all?.length ?? 0} colores, ${signals.fonts?.families?.length ?? 0} fuentes, dark=${signals.colors?.isDark ?? false}`,
       );
@@ -290,8 +304,10 @@ function makeScanHandler({
         `[scan] ✔ ${seed.metadata.detectedVibe} — ${seed.musicalParams.rootNote} ${seed.musicalParams.scale} ${seed.musicalParams.bpm} BPM`,
       );
       cache.set(key, seed);
+      recordEvent(`ok ${host} ${Date.now() - startedScan}ms ${seed.metadata.detectedVibe}`);
       return json(res, 200, seed, { "X-Vibedom-Cache": "MISS", "X-Vibedom-Source": resolveEngine() });
     } catch (err) {
+      recordEvent(`err ${host} ${Date.now() - startedScan}ms ${err?.message ?? err}`);
       if (clientGone) return;
 
       if (err instanceof UnsafeUrlError) {
@@ -437,6 +453,16 @@ export function createVibedomServer({
       return res.end();
     }
 
+    if (req.method === "GET" && req.url === "/api/diagnostics") {
+      // Traza mínima para depurar caídas: solo hosts, estados y tiempos.
+      return json(res, 200, {
+        ok: true,
+        uptimeS: Math.round(process.uptime()),
+        rssMb: Math.round(process.memoryUsage().rss / 1048576),
+        events: readEvents(80),
+      });
+    }
+
     if (req.method === "GET" && req.url === "/api/health") {
       return json(res, 200, {
         ok: true,
@@ -539,6 +565,18 @@ const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(imp
 if (isMain) {
   // En local las credenciales viven en `.env`; en Render llegan del entorno.
   loadDotEnv(new URL("../../.env", import.meta.url));
+  recordEvent(`boot ${process.env.RENDER_GIT_COMMIT?.slice(0, 7) ?? "local"}`);
+  // Si el proceso muere, la traza dice por dónde iba antes del reinicio.
+  process.on("uncaughtException", (err) => {
+    recordEvent(`fatal uncaught ${err?.stack ?? err}`);
+    console.error(err);
+    process.exit(1);
+  });
+  process.on("unhandledRejection", (err) => {
+    recordEvent(`fatal rejection ${err?.stack ?? err}`);
+    console.error(err);
+    process.exit(1);
+  });
   const server = await startServer().catch((err) => {
     console.error(`No se pudo arrancar el servidor: ${err.message}`);
     process.exit(1);

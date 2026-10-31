@@ -25,7 +25,8 @@ const MAX_CSS_FETCHES = 4;
 const MAX_REDIRECTS = 5;
 const MAX_BYTES = 2_000_000;
 const TEXTUAL = /^(text\/|application\/(?:xhtml\+xml|xml|json|javascript|css)|$)/i;
-const RETRYABLE = /^(?:HTTP (?:403|429|5\d\d)|ECONNRESET|ECONNREFUSED|EPIPE|UND_ERR_[A-Z_]+|fetch failed)$/;
+const RETRYABLE =
+  /^(?:HTTP (?:403|429|5\d\d)|ECONNRESET|ECONNREFUSED|EPIPE|UND_ERR_[A-Z_]+|fetch failed)(?: \d+ms)?$/;
 
 /** Fallo al descargar la portada, con el rastro de lo que respondió el servidor. */
 export class ScrapeError extends Error {
@@ -38,13 +39,22 @@ export class ScrapeError extends Error {
 }
 
 /** Fetch con timeout, redirecciones controladas y User-Agent. */
-async function safeFetch(url, { fetchImpl = fetch, validateUrl = null, signal, headers = {}, trace, deadline } = {}) {
+async function safeFetch(
+  url,
+  { fetchImpl = fetch, validateUrl = null, signal, headers = {}, trace, onTrace, deadline } = {},
+) {
   let current = url;
+  // `trace` se queda en el error (diagnóstico para el cliente); `onTrace`
+  // persiste en /tmp para saber hasta dónde llegó un proceso que se cayó.
+  const note = (line) => {
+    trace?.push(line);
+    onTrace?.(line);
+  };
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     const remaining = deadline ? deadline - Date.now() : FETCH_TIMEOUT;
     if (remaining <= 0) {
-      trace?.push("tiempo agotado");
+      note("tiempo agotado");
       return null;
     }
 
@@ -55,6 +65,7 @@ async function safeFetch(url, { fetchImpl = fetch, validateUrl = null, signal, h
     const onAbort = () => controller.abort();
     signal?.addEventListener("abort", onAbort, { once: true });
     const timer = setTimeout(() => controller.abort(), Math.min(FETCH_TIMEOUT, remaining));
+    const startedHop = Date.now();
 
     try {
       const res = await fetchImpl(current, {
@@ -66,33 +77,40 @@ async function safeFetch(url, { fetchImpl = fetch, validateUrl = null, signal, h
       if (res.status >= 300 && res.status < 400) {
         const location = res.headers.get("location");
         if (!location) {
-          trace?.push(`${res.status} sin Location`);
+          note(`${res.status} sin Location`);
           return null;
         }
         const next = new URL(location, current);
-        trace?.push(`${res.status}→${next.host}`);
+        // El cuerpo de una redirección no se usa: se descarta para no dejar
+        // sockets abiertos esperando a que alguien lo lea.
+        await res.body?.cancel().catch(() => {});
+        note(`${res.status}→${next.host} ${Date.now() - startedHop}ms`);
         current = next.href;
         continue;
       }
 
       if (!res.ok) {
-        trace?.push(`HTTP ${res.status}`);
+        note(`HTTP ${res.status} ${Date.now() - startedHop}ms`);
+        await res.body?.cancel().catch(() => {});
         return null;
       }
 
       const type = (res.headers.get("content-type") ?? "").trim();
       if (type && !TEXTUAL.test(type)) {
-        trace?.push(`contenido ${type.split(/[;\s]/)[0]}`);
+        note(`contenido ${type.split(/[;\s]/)[0]}`);
+        await res.body?.cancel().catch(() => {});
         return null;
       }
 
       const length = Number(res.headers.get("content-length"));
       if (Number.isFinite(length) && length > MAX_BYTES) {
-        trace?.push(`demasiado grande (${Math.round(length / 1024)} KB)`);
+        note(`demasiado grande (${Math.round(length / 1024)} KB)`);
+        await res.body?.cancel().catch(() => {});
         return null;
       }
 
       const text = await res.text();
+      note(`leída ${current.slice(0, 60)} ${Math.round(text.length / 1024)}KB ${Date.now() - startedHop}ms`);
       return { text: text.length > MAX_BYTES ? text.slice(0, MAX_BYTES) : text, url: current };
     } catch (err) {
       if (signal?.aborted) throw signal.reason ?? err;
@@ -102,7 +120,7 @@ async function safeFetch(url, { fetchImpl = fetch, validateUrl = null, signal, h
             ? "tiempo agotado"
             : "timeout"
           : err?.cause?.code || err?.code || err?.message || "error de red";
-      trace?.push(String(reason).slice(0, 60));
+      note(`${String(reason).slice(0, 60)} ${Date.now() - startedHop}ms`);
       return null;
     } finally {
       clearTimeout(timer);
@@ -110,7 +128,7 @@ async function safeFetch(url, { fetchImpl = fetch, validateUrl = null, signal, h
     }
   }
 
-  trace?.push("demasiadas redirecciones");
+  note("demasiadas redirecciones");
   return null;
 }
 
@@ -316,14 +334,18 @@ export function detectMotion(css) {
 // ---- API pública -----------------------------------------------------------
 
 export async function scrapeUrl(url, options = {}) {
+  const { onTrace } = options;
+  const note = (line) => onTrace?.(line);
   const deadline = Date.now() + SCRAPE_BUDGET_MS;
   const trace = [];
+  note(`scrape ${url}`);
   let page = await safeFetch(url, { ...options, trace, deadline });
 
   // Segundo intento como navegador solo ante bloqueos del servidor: es el caso
   // típico de un WAF que rechaza al bot, no el de un timeout o un PDF.
   if (!page && RETRYABLE.test(trace.at(-1) ?? "")) {
     trace.push("reintento como navegador");
+    note("reintento como navegador");
     page = await safeFetch(url, { ...options, trace, deadline, headers: BROWSER_HEADERS });
   }
 
@@ -335,13 +357,16 @@ export async function scrapeUrl(url, options = {}) {
   }
 
   const html = page.text;
+  note(`html ${Math.round(html.length / 1024)}KB`);
   const semantic = extractSemantic(html);
   const themeColor = extractThemeColor(html);
   // Las rutas relativas se resuelven contra la URL final tras redirecciones.
   const css = await gatherCSS(html, page.url, { ...options, deadline });
+  note(`css ${Math.round(css.length / 1024)}KB`);
   const colors = extractColors(css, themeColor);
   const fonts = extractFonts(css);
   const motion = detectMotion(css);
+  note(`señales ${colors.all?.length ?? 0} colores ${fonts.families?.length ?? 0} fuentes`);
 
   return { url, finalUrl: page.url, ...semantic, themeColor, colors, fonts, ...motion };
 }

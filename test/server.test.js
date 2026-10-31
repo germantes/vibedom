@@ -639,3 +639,13 @@ test("si la IA se cuelga, el presupuesto de la petición responde con la semilla
     await new Promise((resolve) => slow.close(resolve));
   }
 });
+
+test("GET /api/diagnostics expone la traza y el estado del proceso", async () => {
+  const res = await fetch(`${base}/api/diagnostics`);
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.ok, true);
+  assert.ok(Array.isArray(body.events));
+  assert.ok(body.uptimeS >= 0);
+  assert.ok(body.rssMb > 0);
+});
