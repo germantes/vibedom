@@ -94,3 +94,22 @@ test("sin señales de color sigue generando una semilla válida", () => {
   assert.ok(seed.synthConfig.pad.filterFreq > 0);
   assert.ok(seed.musicalParams.bpm >= 44 && seed.musicalParams.bpm <= 104);
 });
+
+test("sin señales, la copia local no inventa paleta ni tipografía", () => {
+  const url = "https://bloqueada.test/";
+  const es = composeLocalSeed({ url }, { unreadable: true });
+  const en = composeLocalSeed({ url }, { lang: "en", unreadable: true });
+
+  assert.equal(es.metadata.detectedVibe, "Variación de reserva");
+  assert.equal(en.metadata.detectedVibe, "Fallback variation");
+  for (const seed of [es, en]) {
+    assert.doesNotMatch(seed.metadata.explanation, /fondo (oscuro|claro)|dark background|light background/i);
+    assert.doesNotMatch(seed.metadata.explanation, /tipografía (serif|sans-serif|mono)|serif|sans-serif/i);
+    assert.match(seed.metadata.explanation, /URL/);
+  }
+
+  // Misma URL y mismas (ninguna) señales → misma música, también sin leer la web.
+  const again = composeLocalSeed({ url }, { unreadable: true });
+  assert.deepEqual(again.musicalParams, es.musicalParams);
+  assert.deepEqual(again.synthConfig, es.synthConfig);
+});

@@ -280,8 +280,26 @@ function buildMusic(hash, { isDark, saturated, pastel, font, animated, hasTransi
   };
 }
 
-function buildCopy(lang, { isDark, saturated, pastel, font, motion, music }) {
+function buildCopy(lang, { isDark, saturated, pastel, font, motion, music, unreadable }) {
   const locale = lang === "en" ? "en" : "es";
+
+  // Sin señales no hay paleta ni tipografía que describir: inventarlas sería
+  // mentir sobre la web. La copia lo dice y mantiene la promesa de que, al
+  // menos, la misma URL suena siempre igual.
+  if (unreadable) {
+    return locale === "en"
+      ? {
+          detectedVibe: "Fallback variation",
+          explanation:
+            "This site blocks automated reads, so we couldn't see its palette or type. This variation comes from the URL alone — same address, same music — so the demo can keep playing.",
+        }
+      : {
+          detectedVibe: "Variación de reserva",
+          explanation:
+            "Esta web bloquea la lectura automática, así que no pudimos ver su paleta ni su tipografía. La variación sale solo de la URL —misma dirección, misma música— para que la demo siga sonando.",
+        };
+  }
+
   const scaleName = SCALE_NAMES[locale][music.scale];
   const fontName = FONT_NAMES[locale][font];
   const fontVibe = FONT_VIBE[locale][font];
@@ -322,7 +340,7 @@ function buildCopy(lang, { isDark, saturated, pastel, font, motion, music }) {
  * Convierte señales del scraper en una Semilla Sonora válida sin llamar a la IA.
  * Es determinista: la misma URL con las mismas señales produce la misma música.
  */
-export function composeLocalSeed(signals = {}, { lang = "es" } = {}) {
+export function composeLocalSeed(signals = {}, { lang = "es", unreadable = false } = {}) {
   const colors = Array.isArray(signals.colors?.all) ? signals.colors.all : [];
   const background = parseHex(signals.colors?.background) ?? parseHex(signals.themeColor) ?? "#111111";
   const isDark =
@@ -356,7 +374,7 @@ export function composeLocalSeed(signals = {}, { lang = "es" } = {}) {
   const hash = hashText(fingerprint);
 
   const music = buildMusic(hash, { isDark, saturated, pastel, font, animated, hasTransitions });
-  const copy = buildCopy(lang, { isDark, saturated, pastel, font, motion, music });
+  const copy = buildCopy(lang, { isDark, saturated, pastel, font, motion, music, unreadable });
 
   return normalizeSeed({
     metadata: {

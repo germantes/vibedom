@@ -179,9 +179,12 @@ function makeScanHandler({
    * Semilla de emergencia: el scrape ya trajo las señales, así que la web
    * suena igualmente. Se marca como local para que la UI lo diga sin rodeos.
    */
-  function sendLocalSeed(res, signals, lang, reason, error) {
-    const seed = structuredClone(composeFallback(signals, { lang, reason }));
+  function sendLocalSeed(res, signals, lang, reason, error, { unreadable = false } = {}) {
+    const seed = structuredClone(composeFallback(signals, { lang, reason, unreadable }));
     seed.metadata.source = "local";
+    // La UI distingue «la IA no estaba disponible» de «no pudimos leer la web»:
+    // son fallos distintos y el segundo no tiene señales que enseñar.
+    if (unreadable) seed.metadata.unreadable = true;
     logger.warn(
       `[scan] ⚠ ${reason}: semilla local (${seed.musicalParams.rootNote} ${seed.musicalParams.scale}, ${seed.musicalParams.bpm} BPM)`,
     );
@@ -292,7 +295,9 @@ function makeScanHandler({
           // Si ni siquiera se pudo leer la web, la semilla local usa la URL
           // como única señal: sale una variación genérica, pero honesta y
           // estable en vez de un 502.
-          return sendLocalSeed(res, signals ?? { url: target }, lang, err?.message ?? "IA no disponible", err);
+          return sendLocalSeed(res, signals ?? { url: target }, lang, err?.message ?? "IA no disponible", err, {
+            unreadable: !signals,
+          });
         } catch (fallbackErr) {
           logger.error(`[scan] ✖ la semilla local también falló: ${fallbackErr.message}`);
         }

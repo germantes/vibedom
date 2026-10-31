@@ -141,7 +141,10 @@ test("si la web no se puede leer, la demo responde con una semilla local", async
 
   const body = await res.json();
   assert.equal(body.metadata.source, "local");
+  assert.equal(body.metadata.unreadable, true);
   assert.equal(body.metadata.url, "https://rota.test/");
+  assert.match(body.metadata.explanation, /no pudimos ver/i);
+  assert.doesNotMatch(body.metadata.explanation, /fondo oscuro/i);
   assert.ok(body.musicalParams.bpm > 0);
 });
 

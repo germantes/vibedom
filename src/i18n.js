@@ -191,6 +191,9 @@ const DICTS = {
     "source.local": "análisis local",
     "source.localTitle":
       "La IA no estaba disponible: esta semilla se ha generado con reglas locales a partir de las señales de la web.",
+    "source.unreadable": "web no legible",
+    "source.unreadableTitle":
+      "La web bloquea la lectura automática desde el servidor. Esta variación se genera solo con la URL: la misma dirección suena siempre igual.",
     "playground.controls.title": "Ajuste fino",
     "playground.controls.sub":
       "Sin volver a llamar a la IA. Se aplica en caliente si está sonando.",
@@ -462,6 +465,9 @@ const DICTS = {
     "source.local": "local analysis",
     "source.localTitle":
       "The AI wasn't available: this seed was generated locally from the site's signals with deterministic rules.",
+    "source.unreadable": "site unreadable",
+    "source.unreadableTitle":
+      "The site blocks automated reads from the server. This variation is derived from the URL alone: the same address always sounds the same.",
     "playground.controls.title": "Fine-tuning",
     "playground.controls.sub":
       "No second AI call. Changes apply live while it's playing.",

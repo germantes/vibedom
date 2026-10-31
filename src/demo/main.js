@@ -190,11 +190,12 @@ function renderSeed(seed, { showSource = true } = {}) {
   const sourceLine = source.closest(".source");
   if (showSource && /^https?:\/\//i.test(seed.metadata.url ?? "")) {
     const local = seed.metadata.source === "local";
+    const unreadable = local && seed.metadata.unreadable === true;
     source.href = seed.metadata.url;
     source.textContent = `${seed.metadata.url.replace(/^https?:\/\//, "").replace(/\/$/, "")}${
-      local ? ` · ${t("source.local")}` : ""
+      local ? ` · ${t(unreadable ? "source.unreadable" : "source.local")}` : ""
     }`;
-    source.title = local ? t("source.localTitle") : "";
+    source.title = local ? t(unreadable ? "source.unreadableTitle" : "source.localTitle") : "";
     sourceLine.hidden = false;
   } else {
     sourceLine.hidden = true;
@@ -578,6 +579,7 @@ try {
       if (raw) {
         sharedSeed = normalizeSeed(raw);
         if (raw.metadata?.source === "local") sharedSeed.metadata.source = "local";
+        if (raw.metadata?.unreadable === true) sharedSeed.metadata.unreadable = true;
       } else {
         sharedInvalid = true;
       }
