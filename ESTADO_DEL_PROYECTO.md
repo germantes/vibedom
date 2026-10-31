@@ -281,7 +281,7 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **Arreglo del regex**: recorrido con `indexOf("{")`/`indexOf("}")` y selector más interno para `@media`; mismo resultado en **18 ms** y test de regresión con un tramo largo sin llaves.
 - **Arreglo del bloqueo**: reintento único con cabeceras de navegador solo ante `403/429/5xx`; presupuesto de 20 s para el scrape; 30 s para la IA; watchdog de 45 s por petición que aborta lo que quede en vuelo. Si nada se puede leer, `200` con semilla local (`metadata.source=local`, `metadata.unreadable=true`) y explicación honesta («esta web bloquea la lectura automática»), nunca un `502`; el rastro viaja en `X-Vibedom-Diagnostic`.
 - **Diagnóstico**: `src/backend/events.js` persiste en `/tmp` los saltos del scraper (host, estado, KB, ms) y el ciclo de cada escaneo; `GET /api/diagnostics` los expone con `uptimeS` y RSS. Sin rutas ni parámetros de las webs escaneadas. Los cuerpos descartados (redirecciones, 4xx) se cancelan para no dejar sockets abiertos.
-- **Verificación (2026-10-31, `4b3093e`)**: 153 tests. En producción el blog responde `200` en 5,5 s con `engine: vertex` y la paleta real (`#006600` / `#4d90fe`), luego `HIT` en caché en 0,7 s y 0,16 s; la instancia sigue sana (`uptime` creciente) y la traza muestra `css 349KB → señales 8 colores 6 fuentes` en 200 ms.
+- **Verificación (2026-10-31, `4b3093e`)**: 152 tests. En producción el blog responde `200` en 5,5 s con `engine: vertex` y la paleta real (`#006600` / `#4d90fe`), luego `HIT` en caché en 0,7 s y 0,16 s; la instancia sigue sana (`uptime` creciente) y la traza muestra `css 349KB → señales 8 colores 6 fuentes` en 200 ms.
 
 ### 🔎 Strudel frente a Tone.js (evaluado, no adoptado)
 
