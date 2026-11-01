@@ -297,6 +297,11 @@ test("GET /api/health responde sin caché y con CORS", async () => {
   assert.equal(typeof body.budget.usedToday, "number");
   assert.equal(body.usage.calls, 0);
   assert.equal(body.usage.estimatedUsd, 0);
+
+  const head = await fetch(`${base}/api/health`, { method: "HEAD" });
+  assert.equal(head.status, 200);
+  assert.equal(await head.text(), "");
+  assert.ok(Number(head.headers.get("content-length")) > 0);
 });
 
 test("un 429 de Gemini se cubre con una semilla local en vez de bloquear la demo", async () => {

@@ -132,7 +132,7 @@ const MIME = {
 
 // ---- Helpers ---------------------------------------------------------------
 
-function json(res, status, body, headers = {}) {
+function json(res, status, body, headers = {}, head = false) {
   const payload = JSON.stringify(body);
   res.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
@@ -141,7 +141,7 @@ function json(res, status, body, headers = {}) {
     "Access-Control-Allow-Origin": "*",
     ...headers,
   });
-  res.end(payload);
+  res.end(head ? undefined : payload);
 }
 
 function httpError(status, message) {
@@ -481,15 +481,21 @@ export function createVibedomServer({
       });
     }
 
-    if (req.method === "GET" && req.url === "/api/health") {
-      return json(res, 200, {
-        ok: true,
-        service: "vibedom",
-        commit: process.env.RENDER_GIT_COMMIT?.slice(0, 7) ?? null,
-        engine: resolveEngine(),
-        budget: scanBudget.snapshot(),
-        usage: aiUsage.snapshot(),
-      });
+    if ((req.method === "GET" || req.method === "HEAD") && req.url === "/api/health") {
+      return json(
+        res,
+        200,
+        {
+          ok: true,
+          service: "vibedom",
+          commit: process.env.RENDER_GIT_COMMIT?.slice(0, 7) ?? null,
+          engine: resolveEngine(),
+          budget: scanBudget.snapshot(),
+          usage: aiUsage.snapshot(),
+        },
+        {},
+        req.method === "HEAD",
+      );
     }
 
     if (req.method === "POST" && req.url === "/api/scan") {
