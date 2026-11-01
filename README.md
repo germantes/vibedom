@@ -2,11 +2,12 @@
 
 Atmósferas sonoras procedurales para webs: una web se analiza, se traduce a una **Semilla Sonora** (JSON) y el navegador la convierte en un *soundscape* infinito con Tone.js.
 
-El producto tiene tres frentes:
+El producto tiene cuatro frentes:
 
 - **Landing comercial** (`/` y `/en/`): propuesta, demo de presets, escaneo de URL, privacidad, FAQ y acceso al laboratorio.
 - **Página SEO** (`/que-suena-mi-web/` y `/en/what-does-my-website-sound-like/`): respuesta larga a la búsqueda «what does my website sound like», con la misma demo, FAQ y datos estructurados.
 - **Playground** (`/playground/` y `/playground/en/`): el laboratorio técnico con la semilla JSON, sliders en caliente, regeneración y visualizador.
+- **Widget y privacidad** (`/widget/`, `/en/widget/`, `/privacidad/`, `/en/privacy/`): guía para terceros (snippet, CSP, SRI, versionado) y qué datos viajan realmente.
 
 La interfaz está disponible en **español e inglés** mediante rutas estáticas (`/` y `/en/`), con `hreflang` y sin dependencia de JavaScript para elegir idioma.
 
@@ -16,7 +17,7 @@ Online: **https://vibedom.dev/**
 
 > El escaneo funciona online: la landing de GitHub Pages llama al backend desplegado en Render (`https://vibedom.onrender.com`). Ese servicio se duerme tras 15 minutos sin uso y la página lo despierta con `GET /api/health`, así que el primer análisis del día puede tardar unos segundos más.
 >
-> **Evitar el cold start**: un monitor externo (cron-job.org, UptimeRobot…) puede hacer `GET /api/health` cada 10 minutos para mantenerlo despierto. Ojo con el plan free de Render: 750 h/mes; 24/7 consume casi todas (720–744 h según el mes), así que conviene limitar la franja horaria o pasar a un plan de pago si necesitas disponibilidad continua.
+> **Evitar el cold start**: un monitor externo (cron-job.org, UptimeRobot…) puede hacer `HEAD /api/ping` cada 10 minutos para mantenerlo despierto. `/api/ping` devuelve 2 bytes; cron-job.org corta las respuestas a 4 KB y un arranque en frío puede devolver su página de carga. Ojo con el plan free de Render: 750 h/mes; 24/7 consume casi todas (720–744 h según el mes), así que conviene limitar la franja horaria o pasar a un plan de pago si necesitas disponibilidad continua.
 
 ```bash
 # Crea .env en la raíz con GEMINI_KEY=...

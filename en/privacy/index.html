@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0a0a0c" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="google-site-verification" content="google7f928a8ec81cb8b1" />
+    <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+    <title>Privacy · vibedom</title>
+    <meta
+      name="description"
+      content="What data vibedom uses, who processes it and what we never store. No cookies, no analytics and no accounts: music is generated in your browser."
+    />
+
+    <link rel="canonical" href="https://vibedom.dev/en/privacy/" />
+    <link rel="alternate" hreflang="es" href="https://vibedom.dev/privacidad/" />
+    <link rel="alternate" hreflang="en" href="https://vibedom.dev/en/privacy/" />
+    <link rel="alternate" hreflang="x-default" href="https://vibedom.dev/privacidad/" />
+
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="vibedom" />
+    <meta property="og:title" content="Privacy · vibedom" />
+    <meta
+      property="og:description"
+      content="No cookies or analytics. Only the URL you choose to analyse travels to the backend and Google to generate the seed."
+    />
+    <meta property="og:url" content="https://vibedom.dev/en/privacy/" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="es_ES" />
+    <meta property="og:image" content="https://vibedom.dev/assets/og-en.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Privacy · vibedom" />
+    <meta
+      name="twitter:description"
+      content="No cookies or analytics. Music is synthesised in your browser and the analysed URL is not stored in a database."
+    />
+    <meta name="twitter:image" content="https://vibedom.dev/assets/og-en.png" />
+
+    <link rel="stylesheet" href="../../src/landing/landing.css" />
+    <link rel="stylesheet" href="../../src/docs/docs.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <div class="wrap nav">
+        <a class="brand" href="../" aria-label="vibedom">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          vibedom
+        </a>
+
+        <nav class="nav-links" aria-label="Main">
+          <a href="../#how">How it works</a>
+          <a href="../widget/">Widget</a>
+          <a href="../../playground/en/">Playground</a>
+          <a href="https://github.com/germantes/vibedom" target="_blank" rel="noreferrer noopener">GitHub</a>
+        </nav>
+
+        <div class="nav-actions">
+          <a class="lang-switch" href="../../privacidad/" hreflang="es" lang="es" aria-label="Ver esta página en español">ES</a>
+          <a class="btn btn-ghost" href="../../playground/en/">Open playground</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="doc-hero wrap">
+        <p class="eyebrow">Privacy</p>
+        <h1>What data vibedom uses</h1>
+        <p class="lead">
+          vibedom has no accounts, no tracking cookies and no third-party analytics. Music is synthesised in
+          your browser. This page explains the little that does travel over the network.
+        </p>
+        <p class="hint">Last updated: 1 November 2026.</p>
+      </section>
+
+      <div class="wrap doc-content legal">
+        <section>
+          <h2>The essentials</h2>
+          <ul>
+            <li>No sign-up, no first-party cookies, no pixels and no vibedom analytics.</li>
+            <li>We do not store the HTML, screenshots or content of analysed websites.</li>
+            <li>Music is generated in your browser; there is no pre-recorded audio or streaming.</li>
+            <li>Shared links carry the seed inside: they need no server or database.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>What happens when you analyse a URL</h2>
+          <p>
+            When you press “Hear my site”, your browser sends the URL you typed to our backend on
+            <strong>Render</strong> (Frankfurt). The backend downloads the public page, extracts design
+            signals and sends those signals to <strong>Google</strong> (Gemini or Vertex AI) to generate the
+            Sound Seed.
+          </p>
+          <ul>
+            <li>
+              The URL and HTML are used for that analysis. They are not stored in a database, sold or used
+              for advertising.
+            </li>
+            <li>
+              The resulting seed is kept in memory for up to 6 hours so the same URL is not analysed twice.
+              It disappears when the process restarts.
+            </li>
+            <li>
+              The technical trace stores the <strong>host</strong>, HTTP status, size and timings for each
+              step (for example, “css 349 KB, 200 ms”), never the full path or the content.
+            </li>
+            <li>
+              Render and Google may retain technical request logs under their own policies. We do not
+              control those logs.
+            </li>
+          </ul>
+          <p>
+            If you do not want to send a URL, you can listen to the demo presets or generate a local seed
+            without going through the AI.
+          </p>
+        </section>
+
+        <section>
+          <h2>What happens with the widget</h2>
+          <p>
+            The embeddable widget does not call the vibedom API or the AI. The seed travels inside the
+            snippet's own <code>data-seed</code>, so every visitor hears the variation without sending the
+            host page's URL anywhere.
+          </p>
+          <ul>
+            <li>It uses no cookies or <code>localStorage</code>.</li>
+            <li>The first click downloads Tone.js from <strong>jsDelivr</strong>, which sees the visitor's IP like any CDN.</li>
+            <li>Audio is synthesised in the browser; no music is downloaded and nothing is uploaded.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>External services</h2>
+          <ul>
+            <li><strong>Render</strong>: hosts the backend that analyses URLs and serves shared-link previews.</li>
+            <li><strong>GitHub Pages</strong>: serves the static site at <code>vibedom.dev</code>.</li>
+            <li><strong>Google</strong>: Gemini or Vertex AI generate the seed; Google Cloud bills the project's usage.</li>
+            <li><strong>jsDelivr</strong>: delivers Tone.js when you press play in the demo or the widget.</li>
+          </ul>
+          <p>
+            We do not use advertising networks, Google Analytics or marketing cookies. We do not build
+            visitor profiles.
+          </p>
+        </section>
+
+        <section>
+          <h2>Your rights and contact</h2>
+          <p>
+            Since there are no accounts or user database, there is no profile to delete. If you have questions
+            about this processing or want to exercise your access, rectification or erasure rights, email
+            <a href="mailto:gtorrestendero@gmail.com">gtorrestendero@gmail.com</a>.
+          </p>
+          <p>
+            If what vibedom does changes, we will update this page and the date above. The project is open
+            source and you can review the processing on
+            <a href="https://github.com/germantes/vibedom">GitHub</a>.
+          </p>
+        </section>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-inner">
+        <a class="footer-brand" href="../">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          vibedom
+        </a>
+        <p>Procedural soundscapes for the web.</p>
+        <div class="footer-links">
+          <a href="../widget/">Widget</a>
+          <a href="../../playground/en/">Playground</a>
+          <a href="https://github.com/germantes/vibedom" target="_blank" rel="noreferrer noopener">GitHub</a>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

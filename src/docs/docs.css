@@ -88,6 +88,11 @@
   min-width: 0;
 }
 
+.legal {
+  max-width: 820px;
+  padding-bottom: 4rem;
+}
+
 .doc-content section {
   padding-block: 1.7rem;
   border-top: 1px solid var(--line);

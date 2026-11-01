@@ -299,6 +299,14 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **Verificación**: Playwright fuera del repo (1280 px y 390 px, ES/EN, sin overflow ni enlaces internos rotos, copiar snippet) y una página anfitriona servida por HTTP con el snippet real: el botón aparece, carga el reproductor y pasa a `aria-pressed=true` con `Pausar` sin errores de consola. Un `file://` sí rompe los worklets de Tone (`blob:null`), por eso la prueba buena es HTTP.
 - **Monitor**: nuevo `GET /api/ping` (texto `ok`, <100 bytes, admite `HEAD`) para cron-job.org, que corta las respuestas a 4 KB. El fallo «Response data too big» era la página de arranque de Render al despertar, no el JSON de salud.
 
+
+### ✅ FASE 4.8: Página de privacidad bilingüe (COMPLETADA)
+
+- **Rutas**: `/privacidad/` y `/en/privacy/`, con canónicas, `hreflang` recíprocos y entrada propia en el sitemap.
+- **Contenido honesto**: qué se envía a Render y a Google al analizar una URL, caché en memoria de 6 h, traza técnica solo con host/estado/tiempos, widget sin llamadas a la API, CDN de jsDelivr y ausencia de cookies/analítica. Contacto para derechos y fecha de revisión.
+- **Enlaces**: desde el pie de la landing, el playground y la documentación del widget.
+- **Verificación**: Playwright en 1280 px y 390 px, sin overflow, sin enlaces internos rotos y sin errores de consola.
+
 ### 🔎 Strudel frente a Tone.js (evaluado, no adoptado)
 
 Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Tidal Cycles: su fuerte son los **patrones rítmicos y el live coding sobre samples**, no la síntesis procedural sin audio pregrabado. Adoptarlo implicaría reescribir la Semilla Sonora y el motor, añadir muestras (o cargar su banco) y cumplir la **AGPL-3.0** en un producto web. Se mantiene Tone.js; una prueba A/B con Strudel queda como experimento externo, no como dependencia del repo.
@@ -335,10 +343,14 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 │   ├── index.html                             # Landing EN
 │   ├── widget/
 │   │   └── index.html                         # Documentación del widget EN
+│   ├── privacy/
+│   │   └── index.html                         # Privacidad EN
 │   └── what-does-my-website-sound-like/
 │       └── index.html                         # Página SEO EN
 ├── que-suena-mi-web/
 │   └── index.html                             # Página SEO ES
+├── privacidad/
+│   └── index.html                             # Privacidad ES
 ├── widget/
 │   └── index.html                             # Documentación del widget ES
 ├── playground/

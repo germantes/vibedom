@@ -127,7 +127,7 @@ test("el sitemap incluye las dos páginas SEO con alternates recíprocos", () =>
     /hreflang="en" href="https:\/\/vibedom\.dev\/en\/what-does-my-website-sound-like\/"/,
   );
   assert.match(xml, /hreflang="es" href="https:\/\/vibedom\.dev\/que-suena-mi-web\/"/);
-  assert.equal((xml.match(/<url>/g) ?? []).length, 8);
+  assert.equal((xml.match(/<url>/g) ?? []).length, 10);
 });
 
 test("la documentación del widget existe en ES/EN y está enlazada", () => {
@@ -143,4 +143,17 @@ test("la documentación del widget existe en ES/EN y está enlazada", () => {
   assert.match(read("index.html"), /href="widget\/"/);
   assert.match(read("en/index.html"), /href="widget\/"/);
   assert.match(read("sitemap.xml"), /<loc>https:\/\/vibedom\.dev\/widget\/<\/loc>/);
+});
+
+test("las páginas de privacidad son bilingües y recíprocas", () => {
+  const es = read("privacidad/index.html");
+  const en = read("en/privacy/index.html");
+
+  assert.match(es, /<html lang="es">/);
+  assert.match(en, /<html lang="en">/);
+  assert.match(es, /href="https:\/\/vibedom\.dev\/en\/privacy\/"/);
+  assert.match(en, /href="https:\/\/vibedom\.dev\/privacidad\/"/);
+  assert.match(read("index.html"), /href="privacidad\/"/);
+  assert.match(read("en/index.html"), /href="privacy\/"/);
+  assert.match(read("sitemap.xml"), /<loc>https:\/\/vibedom\.dev\/privacidad\/<\/loc>/);
 });
