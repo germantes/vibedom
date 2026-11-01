@@ -283,6 +283,22 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **Diagnóstico**: `src/backend/events.js` persiste en `/tmp` los saltos del scraper (host, estado, KB, ms) y el ciclo de cada escaneo; `GET /api/diagnostics` los expone con `uptimeS` y RSS. Sin rutas ni parámetros de las webs escaneadas. Los cuerpos descartados (redirecciones, 4xx) se cancelan para no dejar sockets abiertos.
 - **Verificación (2026-10-31, `4b3093e`)**: 152 tests. En producción el blog responde `200` en 5,5 s con `engine: vertex` y la paleta real (`#006600` / `#4d90fe`), luego `HIT` en caché en 0,7 s y 0,16 s; la instancia sigue sana (`uptime` creciente) y la traza muestra `css 349KB → señales 8 colores 6 fuentes` en 200 ms.
 
+
+### ✅ FASE 4.6: Control de gasto de Vertex y presupuesto visible (COMPLETADA)
+
+- **Tope recortado**: 25 escaneos IA/día en total y 8 por IP; caché de semillas de **6 h** (antes 1 h). Con ~2.600 tokens por escaneo y Gemini 3.5 Flash ($1,50/M entrada, $9/M salida), el techo ronda **5 USD/mes**; la caché lo reduce en la práctica.
+- **Techo de seguridad**: `scan-budget.js` recorta cualquier `SCAN_DAILY_LIMIT` positivo a `SCAN_DAILY_LIMIT_MAX` (25 por defecto), y lo mismo con la IP (8). Así un valor antiguo del panel de Render no puede disparar la factura; para subirlo hay que declararlo a propósito.
+- **Medición**: `src/backend/ai-usage.js` acumula llamadas, tokens de entrada/salida y coste estimado por modelo. `GET /api/health` lo expone en `usage`; el contador vive en memoria y se reinicia con el proceso, igual que `budget`.
+- **Verificación**: tests de presupuesto (recorte de valores antiguos, límite explícito intacto) y de `onUsage` en el traductor. La estimación usa las tarifas publicadas, no descuenta créditos y se etiqueta como tal en el propio JSON.
+
+### ✅ FASE 4.7: Documentación del widget para terceros (COMPLETADA)
+
+- **Rutas bilingües**: `/widget/` y `/en/widget/`, HTML estático con canónicas y `hreflang` recíprocos. Enlazadas desde la landing, el playground y el sitemap.
+- **Contenido**: snippet copiable con una semilla real, tabla de atributos (`data-seed`, `data-label`, `defer`), cómo funciona la carga diferida, CSP (jsDelivr, `blob:` y estilos del Shadow DOM), SRI, privacidad/coste, problemas frecuentes y versionado con `?v=`.
+- **Sin mentir sobre SRI**: el hash solo cubre `widget.js`; el reproductor y Tone.js se importan en tiempo de ejecución. La página lo dice y recomienda fijar la versión en la URL.
+- **Verificación**: Playwright fuera del repo (1280 px y 390 px, ES/EN, sin overflow ni enlaces internos rotos, copiar snippet) y una página anfitriona servida por HTTP con el snippet real: el botón aparece, carga el reproductor y pasa a `aria-pressed=true` con `Pausar` sin errores de consola. Un `file://` sí rompe los worklets de Tone (`blob:null`), por eso la prueba buena es HTTP.
+- **Monitor**: nuevo `GET /api/ping` (texto `ok`, <100 bytes, admite `HEAD`) para cron-job.org, que corta las respuestas a 4 KB. El fallo «Response data too big» era la página de arranque de Render al despertar, no el JSON de salud.
+
 ### 🔎 Strudel frente a Tone.js (evaluado, no adoptado)
 
 Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Tidal Cycles: su fuerte son los **patrones rítmicos y el live coding sobre samples**, no la síntesis procedural sin audio pregrabado. Adoptarlo implicaría reescribir la Semilla Sonora y el motor, añadir muestras (o cargar su banco) y cumplir la **AGPL-3.0** en un producto web. Se mantiene Tone.js; una prueba A/B con Strudel queda como experimento externo, no como dependencia del repo.
@@ -317,10 +333,14 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 ├── index.html                                 # Landing ES
 ├── en/
 │   ├── index.html                             # Landing EN
+│   ├── widget/
+│   │   └── index.html                         # Documentación del widget EN
 │   └── what-does-my-website-sound-like/
 │       └── index.html                         # Página SEO EN
 ├── que-suena-mi-web/
 │   └── index.html                             # Página SEO ES
+├── widget/
+│   └── index.html                             # Documentación del widget ES
 ├── playground/
 │   ├── index.html                             # Playground ES
 │   └── en/
@@ -349,6 +369,7 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 │   │   ├── rate-limit.js                      # Cuota de escaneos por IP
 │   │   ├── scan-cache.js                      # Caché en memoria de semillas
 │   │   ├── scan-budget.js                     # Tope diario de escaneos facturables
+│   │   ├── ai-usage.js                        # Tokens y coste estimado por modelo
 │   │   ├── local-seed.js                      # Compositor determinista sin IA
 │   │   ├── events.js                          # Traza de escaneos para diagnosticar caídas
 │   │   ├── translator.js                      # IA con retries/fallback/timeout
@@ -359,6 +380,9 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 │   │   ├── landing.css                        # Tema comercial de la landing
 │   │   ├── main.js                            # Demo, escaneo y audio de la landing
 │   │   └── theme.js                           # Contraste WCAG y tema dinámico
+│   ├── docs/
+│   │   ├── docs.css                           # Estilos de la documentación del widget
+│   │   └── docs.js                            # Copiar snippets
 │   ├── demo/
 │   │   ├── analysis.js                        # Panel de progreso del análisis
 │   │   ├── controls.js                        # Sliders y mapeo logarítmico
@@ -372,6 +396,7 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 │       ├── seed.js                            # Validación del contrato
 │       └── soundscape.js                      # Motor Tone.js
 └── test/
+    ├── ai-usage.test.js
     ├── embed.test.js
     ├── gemini-limiter.test.js
     ├── generative.test.js
@@ -422,6 +447,6 @@ npm run dev
 - **Landing vs playground**: la landing no debe mostrar JSON ni sliders. La demo de la landing reutiliza `analysis.js`, `visualizer.js` y el motor; si cambias su API, revisa `src/landing/main.js` y `src/demo/main.js`.
 - **CSS de terceros**: no vuelvas a recorrer bloques con `([^{}]+)\{([^{}]*)\}`. Los atributos `style=` de Blogger son cientos de KB sin llaves y ese patrón es cuadrático (61 s con 349 KB). `findBackgroundColor()` usa `indexOf` y hay un test que falla si vuelve a degradarse.
 - **502 sin cuerpo tras ~60 s**: casi siempre es el proceso bloqueado o caído, no un timeout de red. Mira `GET /api/diagnostics` (`uptimeS`, últimas líneas de la traza); si `uptimeS` es pequeño, Render reinició la instancia. `/tmp/vibedom-events.log` sobrevive al reinicio del proceso, no al despliegue.
-- **Render free**: duerme a los 15 min de inactividad. Para la demo se puede usar un monitor externo (cron-job.org o UptimeRobot) con `GET /api/health` cada 10 min; recuerda que el plan free tiene 750 h/mes y 24/7 consume casi todas, así que valora limitar la franja horaria.
+- **Render free**: duerme a los 15 min de inactividad. Para la demo se puede usar un monitor externo (cron-job.org o UptimeRobot) con `HEAD /api/ping` cada 10 min; recuerda que el plan free tiene 750 h/mes y 24/7 consume casi todas, así que valora limitar la franja horaria. cron-job.org corta las respuestas a 4 KB: si usa `GET /api/health`, un arranque en frío puede devolver su página de carga y marcar «Response data too big». `/api/ping` evita ese problema.
 - **GitHub Pages es estático**: el escaneo no funcionará online hasta desplegar el backend. El código detecta `github.io` y muestra un aviso específico; no lo elimines pensando que es un bug.
 - El servidor de desarrollo puede seguir sirviendo archivos actualizados sin reinicio; si cambias código del backend (`src/backend/`), reinicia `npm start`.

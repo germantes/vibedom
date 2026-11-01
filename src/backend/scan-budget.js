@@ -10,11 +10,34 @@
 // moverlo a un almacén compartido.
 //
 // `0` desactiva el tope, igual que en `SCAN_RATE_LIMIT`.
+//
+// Los límites configurados se recortan a un máximo seguro: si el panel de
+// Render conserva un valor antiguo (por ejemplo, 200/día), la app no puede
+// disparar la factura sin querer. Para subir el techo hay que declararlo con
+// `SCAN_DAILY_LIMIT_MAX` / `SCAN_IP_DAILY_LIMIT_MAX`; así un cambio de panel
+// no basta por sí solo.
 
-const parsedDaily = Number(process.env.SCAN_DAILY_LIMIT);
-const parsedPerIp = Number(process.env.SCAN_IP_DAILY_LIMIT);
-const DEFAULT_DAILY_LIMIT = Number.isFinite(parsedDaily) ? Math.max(0, Math.floor(parsedDaily)) : 200;
-const DEFAULT_IP_LIMIT = Number.isFinite(parsedPerIp) ? Math.max(0, Math.floor(parsedPerIp)) : 30;
+function envInt(name) {
+  const raw = process.env[name];
+  if (raw === undefined || raw === "") return null;
+  const value = Number(raw);
+  return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : null;
+}
+
+const SAFE_DAILY_MAX = envInt("SCAN_DAILY_LIMIT_MAX") ?? 25;
+const SAFE_IP_MAX = envInt("SCAN_IP_DAILY_LIMIT_MAX") ?? 8;
+
+const parsedDaily = envInt("SCAN_DAILY_LIMIT");
+const parsedPerIp = envInt("SCAN_IP_DAILY_LIMIT");
+
+function resolveLimit(configured, fallback, max) {
+  const value = configured ?? fallback;
+  if (value === 0) return 0;
+  return Math.min(value, max);
+}
+
+const DEFAULT_DAILY_LIMIT = resolveLimit(parsedDaily, 25, SAFE_DAILY_MAX);
+const DEFAULT_IP_LIMIT = resolveLimit(parsedPerIp, 8, SAFE_IP_MAX);
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 

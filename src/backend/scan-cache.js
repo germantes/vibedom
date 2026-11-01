@@ -6,7 +6,10 @@
 //
 // SCAN_CACHE_TTL (segundos) controla el TTL; 0 desactiva la caché.
 
-const DEFAULT_TTL_MS = 60 * 60_000;
+// 6 h por defecto: repetir la misma URL en una sesión de trabajo no vuelve a
+// llamar a la IA. Antes eran 1 h; el cambio reduce el gasto sin afectar a la
+// experiencia.
+const DEFAULT_TTL_MS = 6 * 60 * 60_000;
 const DEFAULT_MAX = 500;
 
 function resolveDefaultTtl() {

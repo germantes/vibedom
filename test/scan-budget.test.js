@@ -65,3 +65,42 @@ test("el contador se mantiene dentro del día", () => {
   budget.take("b");
   assert.deepEqual(budget.snapshot(), { usedToday: 3, dailyLimit: 10, perIpDailyLimit: 10 });
 });
+
+test("un valor antiguo del panel no puede saltarse el techo seguro de gasto", async () => {
+  const before = {
+    daily: process.env.SCAN_DAILY_LIMIT,
+    ip: process.env.SCAN_IP_DAILY_LIMIT,
+    maxDaily: process.env.SCAN_DAILY_LIMIT_MAX,
+    maxIp: process.env.SCAN_IP_DAILY_LIMIT_MAX,
+  };
+  process.env.SCAN_DAILY_LIMIT = "200";
+  process.env.SCAN_IP_DAILY_LIMIT = "30";
+  delete process.env.SCAN_DAILY_LIMIT_MAX;
+  delete process.env.SCAN_IP_DAILY_LIMIT_MAX;
+
+  try {
+    const mod = await import(`../src/backend/scan-budget.js?clamp=${Date.now()}`);
+    const budget = mod.createScanBudget();
+    assert.equal(budget.snapshot().dailyLimit, 25);
+    assert.equal(budget.snapshot().perIpDailyLimit, 8);
+
+    // Un límite explícito (tests, herramientas) no se recorta.
+    const explicit = mod.createScanBudget({ dailyLimit: 100, ipLimit: 100 });
+    assert.equal(explicit.snapshot().dailyLimit, 100);
+
+    process.env.SCAN_DAILY_LIMIT_MAX = "50";
+    process.env.SCAN_IP_DAILY_LIMIT_MAX = "20";
+    const raised = await import(`../src/backend/scan-budget.js?clamp-raised=${Date.now()}`);
+    assert.equal(raised.createScanBudget().snapshot().dailyLimit, 50);
+    assert.equal(raised.createScanBudget().snapshot().perIpDailyLimit, 20);
+  } finally {
+    const restore = (key, value) => {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    };
+    restore("SCAN_DAILY_LIMIT", before.daily);
+    restore("SCAN_IP_DAILY_LIMIT", before.ip);
+    restore("SCAN_DAILY_LIMIT_MAX", before.maxDaily);
+    restore("SCAN_IP_DAILY_LIMIT_MAX", before.maxIp);
+  }
+});
