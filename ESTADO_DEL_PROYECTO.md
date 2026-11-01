@@ -201,7 +201,7 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **`GET /api/health`**: incluye `commit` (`RENDER_GIT_COMMIT`) para comprobar qué versión está desplegada.
 - **Verificación local**: **96 tests** en verde (nuevos tests del limitador, del 429 del traductor y del contrato HTTP), E2E de landing/playground sin regresiones y simulación de `429` en las cuatro rutas con el mensaje correcto en cada idioma (12 s, 5 min y 15 h).
 - **Verificación live** (2026-10-27, backend `f7f9848`): dos escaneos reales consecutivos con URLs distintas → `200` en **4,0 s** y `200` en **15,7 s** (`X-Vibedom-Cache: MISS` en ambos). El segundo esperó la cola global en vez de recibir un `429` o un `502`. Un `429` real de cupo diario devolvió `retryAfter: 52391`; el cliente ya lo presenta como «límite de uso, se renueva en unas 15 h».
-- **Pendiente**: Render sigue sin aplicar el auto-deploy; `1bb5b2c` (mensaje largo también en el servidor) está en GitHub y Pages, pero el backend requiere otro *Manual Deploy*. La UI ya muestra el mensaje correcto porque formatea el `retryAfter` en el cliente.
+- **Despliegue**: resuelto en la FASE 4.3 con el Deploy Hook (`.github/workflows/render-deploy.yml`). Ya no hace falta un *Manual Deploy* tras cada push.
 - **Superado parcialmente por 3.11**: con `SCAN_FALLBACK` activo (por defecto), un 429 ya no llega al usuario: se responde con una semilla local. El `429` amable se conserva para `SCAN_FALLBACK=0` y para el rate limit por IP.
 
 ### ✅ FASE 3.11: Semilla local cuando Gemini no está disponible (COMPLETADA)
@@ -307,6 +307,12 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **Enlaces**: desde el pie de la landing, el playground y la documentación del widget.
 - **Verificación**: Playwright en 1280 px y 390 px, sin overflow, sin enlaces internos rotos y sin errores de consola.
 
+### ✅ Versión 1.0.0 (2026-11-01)
+
+- **Tag y release**: [`v1.0.0`](https://github.com/germantes/vibedom/releases/tag/v1.0.0) sobre el commit `6bb9307`; `package.json` pasa a `1.0.0`.
+- **Producción**: `vibedom.dev` sirve las 10 URLs del sitemap (incluidas `/widget/`, `/en/widget/`, `/privacidad/` y `/en/privacy/`) y Render confirma el commit desplegado en `/api/health` con `dailyLimit: 25` y `perIpDailyLimit: 8`.
+- **Cierre**: 161 tests en verde. Lo que queda es operativo y externo al repo (cronjob, facturación de Google Cloud y decisión sobre el plan de Render), listado en el roadmap.
+
 ### 🔎 Strudel frente a Tone.js (evaluado, no adoptado)
 
 Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Tidal Cycles: su fuerte son los **patrones rítmicos y el live coding sobre samples**, no la síntesis procedural sin audio pregrabado. Adoptarlo implicaría reescribir la Semilla Sonora y el motor, añadir muestras (o cargar su banco) y cumplir la **AGPL-3.0** en un producto web. Se mantiene Tone.js; una prueba A/B con Strudel queda como experimento externo, no como dependencia del repo.
@@ -317,7 +323,10 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 
 ### Mejoras opcionales
 - Verificar `vibedom.dev` en GitHub Pages con el TXT `_github-pages-challenge-germantes` (protección contra *takeover*) y añadir los `AAAA` de GitHub para IPv6.
-- Alta en Search Console y envío del sitemap (las páginas SEO ya están publicadas).
+- Alta en Search Console y envío del sitemap (aparcado: la propiedad ES ya está verificada por etiqueta HTML; la página EN queda pendiente).
+- Revisar en Google Cloud Billing si el crédito de 50 USD se agotó y mantener las alertas de 2,50 / 4,50 / 5 USD. Un tope duro de gasto no se puede imponer desde la app: hay que fijarlo como cuota en Google Cloud o apagar la IA.
+- Reactivar el cronjob de cron-job.org con `HEAD https://vibedom.onrender.com/api/ping` (o `HEAD /api/health`). Se desactivó solo tras 26 fallos por «Response data too big»: durante el arranque en frío Render devolvía su página de carga y cron-job.org corta a 4 KB.
+- Decidir el cold start de Render: plan Starter (7 USD/mes) o mantener el cron de keep-alive con la franja horaria limitada.
 - Historial de escaneos recientes (localStorage).
 - Exportar/importar Semilla Sonora.
 - Tests de UI automatizados estables (los actuales son verificación manual con Playwright en `/tmp`).
