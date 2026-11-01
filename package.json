@@ -1,6 +1,6 @@
 {
   "name": "vibedom",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Atmósferas sonoras procedurales a partir de la estética de una web (Tone.js)",
   "type": "module",

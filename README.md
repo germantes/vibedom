@@ -172,7 +172,7 @@ src/backend/scan-cache.js    caché en memoria de semillas por URL
 src/backend/server.js        servidor node:http (estáticos + /api/scan + health + /s/)
 src/backend/share-preview.js vista previa OG de un enlace compartido
 src/backend/share-image.js   tarjeta PNG 1200×630 generada desde la semilla
-.github/workflows/test.yml   145 tests en cada push y PR
+.github/workflows/test.yml   161 tests en cada push y PR
 .github/workflows/render-deploy.yml  Deploy Hook de Render tras cada push a main
 src/demo/main.js             orquestación del playground
 src/demo/analysis.js         estados y animación del panel de análisis
@@ -384,7 +384,7 @@ Para añadir uno, crea el JSON en `presets/` y regístralo en `PRESET_IDS` (`src
 npm test
 ```
 
-**145 tests** con `node:test`, sin dependencias:
+**161 tests** con `node:test`, sin dependencias:
 
 * escalas, acordes y conversión MIDI;
 * validación de la semilla y presets reales;
@@ -393,7 +393,7 @@ npm test
 * traductor con `fetch` falso (reintentos, fallback de modelos, timeout, errores);
 * compositor local determinista (contrato, idioma, fondo claro/oscuro, colores legibles y ausencia de señales);
 * guard anti-SSRF (IPs privadas, redirects, DNS);
-* servidor (rutas estáticas ES/EN y playground, `/api/scan`, health, 405/413/404/429, semilla local ante 429, path traversal y cancelación);
+* servidor (rutas estáticas ES/EN y playground, `/api/scan`, health, `/api/ping`, 405/413/404/429, semilla local ante 429, path traversal y cancelación);
 * limitador de peticiones por IP (`X-Forwarded-For`, ventana deslizante y cuota);
 * caché de semillas por URL (normalización, TTL, desalojo y acierto sin volver a llamar a Gemini);
 * tema dinámico (normalización de hex, luminancia, contraste WCAG, texto y acento corregidos, mezclas y `rgba()`);
@@ -403,12 +403,14 @@ npm test
 * snippet (round-trip base64 con acentos y emojis, atributo seguro, origen sin doble barra y `</script>` escapado);
 * enlace compartido (base64url, restauración de la semilla, fragmentos ignorados y enlaces corruptos);
 * páginas SEO (rutas ES/EN, canonical y hreflang recíprocos, JSON-LD con FAQPage, enlaces internos sin romper y sitemap);
+* documentación del widget y privacidad (rutas ES/EN, hreflang, snippet real, enlaces desde la landing y sitemap);
+* presupuesto de IA (recorte de valores antiguos, límite explícito intacto) y consumo (tokens, coste por modelo, reinicio diario);
 * vista previa compartida (`/s/<token>` con OG, redirección al playground, token corrupto y PNG 1200×630 con los colores de la semilla).
 
-El flujo real se validó en navegador con Playwright (fuera del repo): landing ES/EN, presets, play/pausa, espectro, escaneo mockeado, error de backend, responsive a 390 px, playground ES/EN, sliders, JSON y cambio de idioma. También se validó un escaneo real de `example.com` (~3 s). El tema dinámico se comprobó con escaneos mockeados (sitio claro, oscuro y un caso hostil blanco sobre blanco) y una auditoría de contraste de 26 elementos en ambos esquemas: 26/26 en claro y 26/26 en oscuro. El widget se probó con Chromium headless en una página anfitriona: `widget.js` → `widget-player.js` → Tone.js solo tras el clic, arranque y pausa, snippet de 1.217 bytes generado desde el playground y copiado al portapapeles sin errores 404. El enlace compartido se validó de extremo a extremo: mover un slider cambia el `#seed`, «Copiar enlace» copia la URL, abrirla en otra pestaña restaura la misma semilla (100 BPM) sin ninguna petición a `/api/scan`, un token corrupto cae en el preset con aviso y la versión inglesa traduce los botones. La vista previa `/s/<token>` se comprobó con `curl` y decodificando el PNG generado: cabecera IHDR 1200×630, muestras de color idénticas a `uiTheme` y Open Graph con el host y el BPM de la semilla. Las páginas SEO se probaron en Chromium: ES/EN cargan sin 404 ni errores JS, los 3 presets y el play/pausa funcionan, el escaneo simulado aplica el tema y el responsive a 390 px no genera overflow.
+El flujo real se validó en navegador con Playwright (fuera del repo): landing ES/EN, presets, play/pausa, espectro, escaneo mockeado, error de backend, responsive a 390 px, playground ES/EN, sliders, JSON y cambio de idioma. También se validó un escaneo real de `example.com` (~3 s). El tema dinámico se comprobó con escaneos mockeados (sitio claro, oscuro y un caso hostil blanco sobre blanco) y una auditoría de contraste de 26 elementos en ambos esquemas: 26/26 en claro y 26/26 en oscuro. El widget se probó con Chromium headless en una página anfitriona: `widget.js` → `widget-player.js` → Tone.js solo tras el clic, arranque y pausa, snippet de 1.217 bytes generado desde el playground y copiado al portapapeles sin errores 404. El enlace compartido se validó de extremo a extremo: mover un slider cambia el `#seed`, «Copiar enlace» copia la URL, abrirla en otra pestaña restaura la misma semilla (100 BPM) sin ninguna petición a `/api/scan`, un token corrupto cae en el preset con aviso y la versión inglesa traduce los botones. La vista previa `/s/<token>` se comprobó con `curl` y decodificando el PNG generado: cabecera IHDR 1200×630, muestras de color idénticas a `uiTheme` y Open Graph con el host y el BPM de la semilla. Las páginas SEO se probaron en Chromium: ES/EN cargan sin 404 ni errores JS, los 3 presets y el play/pausa funcionan, el escaneo simulado aplica el tema y el responsive a 320/390 px no genera overflow. La documentación del widget y las páginas de privacidad se auditaron igual en 320/390 px, con enlaces internos sanos; el snippet real se probó en una página anfitriona servida por HTTP (botón → reproductor → `aria-pressed=true`) y el copiado funciona en ambos idiomas.
 
 ## Roadmap
 
-* Verificación en Search Console y envío del sitemap.
+* Verificación en Search Console y envío del sitemap (aparcado; la propiedad ES ya está verificada y la etiqueta sigue en el HTML).
 * Historial de escaneos recientes en `localStorage`.
 * Exportar/importar Semilla Sonora y componente nativo para Framer.
