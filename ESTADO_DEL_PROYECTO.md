@@ -286,9 +286,9 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 
 ### ✅ FASE 4.6: Control de gasto de Vertex y presupuesto visible (COMPLETADA)
 
-- **Tope recortado**: 25 escaneos IA/día en total y 8 por IP; caché de semillas de **6 h** (antes 1 h). Un escaneo real de Gemini 3.5 Flash ronda **3.200 tokens** (≈1.900 de entrada, 360 de respuesta y 900 de razonamiento, que también se facturan como salida): unos **0,014 USD** por escaneo. El techo teórico son **10–11 USD/mes** a 25/día; con la caché de 6 h baja en la práctica.
+- **Tope recortado**: 25 escaneos IA/día en total y 8 por IP; caché de semillas de **6 h** (antes 1 h). Un escaneo real de Gemini 3.5 Flash ronda **2.300–3.200 tokens** (≈1.900 de entrada, 360 de respuesta y entre 0 y 900 de razonamiento, que también se factura como salida): entre **0,006 y 0,014 USD**. El techo teórico son **5–11 USD/mes** a 25/día; con la caché de 6 h baja en la práctica.
 - **Techo de seguridad**: `scan-budget.js` recorta cualquier `SCAN_DAILY_LIMIT` positivo a `SCAN_DAILY_LIMIT_MAX` (25 por defecto), y lo mismo con la IP (8). Así un valor antiguo del panel de Render no puede disparar la factura; para subirlo hay que declararlo a propósito.
-- **Medición**: `src/backend/ai-usage.js` acumula llamadas, tokens de entrada, respuesta y razonamiento (`thoughtTokens`, facturado como salida) y coste estimado por modelo. `GET /api/health` lo expone en `usage`; el contador vive en memoria y se reinicia con el proceso, igual que `budget`. Verificado en producción: un escaneo de `example.com` anotó 1.929 + 364 + 894 tokens y 0,0142 USD.
+- **Medición**: `src/backend/ai-usage.js` acumula llamadas, tokens de entrada, respuesta y razonamiento (`thoughtTokens`, facturado como salida) y coste estimado por modelo. `GET /api/health` lo expone en `usage`; el contador vive en memoria y se reinicia con el proceso, igual que `budget`. Verificado en producción con dos escaneos de `example.com`: uno anotó 1.929 + 364 + 894 tokens y 0,0142 USD; otro, 1.929 + 367 + 0 y 0,0062 USD.
 - **Verificación**: tests de presupuesto (recorte de valores antiguos, límite explícito intacto) y de `onUsage` en el traductor. La estimación usa las tarifas publicadas, no descuenta créditos y se etiqueta como tal en el propio JSON.
 
 ### ✅ FASE 4.7: Documentación del widget para terceros (COMPLETADA)
