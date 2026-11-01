@@ -264,6 +264,18 @@ test("no sirve dotfiles ni permite directory traversal", async () => {
   assert.doesNotMatch(traversal.body, /"name": "vibedom"/);
 });
 
+test("GET /api/ping responde texto mínimo y HEAD no devuelve cuerpo", async () => {
+  const res = await fetch(`${base}/api/ping`);
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get("content-type"), /text\/plain/);
+  assert.equal(res.headers.get("cache-control"), "no-store");
+  assert.equal(await res.text(), "ok");
+
+  const head = await fetch(`${base}/api/ping`, { method: "HEAD" });
+  assert.equal(head.status, 200);
+  assert.equal(await head.text(), "");
+});
+
 test("GET /api/health responde sin caché y con CORS", async () => {
   const res = await fetch(`${base}/api/health`);
   assert.equal(res.status, 200);

@@ -127,5 +127,20 @@ test("el sitemap incluye las dos páginas SEO con alternates recíprocos", () =>
     /hreflang="en" href="https:\/\/vibedom\.dev\/en\/what-does-my-website-sound-like\/"/,
   );
   assert.match(xml, /hreflang="es" href="https:\/\/vibedom\.dev\/que-suena-mi-web\/"/);
-  assert.equal((xml.match(/<url>/g) ?? []).length, 6);
+  assert.equal((xml.match(/<url>/g) ?? []).length, 8);
+});
+
+test("la documentación del widget existe en ES/EN y está enlazada", () => {
+  const es = read("widget/index.html");
+  const en = read("en/widget/index.html");
+
+  assert.match(es, /<html lang="es">/);
+  assert.match(en, /<html lang="en">/);
+  assert.match(es, /href="https:\/\/vibedom\.dev\/en\/widget\/"/);
+  assert.match(en, /href="https:\/\/vibedom\.dev\/widget\/"/);
+  assert.match(es, /data-seed="/);
+  assert.match(en, /data-seed="/);
+  assert.match(read("index.html"), /href="widget\/"/);
+  assert.match(read("en/index.html"), /href="widget\/"/);
+  assert.match(read("sitemap.xml"), /<loc>https:\/\/vibedom\.dev\/widget\/<\/loc>/);
 });

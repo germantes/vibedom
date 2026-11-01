@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0a0a0c" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+    <title>Embeddable widget · vibedom for designers</title>
+    <meta
+      name="description"
+      content="Add a website's sonic identity with one script tag. A lightweight widget with no backend, no cookies, and audio that starts only on click. Install guide, attributes, CSP and SRI."
+    />
+
+    <link rel="canonical" href="https://vibedom.dev/en/widget/" />
+    <link rel="alternate" hreflang="es" href="https://vibedom.dev/widget/" />
+    <link rel="alternate" hreflang="en" href="https://vibedom.dev/en/widget/" />
+    <link rel="alternate" hreflang="x-default" href="https://vibedom.dev/widget/" />
+
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="vibedom" />
+    <meta property="og:title" content="Embeddable widget · vibedom for designers" />
+    <meta
+      property="og:description"
+      content="One script tag and the seed travels inside: floating button, Shadow DOM, no cookies and no AI calls per visitor."
+    />
+    <meta property="og:url" content="https://vibedom.dev/en/widget/" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="es_ES" />
+    <meta property="og:image" content="https://vibedom.dev/assets/og-en.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="vibedom: the widget that turns a website's aesthetics into generative music." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Embeddable widget · vibedom" />
+    <meta
+      name="twitter:description"
+      content="Add a website's sonic identity with one script tag: lightweight, no backend and no cost per visitor."
+    />
+    <meta name="twitter:image" content="https://vibedom.dev/assets/og-en.png" />
+
+    <link rel="stylesheet" href="../../src/landing/landing.css" />
+    <link rel="stylesheet" href="../../src/docs/docs.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "TechArticle",
+            "headline": "vibedom embeddable widget",
+            "description": "Guide to embedding vibedom's sound widget on any website: snippet, attributes, CSP, SRI and limits.",
+            "url": "https://vibedom.dev/en/widget/",
+            "inLanguage": "en",
+            "author": { "@type": "Organization", "name": "vibedom", "url": "https://vibedom.dev/" }
+          },
+          {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://vibedom.dev/en/" },
+              { "@type": "ListItem", "position": 2, "name": "Widget", "item": "https://vibedom.dev/en/widget/" }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <div class="wrap nav">
+        <a class="brand" href="../" aria-label="vibedom">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          vibedom
+        </a>
+
+        <nav class="nav-links" aria-label="Main">
+          <a href="../#how">How it works</a>
+          <a href="./" aria-current="page">Widget</a>
+          <a href="../../playground/en/">Playground</a>
+          <a href="https://github.com/germantes/vibedom" target="_blank" rel="noreferrer noopener">GitHub</a>
+        </nav>
+
+        <div class="nav-actions">
+          <a class="lang-switch" href="../../widget/" hreflang="es" lang="es" aria-label="Ver esta página en español">ES</a>
+          <a class="btn btn-ghost" href="../../playground/en/">Open playground</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="doc-hero wrap">
+        <p class="eyebrow">For designers and client websites</p>
+        <h1>The vibedom widget</h1>
+        <p class="lead">
+          A floating button that carries a website's sonic identity. The seed travels inside the snippet:
+          no AI calls, no database and no cost per visitor. Audio only downloads when someone hits play.
+        </p>
+        <ul class="doc-badges">
+          <li>Under 5 KB upfront</li>
+          <li>Isolated Shadow DOM</li>
+          <li>No cookies or analytics</li>
+          <li>Tone.js only on click</li>
+        </ul>
+        <div class="doc-actions">
+          <a class="btn btn-primary" href="../../playground/en/">Generate my seed</a>
+          <a class="btn btn-ghost" href="#install">See the snippet</a>
+        </div>
+      </section>
+
+      <div class="wrap doc-grid">
+        <nav class="doc-toc" aria-label="On this page">
+          <p>On this page</p>
+          <ol>
+            <li><a href="#install">Install</a></li>
+            <li><a href="#attributes">Attributes</a></li>
+            <li><a href="#how">How it works</a></li>
+            <li><a href="#csp">CSP and SRI</a></li>
+            <li><a href="#privacy">Privacy and cost</a></li>
+            <li><a href="#troubleshooting">Troubleshooting</a></li>
+            <li><a href="#versioning">Versioning</a></li>
+          </ol>
+        </nav>
+
+        <div class="doc-content">
+          <section id="install">
+            <h2>1. Paste the snippet</h2>
+            <p>
+              Generate a seed in the <a href="../../playground/en/">playground</a> and copy the code under
+              “Your embeddable widget”. It should look like this, before <code>&lt;/body&gt;</code>:
+            </p>
+
+            <div class="code-card">
+              <div class="code-head">
+                <span>HTML</span>
+                <button type="button" data-copy="snippet" data-copied="Copied" data-error="Couldn't copy">Copy</button>
+              </div>
+              <pre class="wrap"><code id="snippet">&lt;!-- vibedom: generative music for your site --&gt;
+&lt;script src="https://vibedom.dev/widget.js"
+        data-seed="eyJtZXRhZGF0YSI6eyJ1cmwiOiJodHRwczovL25lb24tZ3JpZC5leGFtcGxlIiwiZGV0ZWN0ZWRWaWJlIjoiQ3liZXJwdW5rOiB0w6ljbmljbywgbm9jdHVybm8geSBuZcOzbiIsImV4cGxhbmF0aW9uIjoiRm9uZG8gbmVncm8gcHVybywgYWNlbnRvcyB2ZXJkZSBuZcOzbiB5IHRpcG9ncmFmw61hIG1vbm9zcGFjZSB0cmFkdWNpZG9zIGEgUmUgZnJpZ2lvIGdyYXZlLCBzaWVycmFzIGRlc2FmaW5hZGFzIHRyYXMgdW4gZmlsdHJvIGNlcnJhZG8geSB1biBhcnBlZ2lvIGRlIGVjbyBxdWUgcmVjdWVyZGEgYSBkYXRvcyBmbHV5ZW5kby4ifSwidWlUaGVtZSI6eyJiYWNrZ3JvdW5kQ29sb3IiOiIjMEEwQTBBIiwiYWNjZW50Q29sb3IiOiIjMDBGRjY2IiwidGV4dENvbG9yIjoiI0U2RkZFOSIsImZvbnRGYW1pbHkiOiJtb25vc3BhY2UifSwibXVzaWNhbFBhcmFtcyI6eyJicG0iOjg0LCJyb290Tm90ZSI6IkQiLCJzY2FsZSI6InBocnlnaWFuIiwib2N0YXZlIjozfSwic3ludGhDb25maWciOnsicGFkIjp7IndhdmVmb3JtIjoic2F3dG9vdGgiLCJhdHRhY2siOjIuNSwicmVsZWFzZSI6NCwiZmlsdGVyRnJlcSI6NTIwfSwiYXJwIjp7ImVuYWJsZWQiOnRydWUsIndhdmVmb3JtIjoic3F1YXJlIiwiZGVuc2l0eSI6MC40NSwiZGVsYXlXZXQiOjAuNTV9LCJlZmZlY3RzIjp7InJldmVyYkRlY2F5Ijo1LjUsInJldmVyYldldCI6MC41NSwiY2hvcnVzRGVwdGgiOjAuMjV9LCJpbnRlcmFjdGl2aXR5Ijp7InNjcm9sbFRhcmdldCI6ImZpbHRlckZyZXEiLCJzY3JvbGxNdWx0aXBsaWVyIjozLjUsImhvdmVyTm90ZVRyaWdnZXIiOnRydWV9fX0="
+        defer&gt;&lt;/script&gt;</code></pre>
+            </div>
+
+            <p class="callout">
+              <strong>The seed is the widget.</strong> It contains colours, copy and musical parameters. No
+              other service is needed: if vibedom's backend disappeared, this button would keep working.
+            </p>
+
+            <h3>Webflow, Framer or WordPress</h3>
+            <p>
+              Paste the snippet into the project's custom HTML or the page footer. In WordPress, use a code
+              snippets plugin or the child theme's <code>footer.php</code>. Avoid fields that strip
+              <code>&lt;script&gt;</code> tags.
+            </p>
+            <p>
+              One widget per page is enough. Keep it out of checkout and admin screens: it works best on the
+              public site, where visitors choose to press play.
+            </p>
+          </section>
+
+          <section id="attributes">
+            <h2>2. Attributes</h2>
+            <table class="attr-table">
+              <thead>
+                <tr>
+                  <th>Attribute</th>
+                  <th>Required</th>
+                  <th>What it does</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>src</code></td>
+                  <td>Yes</td>
+                  <td>Loader URL. Always use <code>https://vibedom.dev/widget.js</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>data-seed</code></td>
+                  <td>Yes</td>
+                  <td>
+                    The Sound Seed in base64, as generated by the playground. If it is missing or corrupt,
+                    the widget does not render and never breaks the page.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>data-label</code></td>
+                  <td>No</td>
+                  <td>
+                    Button text and accessible label. Defaults to “Play this website” or “Escuchar esta web”
+                    depending on the document's <code>lang</code>.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>defer</code></td>
+                  <td>Recommended</td>
+                  <td>Does not block the host page's render.</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h3>Colours and copy</h3>
+            <p>
+              The button takes <code>backgroundColor</code>, <code>accentColor</code> and
+              <code>textColor</code> from the seed's <code>uiTheme</code>. If accent and background match, it
+              falls back to the text colour so the icon stays visible. To change the palette, regenerate the
+              seed in the playground; there is no CSS to edit.
+            </p>
+
+            <div class="code-card">
+              <div class="code-head">
+                <span>Example with custom text</span>
+                <button type="button" data-copy="snippet-label" data-copied="Copied" data-error="Couldn't copy">Copy</button>
+              </div>
+              <pre class="wrap"><code id="snippet-label">&lt;script src="https://vibedom.dev/widget.js"
+        data-seed="…"
+        data-label="Give this page a soundtrack"
+        defer&gt;&lt;/script&gt;</code></pre>
+            </div>
+          </section>
+
+          <section id="how">
+            <h2>3. How it works</h2>
+            <ol>
+              <li>
+                <strong>On page load</strong>, the snippet decodes the seed and paints a button inside a
+                Shadow DOM. It does not download the engine or Tone.js. The loader is under 5 KB (around 2 KB
+                compressed).
+              </li>
+              <li>
+                <strong>On the first click</strong>, it loads <code>widget-player.js</code> and Tone.js from
+                jsDelivr. That click is also the gesture browsers require to create the audio context.
+              </li>
+              <li>
+                <strong>While playing</strong>, the engine performs the seed in the browser: pad, drone and
+                arpeggio. There is no pre-recorded audio and no API request.
+              </li>
+            </ol>
+            <p>
+              The button exposes <code>aria-pressed</code>, a visible focus ring and respects
+              <code>prefers-reduced-motion</code>. Loading and error states are announced through its
+              accessible label, not with an <code>alert</code> that interrupts the visitor.
+            </p>
+          </section>
+
+          <section id="csp">
+            <h2>4. CSP and SRI</h2>
+            <p>
+              If the host site uses a strict <code>Content-Security-Policy</code>, add these origins. The
+              widget needs jsDelivr for Tone.js, <code>blob:</code> for Tone's internal clock and worklets,
+              and inline styles for the Shadow DOM:
+            </p>
+
+            <div class="code-card">
+              <div class="code-head">
+                <span>Content-Security-Policy</span>
+                <button type="button" data-copy="csp" data-copied="Copied" data-error="Couldn't copy">Copy</button>
+              </div>
+              <pre><code id="csp">script-src 'self' https://vibedom.dev https://cdn.jsdelivr.net blob:;
+worker-src blob:;
+style-src 'self' 'unsafe-inline';</code></pre>
+            </div>
+
+            <p class="callout">
+              <strong>Don't paste this over your current CSP.</strong> Merge it with what you already have:
+              directives are combined, and a duplicated CSP can disable the more permissive one or break the
+              rest of the site.
+            </p>
+
+            <h3>Subresource Integrity (SRI)</h3>
+            <p>
+              You can add <code>integrity</code> and <code>crossorigin="anonymous"</code> to the loader. The
+              hash changes every time a new <code>widget.js</code> is published; if you pin it, review the
+              hash when you update. Compute the current one with:
+            </p>
+            <div class="code-card">
+              <div class="code-head">
+                <span>Terminal</span>
+                <button type="button" data-copy="sri" data-copied="Copied" data-error="Couldn't copy">Copy</button>
+              </div>
+              <pre><code id="sri">curl -s https://vibedom.dev/widget.js \
+  | openssl dgst -sha384 -binary \
+  | openssl base64 -A</code></pre>
+            </div>
+            <p>
+              SRI protects the loader; the player and Tone.js are imported at runtime and cannot carry
+              <code>integrity</code>. That is why you should pin the version in the URL as well (see
+              <a href="#versioning">Versioning</a>).
+            </p>
+          </section>
+
+          <section id="privacy">
+            <h2>5. Privacy and cost</h2>
+            <ul>
+              <li>No cookies, <code>localStorage</code> or vibedom analytics.</li>
+              <li>The host page's URL is not sent to any server.</li>
+              <li>Audio is synthesised in the browser; no music is downloaded and nothing is uploaded.</li>
+              <li>
+                The first click requests Tone.js from jsDelivr, which sees the visitor's IP like any CDN. If
+                you need to avoid it, contact us before embedding in a strict environment.
+              </li>
+              <li>Cost per visitor: zero AI calls. The seed is already embedded in the HTML.</li>
+            </ul>
+          </section>
+
+          <section id="troubleshooting">
+            <h2>6. Troubleshooting</h2>
+            <div class="doc-faq">
+              <details>
+                <summary>The button does not appear</summary>
+                <p>
+                  Check that <code>data-seed</code> is not empty or cut off when copying, and that the CSP
+                  allows <code>https://vibedom.dev</code>. If the snippet sits inside an editor that removes
+                  <code>&lt;script&gt;</code>, move it to the theme HTML or a code plugin.
+                </p>
+              </details>
+              <details>
+                <summary>The button appears but there is no sound</summary>
+                <p>
+                  Audio needs the click gesture: it cannot autoplay. On iOS also check the silent switch. If
+                  the CSP blocks <code>blob:</code>, Tone cannot start its internal clock.
+                </p>
+              </details>
+              <details>
+                <summary>The first click takes a second</summary>
+                <p>
+                  That is expected: the player and Tone.js (about 230 KB compressed from the CDN) download at
+                  that moment. The button shows its loading state in the meantime.
+                </p>
+              </details>
+              <details>
+                <summary>I want the button in another corner or at another size</summary>
+                <p>
+                  Position and size are part of the widget's design and are not configurable by attribute. If
+                  you need a client-specific variant, regenerate the seed and ask for an adaptation before
+                  touching the Shadow DOM's CSS.
+                </p>
+              </details>
+              <details>
+                <summary>Can I put several widgets on the same page?</summary>
+                <p>
+                  No. Each snippet creates its own floating button and two buttons overlap. Use one per page.
+                </p>
+              </details>
+            </div>
+          </section>
+
+          <section id="versioning">
+            <h2>7. Versioning</h2>
+            <p>
+              To keep an update from silently changing a client's widget, add the version to the URL:
+            </p>
+            <div class="code-card">
+              <div class="code-head">
+                <span>Versioned URL</span>
+                <button type="button" data-copy="versioned" data-copied="Copied" data-error="Couldn't copy">Copy</button>
+              </div>
+              <pre><code id="versioned">https://vibedom.dev/widget.js?v=1.0.0</code></pre>
+            </div>
+            <p>
+              The parameter busts browser and CDN caches, but the file is still the published one. Check the
+              <a href="https://github.com/germantes/vibedom/releases">changelog</a> before bumping. Seed changes
+              do not affect the widget: every snippet carries its own.
+            </p>
+
+            <div class="doc-next">
+              <p><strong>Ready to try it?</strong> Generate a seed from your site and copy the final snippet.</p>
+              <a class="btn btn-primary" href="../../playground/en/">Open the playground</a>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-inner">
+        <a class="footer-brand" href="../">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          vibedom
+        </a>
+        <p>Procedural soundscapes for the web.</p>
+        <div class="footer-links">
+          <a href="../../playground/en/">Playground</a>
+          <a href="../#privacy">Privacy</a>
+          <a href="https://github.com/germantes/vibedom" target="_blank" rel="noreferrer noopener">GitHub</a>
+        </div>
+      </div>
+    </footer>
+
+    <script type="module" src="../../src/docs/docs.js"></script>
+  </body>
+</html>

@@ -10,6 +10,7 @@ const DICTS = {
     "nav.privacy": "Privacidad",
     "nav.faq": "Preguntas",
     "nav.playground": "Abrir playground",
+    "nav.widget": "Widget",
     "nav.langSwitch": "EN",
     "nav.langSwitchAria": "Ver esta página en inglés",
 
@@ -218,6 +219,7 @@ const DICTS = {
     "playground.embed.copyError": "No se pudo copiar",
     "playground.embed.hint":
       'El botón flotante carga Tone.js solo al pulsarlo. Puedes cambiar su texto con data-label="Escuchar mi web".',
+    "playground.embed.docs": "Guía de instalación, CSP y SRI →",
     "playground.share.copy": "Copiar enlace",
     "playground.share.copied": "Enlace copiado",
     "playground.share.error": "No se pudo copiar",
@@ -286,6 +288,7 @@ const DICTS = {
     "nav.privacy": "Privacy",
     "nav.faq": "FAQ",
     "nav.playground": "Open playground",
+    "nav.widget": "Widget",
     "nav.langSwitch": "ES",
     "nav.langSwitchAria": "View this page in Spanish",
 
@@ -492,6 +495,7 @@ const DICTS = {
     "playground.embed.copyError": "Couldn't copy",
     "playground.embed.hint":
       'The floating button loads Tone.js only when pressed. Change its text with data-label="Listen to my site".',
+    "playground.embed.docs": "Install guide, CSP and SRI →",
     "playground.share.copy": "Copy link",
     "playground.share.copied": "Link copied",
     "playground.share.error": "Couldn't copy",

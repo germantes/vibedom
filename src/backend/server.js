@@ -460,6 +460,17 @@ export function createVibedomServer({
       return res.end();
     }
 
+    if ((req.method === "GET" || req.method === "HEAD") && req.url === "/api/ping") {
+      // Monitor externo: cuerpo mínimo (cron-job.org corta a 4 KB). También
+      // acepta HEAD para que el chequeo no descargue nada.
+      res.writeHead(200, {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-store",
+        "Access-Control-Allow-Origin": "*",
+      });
+      return res.end(req.method === "HEAD" ? undefined : "ok");
+    }
+
     if (req.method === "GET" && req.url === "/api/diagnostics") {
       // Traza mínima para depurar caídas: solo hosts, estados y tiempos.
       return json(res, 200, {

@@ -54,4 +54,22 @@
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
+  <url>
+    <loc>https://vibedom.dev/widget/</loc>
+    <lastmod>2026-11-01</lastmod>
+    <xhtml:link rel="alternate" hreflang="es" href="https://vibedom.dev/widget/" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://vibedom.dev/en/widget/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://vibedom.dev/widget/" />
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://vibedom.dev/en/widget/</loc>
+    <lastmod>2026-11-01</lastmod>
+    <xhtml:link rel="alternate" hreflang="es" href="https://vibedom.dev/widget/" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://vibedom.dev/en/widget/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://vibedom.dev/widget/" />
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
 </urlset>
