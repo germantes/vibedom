@@ -40,6 +40,7 @@ export function createAiUsage({ now = Date.now, pricing = MODEL_PRICING } = {}) 
   let calls = 0;
   let promptTokens = 0;
   let outputTokens = 0;
+  let thoughtTokens = 0;
   let totalTokens = 0;
   let usd = 0;
   const byModel = new Map();
@@ -51,6 +52,7 @@ export function createAiUsage({ now = Date.now, pricing = MODEL_PRICING } = {}) 
     calls = 0;
     promptTokens = 0;
     outputTokens = 0;
+    thoughtTokens = 0;
     totalTokens = 0;
     usd = 0;
     byModel.clear();
@@ -60,25 +62,47 @@ export function createAiUsage({ now = Date.now, pricing = MODEL_PRICING } = {}) 
     /**
      * Anota una respuesta facturable de la IA. Los campos ausentes en
      * `usageMetadata` cuentan como 0; nunca lanza.
+     *
+     * Los tokens de razonamiento (`thoughtsTokenCount`) se facturan como
+     * salida, así que entran en el coste aunque no formen parte de la
+     * respuesta. Sin ellos, el coste de Gemini 3.5 Flash se subestima casi a
+     * la mitad.
      */
-    record({ model = "unknown", promptTokens: input = 0, outputTokens: output = 0, totalTokens: total = 0 } = {}) {
+    record({
+      model = "unknown",
+      promptTokens: input = 0,
+      outputTokens: output = 0,
+      thoughtTokens: thoughts = 0,
+      totalTokens: total = 0,
+    } = {}) {
       rollover();
       const inTokens = Math.max(0, Math.floor(Number(input) || 0));
       const outTokens = Math.max(0, Math.floor(Number(output) || 0));
-      const allTokens = Math.max(0, Math.floor(Number(total) || 0)) || inTokens + outTokens;
+      const thoughtCount = Math.max(0, Math.floor(Number(thoughts) || 0));
+      const billedOutput = outTokens + thoughtCount;
+      const allTokens =
+        Math.max(0, Math.floor(Number(total) || 0)) || inTokens + billedOutput;
       const price = priceFor(model, pricing);
-      const cost = (inTokens * price.input + outTokens * price.output) / 1_000_000;
+      const cost = (inTokens * price.input + billedOutput * price.output) / 1_000_000;
 
       calls += 1;
       promptTokens += inTokens;
       outputTokens += outTokens;
+      thoughtTokens += thoughtCount;
       totalTokens += allTokens;
       usd += cost;
 
-      const current = byModel.get(model) ?? { calls: 0, promptTokens: 0, outputTokens: 0, usd: 0 };
+      const current = byModel.get(model) ?? {
+        calls: 0,
+        promptTokens: 0,
+        outputTokens: 0,
+        thoughtTokens: 0,
+        usd: 0,
+      };
       current.calls += 1;
       current.promptTokens += inTokens;
       current.outputTokens += outTokens;
+      current.thoughtTokens += thoughtCount;
       current.usd += cost;
       byModel.set(model, current);
     },
@@ -90,6 +114,7 @@ export function createAiUsage({ now = Date.now, pricing = MODEL_PRICING } = {}) 
         calls,
         promptTokens,
         outputTokens,
+        thoughtTokens,
         totalTokens,
         estimatedUsd: round(usd, 4),
         // Tarifa media aplicada, útil para detectar modelos inesperados.
@@ -100,11 +125,12 @@ export function createAiUsage({ now = Date.now, pricing = MODEL_PRICING } = {}) 
               calls: value.calls,
               promptTokens: value.promptTokens,
               outputTokens: value.outputTokens,
+              thoughtTokens: value.thoughtTokens,
               estimatedUsd: round(value.usd, 4),
             },
           ]),
         ),
-        note: "Estimación en memoria desde el último arranque; no descuenta créditos.",
+        note: "Estimación en memoria desde el último arranque; no descuenta créditos. thoughtTokens se factura como salida.",
       };
     },
   };

@@ -325,7 +325,7 @@ async function requestModel({ provider, model, body, fetchImpl, signal, timeoutM
     const usage = data.usageMetadata;
     if (usage) {
       logger?.log?.(
-        `[${provider.name}] ${model} · tokens in=${usage.promptTokenCount ?? "?"} out=${usage.candidatesTokenCount ?? "?"} total=${usage.totalTokenCount ?? "?"}`,
+        `[${provider.name}] ${model} · tokens in=${usage.promptTokenCount ?? "?"} out=${usage.candidatesTokenCount ?? "?"} thoughts=${usage.thoughtsTokenCount ?? 0} total=${usage.totalTokenCount ?? "?"}`,
       );
       // Solo se anotan respuestas correctas: un error no se factura como uso
       // útil y además podría repetir tokens de un reintento.
@@ -333,6 +333,7 @@ async function requestModel({ provider, model, body, fetchImpl, signal, timeoutM
         model,
         promptTokens: usage.promptTokenCount,
         outputTokens: usage.candidatesTokenCount,
+        thoughtTokens: usage.thoughtsTokenCount ?? 0,
         totalTokens: usage.totalTokenCount,
       });
     }

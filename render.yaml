@@ -21,8 +21,9 @@ services:
         value: "12000"
       # Tope diario de escaneos facturables. Al agotarse, la demo responde con
       # la semilla local sin llamar a la IA. `0` lo desactiva.
-      # Con ~2.600 tokens por escaneo y Gemini 3.5 Flash, 25/día son unos
-      # 3-5 USD/mes de techo; la caché de 6 h lo reduce en la práctica.
+      # Con ~3.200 tokens por escaneo (incluido el razonamiento, que se
+      # factura como salida) y Gemini 3.5 Flash, 25/día son unos 10-11
+      # USD/mes de techo; la caché de 6 h lo reduce en la práctica.
       # El código recorta cualquier valor mayor a SCAN_DAILY_LIMIT_MAX (25),
       # para que un ajuste antiguo del panel no dispare la factura.
       - key: SCAN_DAILY_LIMIT

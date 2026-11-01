@@ -270,7 +270,7 @@ test("translate comunica los tokens facturables con onUsage", async () => {
       new Response(
         JSON.stringify({
           candidates: [{ content: { parts: [{ text: JSON.stringify(SEED) }] } }],
-          usageMetadata: { promptTokenCount: 2285, candidatesTokenCount: 355, totalTokenCount: 2640 },
+          usageMetadata: { promptTokenCount: 2285, candidatesTokenCount: 355, thoughtsTokenCount: 800, totalTokenCount: 3440 },
         }),
         { status: 200, headers: { "content-type": "application/json" } },
       ),
@@ -285,7 +285,13 @@ test("translate comunica los tokens facturables con onUsage", async () => {
   });
 
   assert.deepEqual(calls, [
-    { model: "gemini-3.5-flash", promptTokens: 2285, outputTokens: 355, totalTokens: 2640 },
+    {
+      model: "gemini-3.5-flash",
+      promptTokens: 2285,
+      outputTokens: 355,
+      thoughtTokens: 800,
+      totalTokens: 3440,
+    },
   ]);
 });
 

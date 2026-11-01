@@ -51,3 +51,25 @@ test("ai-usage vuelve a cero al cambiar de día UTC", () => {
   assert.equal(snapshot.estimatedUsd, 0);
   assert.deepEqual(snapshot.models, {});
 });
+
+test("ai-usage factura los tokens de razonamiento como salida", () => {
+  const usage = createAiUsage({ now: () => Date.UTC(2026, 10, 1, 10) });
+
+  // Cifras reales de un escaneo con Gemini 3.5 Flash (thinkingLevel low).
+  usage.record({
+    model: "gemini-3.5-flash",
+    promptTokens: 1929,
+    outputTokens: 364,
+    thoughtTokens: 894,
+    totalTokens: 3187,
+  });
+
+  const snapshot = usage.snapshot();
+  assert.equal(snapshot.thoughtTokens, 894);
+  assert.equal(snapshot.totalTokens, 3187);
+  assert.equal(snapshot.models["gemini-3.5-flash"].thoughtTokens, 894);
+
+  const expected = (1929 * 1.5 + (364 + 894) * 9) / 1e6;
+  assert.equal(snapshot.estimatedUsd, Number(expected.toFixed(4)));
+  assert.ok(snapshot.estimatedUsd > (1929 * 1.5 + 364 * 9) / 1e6);
+});

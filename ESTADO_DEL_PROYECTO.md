@@ -227,7 +227,7 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **Límites**: con Vertex la facturación es por proyecto y las cuotas son mucho más altas, así que `GEMINI_MIN_INTERVAL_MS=2000` y `GEMINI_MAX_WAIT_MS=12000` (antes 8000/25000).
 - **`src/backend/scan-budget.js`**: tope diario de escaneos facturables, en memoria y con reinicio a medianoche UTC. `SCAN_DAILY_LIMIT` (200/día) y `SCAN_IP_DAILY_LIMIT` (30/día) cubren el caso de muchas IPs distintas, que el límite por minuto no frena. Al agotarse, el servidor responde con la semilla local sin llamar a Vertex; con `SCAN_FALLBACK=0` devuelve el 429 amable. La caché y los escaneos locales no consumen cupo. `/api/health` expone `budget` y `engine`. El contador se pierde al reiniciar el proceso (Render free duerme por inactividad), así que es una barrera de primera línea: el presupuesto con alertas de Google Cloud sigue siendo obligatorio.
 - **Verificación local**: escaneo real de `https://example.com` → `200` en **3,3 s**, `X-Vibedom-Source: vertex`, semilla de IA («Minimalismo crudo y documental», C major 65 BPM) y `tokens in=1929 out=364`. Con `SCAN_DAILY_LIMIT=1`, el segundo escaneo devolvió `X-Vibedom-Source: local` sin llamar a Vertex y `budget.usedToday` quedó en 1. **122 tests** en verde (10 de Vertex + 5 del presupuesto + integración).
-- **Facturación**: el proyecto `gen-lang-client-0008536547` está vinculado a la cuenta de facturación educativa de los 50 USD y el presupuesto de 5 USD/mes para Vertex tiene avisos en 2,50 / 4,50 / 5 USD. Los avisos no bloquean el gasto: el tope de 200 escaneos/día sigue siendo la barrera real. La clave expuesta en el chat (`931aaefa…`) ya no canjea tokens; la única activa es la `794f3d…` que usa la app. Queda confirmar en Billing que el consumo empieza a descontar de los 50 USD (puede tardar horas en reflejarse).
+- **Facturación**: el proyecto `gen-lang-client-0008536547` está vinculado a la cuenta de facturación educativa de los 50 USD y el presupuesto de 5 USD/mes para Vertex tiene avisos en 2,50 / 4,50 / 5 USD. Los avisos no bloquean el gasto: el tope de 25 escaneos/día (recortado por código) es la barrera real. La clave expuesta en el chat (`931aaefa…`) ya no canjea tokens; la única activa es la `794f3d…` que usa la app. Queda confirmar en Billing que el consumo empieza a descontar de los 50 USD (puede tardar horas en reflejarse).
 
 ### ✅ FASE 4: Widget embebible (COMPLETADA)
 
@@ -286,9 +286,9 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 
 ### ✅ FASE 4.6: Control de gasto de Vertex y presupuesto visible (COMPLETADA)
 
-- **Tope recortado**: 25 escaneos IA/día en total y 8 por IP; caché de semillas de **6 h** (antes 1 h). Con ~2.600 tokens por escaneo y Gemini 3.5 Flash ($1,50/M entrada, $9/M salida), el techo ronda **5 USD/mes**; la caché lo reduce en la práctica.
+- **Tope recortado**: 25 escaneos IA/día en total y 8 por IP; caché de semillas de **6 h** (antes 1 h). Un escaneo real de Gemini 3.5 Flash ronda **3.200 tokens** (≈1.900 de entrada, 360 de respuesta y 900 de razonamiento, que también se facturan como salida): unos **0,014 USD** por escaneo. El techo teórico son **10–11 USD/mes** a 25/día; con la caché de 6 h baja en la práctica.
 - **Techo de seguridad**: `scan-budget.js` recorta cualquier `SCAN_DAILY_LIMIT` positivo a `SCAN_DAILY_LIMIT_MAX` (25 por defecto), y lo mismo con la IP (8). Así un valor antiguo del panel de Render no puede disparar la factura; para subirlo hay que declararlo a propósito.
-- **Medición**: `src/backend/ai-usage.js` acumula llamadas, tokens de entrada/salida y coste estimado por modelo. `GET /api/health` lo expone en `usage`; el contador vive en memoria y se reinicia con el proceso, igual que `budget`.
+- **Medición**: `src/backend/ai-usage.js` acumula llamadas, tokens de entrada, respuesta y razonamiento (`thoughtTokens`, facturado como salida) y coste estimado por modelo. `GET /api/health` lo expone en `usage`; el contador vive en memoria y se reinicia con el proceso, igual que `budget`. Verificado en producción: un escaneo de `example.com` anotó 1.929 + 364 + 894 tokens y 0,0142 USD.
 - **Verificación**: tests de presupuesto (recorte de valores antiguos, límite explícito intacto) y de `onUsage` en el traductor. La estimación usa las tarifas publicadas, no descuenta créditos y se etiqueta como tal en el propio JSON.
 
 ### ✅ FASE 4.7: Documentación del widget para terceros (COMPLETADA)
@@ -311,7 +311,7 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 
 - **Tag y release**: [`v1.0.0`](https://github.com/germantes/vibedom/releases/tag/v1.0.0) sobre el commit `6bb9307`; `package.json` pasa a `1.0.0`.
 - **Producción**: `vibedom.dev` sirve las 10 URLs del sitemap (incluidas `/widget/`, `/en/widget/`, `/privacidad/` y `/en/privacy/`) y Render confirma el commit desplegado en `/api/health` con `dailyLimit: 25` y `perIpDailyLimit: 8`.
-- **Cierre**: 161 tests en verde. Lo que queda es operativo y externo al repo (cronjob, facturación de Google Cloud y decisión sobre el plan de Render), listado en el roadmap.
+- **Cierre**: 162 tests en verde. Lo que queda es operativo y externo al repo (cronjob, facturación de Google Cloud y decisión sobre el plan de Render), listado en el roadmap.
 
 ### 🔎 Strudel frente a Tone.js (evaluado, no adoptado)
 

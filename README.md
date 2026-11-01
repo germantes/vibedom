@@ -172,7 +172,7 @@ src/backend/scan-cache.js    caché en memoria de semillas por URL
 src/backend/server.js        servidor node:http (estáticos + /api/scan + health + /s/)
 src/backend/share-preview.js vista previa OG de un enlace compartido
 src/backend/share-image.js   tarjeta PNG 1200×630 generada desde la semilla
-.github/workflows/test.yml   161 tests en cada push y PR
+.github/workflows/test.yml   162 tests en cada push y PR
 .github/workflows/render-deploy.yml  Deploy Hook de Render tras cada push a main
 src/demo/main.js             orquestación del playground
 src/demo/analysis.js         estados y animación del panel de análisis
@@ -297,7 +297,7 @@ Notas de funcionamiento:
 - El token de OAuth se firma con `node:crypto` y se cachea una hora; no hay dependencias nuevas. Un `401` descarta el token y reintenta una sola vez.
 - Con Vertex las cuotas son mucho más altas que la capa gratuita, así que `render.yaml` espacia las llamadas 2 s y espera hasta 12 s en cola (`GEMINI_MIN_INTERVAL_MS=2000`, `GEMINI_MAX_WAIT_MS=12000`).
 - Vertex no tiene capa gratuita para Gemini Flash: cada escaneo consume crédito. Crea un presupuesto con alertas en Google Cloud antes de desplegar.
-- **Tope de gasto**: `SCAN_DAILY_LIMIT` (25/día en total) y `SCAN_IP_DAILY_LIMIT` (8/día por IP) cuentan solo las llamadas reales a la IA; la caché y las semillas locales no consumen. Al agotarse, el escaneo sigue funcionando con la semilla local y `/api/health` expone el estado en `budget` (`usedToday`, `dailyLimit`, `perIpDailyLimit`) y `usage` (llamadas, tokens de entrada/salida y coste estimado en USD). El contador vive en memoria y se reinicia con el proceso: es una primera barrera, no un tope duro; para un límite estricto, baja la cuota de Vertex o mueve el contador a un almacén compartido.
+- **Tope de gasto**: `SCAN_DAILY_LIMIT` (25/día en total) y `SCAN_IP_DAILY_LIMIT` (8/día por IP) cuentan solo las llamadas reales a la IA; la caché y las semillas locales no consumen. Al agotarse, el escaneo sigue funcionando con la semilla local y `/api/health` expone el estado en `budget` (`usedToday`, `dailyLimit`, `perIpDailyLimit`) y `usage` (llamadas, tokens de entrada, de respuesta y de razonamiento —estos últimos se facturan como salida— y coste estimado en USD). El contador vive en memoria y se reinicia con el proceso: es una primera barrera, no un tope duro; para un límite estricto, baja la cuota de Vertex o mueve el contador a un almacén compartido.
 - El fichero de la clave **nunca** se commitea: se pasa en base64 por variable de entorno.
 
 ### Despliegue
@@ -384,7 +384,7 @@ Para añadir uno, crea el JSON en `presets/` y regístralo en `PRESET_IDS` (`src
 npm test
 ```
 
-**161 tests** con `node:test`, sin dependencias:
+**162 tests** con `node:test`, sin dependencias:
 
 * escalas, acordes y conversión MIDI;
 * validación de la semilla y presets reales;
@@ -404,7 +404,7 @@ npm test
 * enlace compartido (base64url, restauración de la semilla, fragmentos ignorados y enlaces corruptos);
 * páginas SEO (rutas ES/EN, canonical y hreflang recíprocos, JSON-LD con FAQPage, enlaces internos sin romper y sitemap);
 * documentación del widget y privacidad (rutas ES/EN, hreflang, snippet real, enlaces desde la landing y sitemap);
-* presupuesto de IA (recorte de valores antiguos, límite explícito intacto) y consumo (tokens, coste por modelo, reinicio diario);
+* presupuesto de IA (recorte de valores antiguos, límite explícito intacto) y consumo (tokens de entrada, respuesta y razonamiento, coste por modelo y reinicio diario);
 * vista previa compartida (`/s/<token>` con OG, redirección al playground, token corrupto y PNG 1200×630 con los colores de la semilla).
 
 El flujo real se validó en navegador con Playwright (fuera del repo): landing ES/EN, presets, play/pausa, espectro, escaneo mockeado, error de backend, responsive a 390 px, playground ES/EN, sliders, JSON y cambio de idioma. También se validó un escaneo real de `example.com` (~3 s). El tema dinámico se comprobó con escaneos mockeados (sitio claro, oscuro y un caso hostil blanco sobre blanco) y una auditoría de contraste de 26 elementos en ambos esquemas: 26/26 en claro y 26/26 en oscuro. El widget se probó con Chromium headless en una página anfitriona: `widget.js` → `widget-player.js` → Tone.js solo tras el clic, arranque y pausa, snippet de 1.217 bytes generado desde el playground y copiado al portapapeles sin errores 404. El enlace compartido se validó de extremo a extremo: mover un slider cambia el `#seed`, «Copiar enlace» copia la URL, abrirla en otra pestaña restaura la misma semilla (100 BPM) sin ninguna petición a `/api/scan`, un token corrupto cae en el preset con aviso y la versión inglesa traduce los botones. La vista previa `/s/<token>` se comprobó con `curl` y decodificando el PNG generado: cabecera IHDR 1200×630, muestras de color idénticas a `uiTheme` y Open Graph con el host y el BPM de la semilla. Las páginas SEO se probaron en Chromium: ES/EN cargan sin 404 ni errores JS, los 3 presets y el play/pausa funcionan, el escaneo simulado aplica el tema y el responsive a 320/390 px no genera overflow. La documentación del widget y las páginas de privacidad se auditaron igual en 320/390 px, con enlaces internos sanos; el snippet real se probó en una página anfitriona servida por HTTP (botón → reproductor → `aria-pressed=true`) y el copiado funciona en ambos idiomas.
