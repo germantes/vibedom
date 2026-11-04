@@ -7,7 +7,7 @@ import { startServer } from "../src/backend/server.js";
 import { createScanCache } from "../src/backend/scan-cache.js";
 import { createScanBudget } from "../src/backend/scan-budget.js";
 import { UnsafeUrlError } from "../src/backend/url-guard.js";
-import { encodeShareToken } from "../src/embed.js";
+import { encodeShareToken, encodeShortToken } from "../src/embed.js";
 
 const SEED = JSON.parse(readFileSync(new URL("../presets/editorial.json", import.meta.url), "utf8"));
 const silent = { log() {}, warn() {}, error() {} };
@@ -567,6 +567,23 @@ test("la vista previa compartida expone Open Graph de la semilla y redirige al p
   const head = await fetch(`${base}/s/${token}`, { method: "HEAD" });
   assert.equal(head.status, 200);
   assert.equal(await head.text(), "");
+});
+
+test("la vista previa acepta el token corto y lo propaga al playground", async () => {
+  const token = encodeShortToken(SEED);
+  assert.ok(token.length < 300, `el token mide ${token.length} caracteres`);
+  const origin = new URL(base).origin;
+
+  const page = await fetch(`${base}/s/${token}`);
+  assert.equal(page.status, 200);
+  const html = await page.text();
+  assert.match(html, new RegExp(`#seed=${token}`));
+  assert.match(html, new RegExp(`og:image" content="${origin}/s/${token}\\.png"`));
+  assert.match(html, /property="og:title"/);
+
+  const image = await fetch(`${base}/s/${token}.png`);
+  assert.equal(image.status, 200);
+  assert.match(image.headers.get("content-type"), /image\/png/);
 });
 
 test("la imagen OG del enlace compartido es un PNG 1200×630 con los colores de la semilla", async () => {

@@ -6,9 +6,12 @@ import {
   buildShareHash,
   buildShareLink,
   buildWidgetSnippet,
+  decodeAnyToken,
   decodeShareToken,
+  decodeShortToken,
   encodeSeed,
   encodeShareToken,
+  encodeShortToken,
   readShareHash,
   DEFAULT_WIDGET_BASE,
 } from "../src/embed.js";
@@ -21,6 +24,8 @@ const SEED = {
   },
   uiTheme: { backgroundColor: "#F7F3EC", accentColor: "#8C6A43", textColor: "#1E1B16" },
 };
+
+const FULL_SEED = JSON.parse(readFileSync(new URL("../presets/editorial.json", import.meta.url), "utf8"));
 
 function decode(encoded) {
   const bytes = Uint8Array.from(atob(encoded), (char) => char.charCodeAt(0));
@@ -56,11 +61,30 @@ test("el snippet no rompe el HTML con </script> en los textos", () => {
   assert.equal(snippet.match(/<\/script>/g).length, 1);
 });
 
-test("el enlace compartido usa base64url y recupera la semilla completa", () => {
-  const hash = buildShareHash(SEED);
+test("el formato antiguo sigue recuperando la semilla completa", () => {
+  const hash = `#seed=${encodeShareToken(SEED)}`;
   assert.match(hash, /^#seed=[A-Za-z0-9_-]+$/);
   assert.deepEqual(readShareHash(hash), SEED);
+  assert.deepEqual(decodeAnyToken(encodeShareToken(SEED)), SEED);
   assert.deepEqual(decodeShareToken(encodeShareToken(SEED)), SEED);
+});
+
+test("el enlace corto conserva música y tema pero omite la explicación", () => {
+  const token = encodeShortToken(FULL_SEED);
+  assert.match(token, /^~[A-Za-z0-9_-]+$/);
+  assert.ok(token.length < 300, `el token mide ${token.length} caracteres`);
+
+  const decoded = decodeShortToken(token);
+  assert.equal(decoded.metadata.explanation, "");
+  assert.equal(decoded.metadata.url, FULL_SEED.metadata.url);
+  assert.equal(decoded.metadata.detectedVibe, FULL_SEED.metadata.detectedVibe);
+  assert.deepEqual(decoded.uiTheme, FULL_SEED.uiTheme);
+  assert.deepEqual(decoded.musicalParams, FULL_SEED.musicalParams);
+  assert.deepEqual(decoded.synthConfig, FULL_SEED.synthConfig);
+
+  const restored = readShareHash(buildShareHash(FULL_SEED));
+  assert.equal(restored.metadata.explanation, "");
+  assert.deepEqual(restored.musicalParams, FULL_SEED.musicalParams);
 });
 
 test("readShareHash ignora fragmentos sin semilla y rechaza tokens corruptos", () => {
@@ -69,24 +93,30 @@ test("readShareHash ignora fragmentos sin semilla y rechaza tokens corruptos", (
   assert.equal(readShareHash("#seed=%%%"), null);
   assert.throws(() => decodeShareToken("%%%"), /inválido/);
   assert.throws(() => decodeShareToken("bm8tZXMtanNvbg"), SyntaxError);
+  assert.throws(() => decodeAnyToken("~%%%"), /inválido/);
 });
 
 test("buildShareLink apunta a la vista previa del backend y respeta el idioma", () => {
-  const es = buildShareLink(SEED, { origin: "https://vibedom.onrender.com/" });
-  assert.match(es, /^https:\/\/vibedom\.onrender\.com\/s\/[A-Za-z0-9_-]+$/);
-  assert.deepEqual(decodeShareToken(es.split("/s/")[1]), SEED);
+  const es = buildShareLink(FULL_SEED, { origin: "https://vibedom.onrender.com/" });
+  assert.match(es, /^https:\/\/vibedom\.onrender\.com\/s\/~[A-Za-z0-9_-]+$/);
+  const decoded = decodeAnyToken(es.split("/s/")[1]);
+  assert.equal(decoded.metadata.explanation, "");
+  assert.deepEqual(decoded.musicalParams, FULL_SEED.musicalParams);
 
-  const en = buildShareLink(SEED, { origin: "https://vibedom.onrender.com", lang: "en" });
+  const en = buildShareLink(FULL_SEED, { origin: "https://vibedom.onrender.com", lang: "en" });
   assert.match(en, /\?l=en$/);
-  assert.equal(buildShareLink(SEED, { origin: "" }), null);
+  assert.equal(buildShareLink(FULL_SEED, { origin: "" }), null);
 });
 
 test("el enlace de un preset real cabe en una URL normal", () => {
   const preset = JSON.parse(readFileSync(new URL("../presets/editorial.json", import.meta.url), "utf8"));
   const url = `https://vibedom.dev/playground/${buildShareHash(preset)}`;
-  assert.ok(url.length < 2000, `el enlace mide ${url.length} caracteres`);
-  assert.deepEqual(readShareHash(buildShareHash(preset)), preset);
+  assert.ok(url.length < 500, `el enlace mide ${url.length} caracteres`);
+  const restored = readShareHash(buildShareHash(preset));
+  assert.equal(restored.metadata.explanation, "");
+  assert.deepEqual(restored.musicalParams, preset.musicalParams);
+  assert.deepEqual(restored.synthConfig, preset.synthConfig);
 
   const preview = buildShareLink(preset, { origin: "https://vibedom.onrender.com" });
-  assert.ok(preview.length < 2000, `la vista previa mide ${preview.length} caracteres`);
+  assert.ok(preview.length < 500, `la vista previa mide ${preview.length} caracteres`);
 });

@@ -323,6 +323,13 @@ async function withBusy(fn) {
 async function loadSeed(seed, { autoplay = false, presetId = null } = {}) {
   const wasPlaying = Boolean(engine?.isPlaying);
   activeSeed = structuredClone(seed);
+  // Los presets guardan su copia en español; el JSON visible, el enlace y el
+  // snippet deben usar el idioma de la página, no solo el titular.
+  const preset = presetId ? presetCopy(presetId) : null;
+  if (preset) {
+    activeSeed.metadata.detectedVibe = preset.detectedVibe;
+    activeSeed.metadata.explanation = preset.explanation;
+  }
   activePreset = presetId;
   presetButtons.forEach((button) => button.setAttribute("aria-checked", String(button.dataset.preset === presetId)));
   applyTheme(activeSeed);
@@ -578,6 +585,9 @@ try {
       const raw = readShareHash(location.hash);
       if (raw) {
         sharedSeed = normalizeSeed(raw);
+        if (!sharedSeed.metadata.explanation) {
+          sharedSeed.metadata.explanation = t("playground.sharedExplanation");
+        }
         if (raw.metadata?.source === "local") sharedSeed.metadata.source = "local";
         if (raw.metadata?.unreadable === true) sharedSeed.metadata.unreadable = true;
       } else {

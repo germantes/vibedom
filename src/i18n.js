@@ -224,7 +224,9 @@ const DICTS = {
     "playground.share.copied": "Enlace copiado",
     "playground.share.error": "No se pudo copiar",
     "playground.share.hint":
-      "El enlace lleva la semilla completa y una vista previa con su paleta: quien lo abra escucha esta misma variación sin gastar IA.",
+      "El enlace lleva la parte sonora y visual de la semilla y una vista previa con su paleta. La descripción larga se omite para acortarlo; quien lo abra escucha esta misma variación sin gastar IA.",
+    "playground.sharedExplanation":
+      "Descripción omitida para acortar el enlace. La música, el tema visual y la identidad detectada son los originales.",
     "playground.status.shared": "Semilla compartida cargada. Pulsa Reproducir.",
     "playground.status.sharedInvalid": "El enlace compartido no era válido. Hemos cargado un preset.",
     "playground.footer.samples": "Sin audio pregrabado · Tone.js bajo demanda",
@@ -500,7 +502,9 @@ const DICTS = {
     "playground.share.copied": "Link copied",
     "playground.share.error": "Couldn't copy",
     "playground.share.hint":
-      "The link carries the full seed and a preview with its palette: whoever opens it hears this same variation without spending AI.",
+      "The link carries the sonic and visual part of the seed plus a preview with its palette. The long description is omitted to keep it short; whoever opens it hears this same variation without spending AI.",
+    "playground.sharedExplanation":
+      "Description omitted to keep the link short. The music, visual theme and detected identity are the originals.",
     "playground.status.shared": "Shared seed loaded. Press Play.",
     "playground.status.sharedInvalid": "That shared link wasn't valid. We loaded a preset instead.",
     "playground.footer.samples": "No pre-recorded audio · Tone.js on demand",

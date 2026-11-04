@@ -20,7 +20,7 @@ import { createAiUsage } from "./ai-usage.js";
 import { composeLocalSeed } from "./local-seed.js";
 import { resolveEngine } from "./providers.js";
 import { loadDotEnv } from "./dotenv.js";
-import { decodeShareToken } from "../embed.js";
+import { decodeAnyToken } from "../embed.js";
 import { normalizeSeed } from "../engine/seed.js";
 import { renderShareError, renderSharePage } from "./share-preview.js";
 import { renderShareImage } from "./share-image.js";
@@ -32,8 +32,8 @@ const DEFAULT_PORT = Number(process.env.PORT) || 3000;
 const MAX_BODY_BYTES = 16 * 1024;
 const RATE_LIMIT_FALLBACK_S = 30;
 
-/** Enlaces compartidos: base64url de una semilla (~1,5 KB) y su imagen OG. */
-const SHARE_PATH = /^\/s\/([A-Za-z0-9_-]{1,6000})(\.png)?$/;
+/** Enlaces compartidos: token corto (`~…`) o base64url antiguo, más su imagen OG. */
+const SHARE_PATH = /^\/s\/([~A-Za-z0-9_-]{1,6000})(\.png)?$/;
 const FALLBACK_ORIGIN = "https://vibedom.onrender.com";
 
 /**
@@ -538,7 +538,7 @@ export function createVibedomServer({
       const [, token, png] = match;
       let seed;
       try {
-        seed = normalizeSeed(decodeShareToken(token));
+        seed = normalizeSeed(decodeAnyToken(token));
       } catch {
         res.writeHead(400, {
           "Content-Type": "text/html; charset=utf-8",

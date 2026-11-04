@@ -233,19 +233,20 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 
 - **`widget.js`** (**4.832 bytes**): script clásico sin dependencias. Lee la semilla de `data-seed` (base64 UTF-8), monta el botón flotante en **Shadow DOM** (`:host{all:initial}`) y usa `uiTheme` con contraste mínimo para que siga visible. Respeta `prefers-reduced-motion`, expone `aria-pressed` y acepta `data-label`; sin él, elige ES/EN según `<html lang>`. No descarga nada más hasta el clic.
 - **`widget-player.js`**: se importa desde `widget.js` solo al primer clic. Descarga Tone.js del CDN, configura el contexto dentro del gesto y crea el soundscape con la semilla incrustada. Sin backend, sin IA y sin coste por visitante.
-- **`src/embed.js`**: `encodeSeed()` (JSON → UTF-8 → base64, seguro dentro de un atributo) y `buildWidgetSnippet()`. También concentra el enlace compartido (`encodeShareToken`, `decodeShareToken`, `buildShareHash` y `readShareHash`). El snippet apunta a `https://vibedom.dev`; en local, a `location.origin`.
+- **`src/embed.js`**: `encodeSeed()` (JSON → UTF-8 → base64, seguro dentro de un atributo) y `buildWidgetSnippet()`. También concentra el enlace compartido (token binario corto `encodeShortToken`, legado `encodeShareToken`, `buildShareHash` y `readShareHash`). El snippet apunta a `https://vibedom.dev`; en local, a `location.origin`.
 - **Playground ES/EN**: tarjeta «Tu widget embebible» con el snippet actualizado en caliente con los sliders y botón de copia (con fallback a `execCommand`).
 - **Servidor**: los estáticos responden con `Access-Control-Allow-Origin: *` para que `widget.js`, sus módulos y el motor se puedan importar desde otro dominio.
 - **Verificación**: **134 tests** en verde (tamaño < 5 KB, Shadow DOM, carga diferida, round-trip base64 con acentos/emojis y snippet sin `</script>` inyectado) y E2E con Chromium headless: el botón aparece, `widget-player.js` y Tone.js se cargan solo tras el clic, arranca y pausa; el snippet de 1.217 bytes se genera desde el playground y se copia al portapapeles sin errores 404.
 
 ### ✅ FASE 4.1: Enlace compartido de la Semilla (COMPLETADA)
 
-- **Formato**: la semilla viaja en el fragmento `#seed=<base64url>` (~1,4 KB para un preset). El fragmento no se envía al servidor, así que no hay backend, base de datos ni coste por compartir.
-- **`src/embed.js`**: `encodeShareToken()` / `decodeShareToken()` (UTF-8, base64url sin `+`, `/` ni `=`), `buildShareHash()` y `readShareHash()`.
+- **Formato**: la semilla viaja en el fragmento `#seed=...`. El formato actual es un token binario corto (`~` + base64url, ~200–400 caracteres para un preset) que conserva URL, `detectedVibe`, tema visual y parámetros musicales, pero omite la `explanation` larga; el cliente rellena una explicación localizada. El fragmento no se envía al servidor, así que no hay backend, base de datos ni coste por compartir. Los enlaces antiguos (base64url del JSON completo, ~1,4 KB) se siguen leyendo.
+- **`src/embed.js`**: `encodeShortToken()` / `decodeShortToken()` para el formato corto y `encodeShareToken()` / `decodeShareToken()` para el legado; `readShareHash()` y `decodeAnyToken()` aceptan ambos, y `buildShareHash()` / `buildShareLink()` generan el corto.
 - **Playground ES/EN**: la URL se sincroniza en caliente con `history.replaceState()` al cargar un preset, escanear o mover un slider. El botón **Copiar enlace** copia la URL con fallback a `execCommand` y muestra «Enlace copiado» / «Link copied».
 - **Carga segura**: el JSON del fragmento se valida con `normalizeSeed()` antes de tocar el motor o el DOM. Un enlace corrupto o fuera de contrato carga el preset por defecto y muestra «El enlace compartido no era válido».
 - **Sin autoplay**: al abrir un enlace compartido se muestra la semilla y se pide pulsar Reproducir, respetando la política de gestos del navegador.
 - **Verificación**: **134 tests** (round-trip, base64url, fragmentos sin semilla y tokens corruptos) y E2E con Chromium: slider a 100 BPM → `#seed` cambia → «Copiar enlace» → otra pestaña restaura 100 BPM **sin ninguna petición a `/api/scan`**; enlace inválido → preset con aviso; ES/EN correctos y sin 404 ni errores JS.
+- **Actualización (2026-11-04)**: el enlace pasó de ~1,0–1,4 KB a ~200–400 caracteres. El token corto omite la `explanation` y el cliente muestra una nota localizada; el resto de la semilla se conserva exacto. `buildShareLink()` genera `/s/~...`, el servidor acepta ambos formatos y los enlaces antiguos siguen funcionando. Verificado en Chromium: `/playground/en/` muestra el JSON del preset en inglés, el hash mide ~202 caracteres y cambia al mover un slider manteniéndose corto. **164 tests** en verde.
 
 ### ✅ FASE 4.2: Página SEO «what does my website sound like» (COMPLETADA)
 
@@ -380,7 +381,7 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 ├── src/
 │   ├── i18n.js                                # Diccionarios ES/EN y applyI18n
 │   ├── api.js                                 # /api/scan y backend externo
-│   ├── embed.js                               # Semilla base64, enlace compartido y snippet
+│   ├── embed.js                               # Semilla base64, token corto y snippet del widget
 │   ├── host-mode.js                           # Detección de host estático
 │   ├── backend/
 │   │   ├── scraper.js                         # Extracción HTML/CSS sin dependencias
@@ -459,7 +460,7 @@ npm run dev
 - Mantén `gemini-3.5-flash` como preferido. En Vertex confirma el nombre exacto con `npm run vertex:check` y ajústalo con `VERTEX_MODELS`. No uses `gemini-2.x` (retirado para esta clave) ni `gemini-3.8-flash` (latencia inaceptable).
 - Respeta la regla de cero dependencias npm en backend y el lazy-loading de Tone.js.
 - **Widget**: `widget.js` debe seguir por debajo de 5 KB y sin dependencias; no importes Tone.js ahí. El motor se carga en `widget-player.js` y el snippet se genera con `src/embed.js`. Los estáticos necesitan `Access-Control-Allow-Origin: *` para que se importen desde webs de terceros.
-- **Enlace compartido**: vive solo en `location.hash` (`#seed=`); no lo mandes al backend ni lo guardes en la caché. Valida siempre con `normalizeSeed()` antes de cargarlo. Si cambias el formato, mantén la lectura de enlaces antiguos o falla al preset con aviso.
+- **Enlace compartido**: vive solo en `location.hash` (`#seed=`); no lo mandes al backend ni lo guardes en la caché. Valida siempre con `normalizeSeed()` antes de cargarlo. El token corto (`~` + binario) omite `explanation` a propósito: si tocas el formato, mantén la lectura del base64url antiguo y rellena una explicación localizada cuando falte.
 - **Al publicar**: el snippet usa `https://vibedom.dev/widget.js`. Tras desplegar, comprueba que `/widget.js` y `/widget-player.js` responden tanto en GitHub Pages como en Render.
 - Si cambias el backend, reinicia `npm start` (el proceso en segundo plano no recarga solo).
 - El motor no debe importar Tone.js: se inyecta desde `main.js` para conservar el lazy-loading.

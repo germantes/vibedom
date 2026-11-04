@@ -95,7 +95,9 @@ El playground reutiliza las mismas funciones en su propio `applyTheme`, pero con
 
 ## Compartir una semilla
 
-El playground refleja la semilla activa en el fragmento de la URL (`#seed=...`, base64url de ~1,4 KB). El botón **Copiar enlace** copia un enlace que incluye la semilla y al abrirlo se carga la misma variación **sin llamar a la IA ni al backend**. Los sliders actualizan el enlace en caliente con `history.replaceState()`.
+El playground refleja la semilla activa en el fragmento de la URL (`#seed=...`, un token compacto de ~200–400 caracteres). El botón **Copiar enlace** copia un enlace que incluye la semilla y al abrirlo se carga la misma variación **sin llamar a la IA ni al backend**. Los sliders actualizan el enlace en caliente con `history.replaceState()`.
+
+El token corto conserva la URL, el `detectedVibe`, el tema visual y todos los parámetros musicales. La `explanation` larga se omite para que el enlace no mida ~1 KB; al abrirlo se muestra una explicación localizada que lo indica. Los enlaces antiguos con el JSON completo en base64url se siguen leyendo.
 
 Hay dos formatos, según haya backend o no:
 
@@ -107,7 +109,7 @@ Hay dos formatos, según haya backend o no:
 - El enlace no depende de ninguna base de datos: la semilla viaja dentro del propio enlace y el backend no la guarda.
 - `GET /s/<token>` sirve HTML con `og:title`, `og:description` y `og:image` calculados desde la semilla, más `noindex, follow`; `GET /s/<token>.png` genera la tarjeta 1200×630 al vuelo (fondo, acento, tres muestras y una onda con el BPM y la densidad de la semilla). Sin dependencias: PNG a mano con `node:zlib`.
 - Si el enlace está corrupto o la semilla no cumple el contrato, `/s/` responde `400` con un enlace al playground y el fragmento cae en el preset por defecto avisando.
-- El formato base64url evita `+`, `/`, `=` y cualquier escape dentro de la URL.
+- El token corto usa `~` + base64url (sin `+`, `/`, `=` ni escapes). El prefijo `~` distingue el formato nuevo del base64url antiguo; ambos conviven.
 
 ## Widget embebible
 
@@ -401,7 +403,7 @@ npm test
 * idioma de salida del traductor y separación de la caché por idioma;
 * widget embebible (tamaño < 5 KB, Shadow DOM, carga diferida de Tone.js y `data-label`);
 * snippet (round-trip base64 con acentos y emojis, atributo seguro, origen sin doble barra y `</script>` escapado);
-* enlace compartido (base64url, restauración de la semilla, fragmentos ignorados y enlaces corruptos);
+* enlace compartido (token corto, compatibilidad con el base64url antiguo, restauración de la semilla, fragmentos ignorados y enlaces corruptos);
 * páginas SEO (rutas ES/EN, canonical y hreflang recíprocos, JSON-LD con FAQPage, enlaces internos sin romper y sitemap);
 * documentación del widget y privacidad (rutas ES/EN, hreflang, snippet real, enlaces desde la landing y sitemap);
 * presupuesto de IA (recorte de valores antiguos, límite explícito intacto) y consumo (tokens de entrada, respuesta y razonamiento, coste por modelo y reinicio diario);
