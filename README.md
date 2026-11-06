@@ -1,34 +1,56 @@
 # vibedom
 
-Atmósferas sonoras procedurales para webs: una web se analiza, se traduce a una **Semilla Sonora** (JSON) y el navegador la convierte en un *soundscape* infinito con Tone.js.
+[![Demo](https://img.shields.io/badge/demo-vibedom.dev-d8ff4f?style=flat-square&labelColor=0a0a0c)](https://vibedom.dev/)
+[![English](https://img.shields.io/badge/EN-vibedom.dev%2Fen-111111?style=flat-square)](https://vibedom.dev/en/)
+[![Playground](https://img.shields.io/badge/playground-laboratorio-111111?style=flat-square)](https://vibedom.dev/playground/)
+[![Widget](https://img.shields.io/badge/widget-embed-111111?style=flat-square)](https://vibedom.dev/widget/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-111111?style=flat-square)](LICENSE)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D20-339933?style=flat-square)](package.json)
+[![Tests](https://github.com/germantes/vibedom/actions/workflows/test.yml/badge.svg)](https://github.com/germantes/vibedom/actions/workflows/test.yml)
 
-El producto tiene cuatro frentes:
+**¿A qué suena tu web?** Pega una URL y escucha una atmósfera generativa hecha con su paleta, su tipografía y su movimiento. El sonido se sintetiza en el navegador: sin samples y sin registro.
 
-- **Landing comercial** (`/` y `/en/`): propuesta, demo de presets, escaneo de URL, privacidad, FAQ y acceso al laboratorio.
-- **Página SEO** (`/que-suena-mi-web/` y `/en/what-does-my-website-sound-like/`): respuesta larga a la búsqueda «what does my website sound like», con la misma demo, FAQ y datos estructurados.
-- **Playground** (`/playground/` y `/playground/en/`): el laboratorio técnico con la semilla JSON, sliders en caliente, regeneración y visualizador.
-- **Widget y privacidad** (`/widget/`, `/en/widget/`, `/privacidad/`, `/en/privacy/`): guía para terceros (snippet, CSP, SRI, versionado) y qué datos viajan realmente.
+**What does your website sound like?** Paste a URL and hear a generative atmosphere built from its palette, type and motion. The sound is synthesized in the browser: no samples, no account.
 
-La interfaz está disponible en **español e inglés** mediante rutas estáticas (`/` y `/en/`), con `hreflang` y sin dependencia de JavaScript para elegir idioma.
+### [Probar en vibedom.dev](https://vibedom.dev/)
 
-## Demo
+[Español](https://vibedom.dev/) · [English](https://vibedom.dev/en/) · [Playground](https://vibedom.dev/playground/) · [Playground EN](https://vibedom.dev/playground/en/) · [Widget](https://vibedom.dev/widget/) · [Widget EN](https://vibedom.dev/en/widget/)
 
-Online: **https://vibedom.dev/**
+<img src="assets/readme/scan.gif" alt="Landing de vibedom: se pega https://stripe.com, la página adopta su paleta clara y violeta, y el espectro del navegador empieza a moverse." width="840">
 
-> El escaneo funciona online: la landing de GitHub Pages llama al backend desplegado en Render (`https://vibedom.onrender.com`). Ese servicio se duerme tras 15 minutos sin uso y la página lo despierta con `GET /api/health`, así que el primer análisis del día puede tardar unos segundos más.
->
-> **Evitar el cold start**: el servicio se duerme a los 15 minutos, así que un ping con más separación (cada hora o una vez al día) siempre lo encuentra dormido. En frío, Render tarda ~25 s en servir la primera petición; si el arranque se pasa del tiempo de la plataforma, devuelve su página de arranque y cron-job.org la marca como «Response data too big» aunque la URL sea `/api/ping`: la petición no llega a la app. Para mantenerlo despierto, programa `HEAD /api/ping` **cada 10 minutos**; el primer intento tras un despliegue puede tardar, los siguientes ya reciben `ok` en milisegundos. cron-job.org corta a los 30 s y limita el tamaño de la respuesta. Ojo con el plan free de Render: 750 h/mes; 24/7 consume casi todas (720–744 h según el mes), así que conviene limitar la franja horaria o pasar a un plan de pago si necesitas disponibilidad continua.
+Captura real de la landing en local, con el compositor sin IA: pegar `https://stripe.com`, la interfaz adopta su paleta y Tone.js arranca el espectro. La etiqueta «análisis local» es el fallback del producto cuando Gemini no está. No se usó el servicio de producción.
+
+*Real local capture, no AI: paste `https://stripe.com`, the page takes on its palette and the in-browser spectrum starts. “Local analysis” is the fallback used when Gemini is unavailable.*
+
+## Pruébalo en tres pasos
+
+1. Abre **[vibedom.dev](https://vibedom.dev/)** — o [la página en inglés](https://vibedom.dev/en/).
+2. Pega una URL y pulsa **Escuchar mi web** / **Hear my site**. Si no quieres esperar al análisis, elige Cyberpunk, Editorial o Indie pastel: suenan sin backend.
+3. La página adopta la paleta del sitio y el navegador sintetiza la atmósfera. El audio arranca con ese clic. Tone.js se descarga en ese primer gesto, no al cargar la página.
+
+En local, sin clave:
 
 ```bash
-# Crea .env en la raíz con GEMINI_KEY=...
-npm start              # http://localhost:3000
+npm start    # http://localhost:3000
 ```
 
-Abre la landing, pega una URL y pulsa **Escuchar mi web**. También puedes probar los tres presets sin backend.
+Sin `GEMINI_KEY` ni Vertex, el escaneo usa el compositor local y la interfaz lo marca como «análisis local». Los tres presets funcionan igual.
 
-> El audio arranca tras un gesto del usuario (política de autoplay). Tone.js se descarga desde CDN en ese primer gesto, nunca al cargar la página.
+## Por qué mola / Why it's different
 
-### Rutas
+Traduce decisiones de diseño —color, tipografía, movimiento— a una semilla sonora. No adivina un género ni pone un archivo en bucle.
+
+| | Español | English |
+| --- | --- | --- |
+| **Misma web, misma atmósfera** | La semilla (modo, tempo, timbre y paleta) sale de las señales de esa URL. Sin IA es determinista: mismas señales, misma semilla; el idioma no cambia la música. Con IA, la caché devuelve la misma semilla durante 6 h. Cada reproducción es generativa dentro de esa identidad, no un sample repetido. | The seed (mode, tempo, timbre, palette) comes from that URL’s signals. Without AI it is deterministic: same signals, same seed; language does not change the music. With AI, the cache returns the same seed for 6 h. Each playback is generative inside that identity, not a looped sample. |
+| **Sonido en el cliente** | Tone.js construye pad, drone y arpegio en el navegador. No hay audio pregrabado ni streaming. | Tone.js builds the pad, drone and arpeggio in the browser. There is no prerecorded audio and no streaming. |
+| **Fallback sin IA** | Si no hay clave, la cuota se agota o Gemini falla, un compositor local aplica las mismas reglas estéticas (fondo, saturación, tipografía, movimiento) y la UI lo indica. | If there is no key, the quota is spent or Gemini fails, a local composer applies the same aesthetic rules (background, saturation, type, motion) and the UI says so. |
+| **Widget ligero** | `widget.js` pesa menos de 5 KB, va en Shadow DOM y no toca el CSS del anfitrión. El motor y Tone.js se cargan solo al primer clic. La semilla viaja en `data-seed`. | `widget.js` is under 5 KB, runs in a Shadow DOM and does not touch the host CSS. The engine and Tone.js load only on the first click. The seed travels in `data-seed`. |
+| **Interfaz ES / EN** | Cada idioma tiene su URL (`/`, `/en/`, playground, widget y privacidad), con `hreflang`. No hace falta JavaScript para elegir idioma. El widget sigue `<html lang>`. | Each language has its own URL (landing, playground, widget and privacy), with `hreflang`. No JavaScript is required to pick a language. The widget follows `<html lang>`. |
+
+El laboratorio, con la semilla JSON y los sliders, está en el [playground](https://vibedom.dev/playground/). La guía para incrustar el botón está en [vibedom.dev/widget](https://vibedom.dev/widget/).
+
+## Rutas
 
 | Ruta | Contenido |
 | --- | --- |
@@ -38,8 +60,12 @@ Abre la landing, pega una URL y pulsa **Escuchar mi web**. También puedes proba
 | `/en/what-does-my-website-sound-like/` | Página SEO en inglés |
 | `/playground/` | Playground en español |
 | `/playground/en/` | Playground en inglés |
+| `/widget/` | Guía del widget en español |
+| `/en/widget/` | Guía del widget en inglés |
 
-Los enlaces son relativos para funcionar tanto en `localhost:3000` como en un despliegue bajo subruta (GitHub Pages).
+Los enlaces internos de las páginas son relativos para funcionar tanto en `localhost:3000` como en un despliegue bajo subruta (GitHub Pages).
+
+El producto tiene cuatro frentes: la landing comercial, la página SEO, el playground y el widget con las páginas de privacidad (`/privacidad/`, `/en/privacy/`).
 
 ## Cómo funciona
 
@@ -174,7 +200,7 @@ src/backend/scan-cache.js    caché en memoria de semillas por URL
 src/backend/server.js        servidor node:http (estáticos + /api/scan + health + /s/)
 src/backend/share-preview.js vista previa OG de un enlace compartido
 src/backend/share-image.js   tarjeta PNG 1200×630 generada desde la semilla
-.github/workflows/test.yml   162 tests en cada push y PR
+.github/workflows/test.yml   164 tests en cada push y PR
 .github/workflows/render-deploy.yml  Deploy Hook de Render tras cada push a main
 src/demo/main.js             orquestación del playground
 src/demo/analysis.js         estados y animación del panel de análisis
@@ -321,7 +347,11 @@ La combinación recomendada es **GitHub Pages para la landing** y **Render para 
 npm run set-api -- https://TU-SERVICIO.onrender.com
 ```
 
-Para quitarlo: `npm run set-api -- --clear`. Sin ese `meta`, GitHub Pages sigue mostrando el aviso estático y los presets. Con él, el escaneo funciona también online. El plan gratuito de Render duerme tras unos minutos de inactividad: la landing hace un `GET /api/health` al cargar para despertarlo, pero el primer análisis puede tardar algo más.
+Para quitarlo: `npm run set-api -- --clear`. Sin ese `meta`, GitHub Pages sigue mostrando el aviso estático y los presets. Con él, el escaneo funciona también online.
+
+> El escaneo online llama al backend de Render (`https://vibedom.onrender.com`). Ese servicio se duerme tras 15 minutos sin uso y la página lo despierta con `GET /api/health`, así que el primer análisis del día puede tardar unos segundos más.
+>
+> **Evitar el cold start**: el servicio se duerme a los 15 minutos, así que un ping con más separación (cada hora o una vez al día) siempre lo encuentra dormido. En frío, Render tarda ~25 s en servir la primera petición; si el arranque se pasa del tiempo de la plataforma, devuelve su página de arranque y cron-job.org la marca como «Response data too big» aunque la URL sea `/api/ping`: la petición no llega a la app. Para mantenerlo despierto, programa `HEAD /api/ping` **cada 10 minutos**; el primer intento tras un despliegue puede tardar, los siguientes ya reciben `ok` en milisegundos. cron-job.org corta a los 30 s y limita el tamaño de la respuesta. Ojo con el plan free de Render: 750 h/mes; 24/7 consume casi todas (720–744 h según el mes), así que conviene limitar la franja horaria o pasar a un plan de pago si necesitas disponibilidad continua.
 
 También puedes abrir directamente la URL de Render: el mismo servidor sirve landing, playground y `/api/scan` en un solo origen, sin configurar nada. Es la opción más simple, aunque cada visita en frío espera a que arranque el servicio.
 
@@ -386,7 +416,7 @@ Para añadir uno, crea el JSON en `presets/` y regístralo en `PRESET_IDS` (`src
 npm test
 ```
 
-**162 tests** con `node:test`, sin dependencias:
+**164 tests** con `node:test`, sin dependencias:
 
 * escalas, acordes y conversión MIDI;
 * validación de la semilla y presets reales;
