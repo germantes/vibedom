@@ -611,6 +611,7 @@ a {
 }
 
 .demo-eyebrow {
+  flex: none;
   color: var(--seed-accent-ink);
   font-size: 0.68rem;
   font-weight: 700;
@@ -618,15 +619,17 @@ a {
   text-transform: uppercase;
 }
 
+/* detectedVibe es un título corto, no la explanation. Se deja envolver:
+   el tope del 55% con nowrap lo cortaba con ellipsis («…ele»). */
 .demo-vibe {
-  overflow: hidden;
-  max-width: 55%;
+  min-width: 0;
+  max-width: 100%;
   color: var(--text);
   font-size: 0.82rem;
   font-weight: 650;
+  line-height: 1.35;
   text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .preset-tabs {
@@ -782,6 +785,7 @@ a {
   color: var(--muted);
   font-size: 0.76rem;
   font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
 }
 
 /* ---- Secciones ----------------------------------------------------------- */
@@ -1334,10 +1338,6 @@ h2 {
 
   .viz {
     height: 78px;
-  }
-
-  .demo-vibe {
-    max-width: 48%;
   }
 
   .mapping-grid,
