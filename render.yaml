@@ -60,3 +60,6 @@ services:
       # Alternativa con API key de AI Studio; se pide al crear el servicio.
       - key: GEMINI_KEY
         sync: false
+      # Autoriza GET /api/diagnostics. Si falta, esa ruta responde 404.
+      - key: DIAGNOSTICS_TOKEN
+        sync: false

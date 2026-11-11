@@ -3,7 +3,7 @@
 // En Render los logs solo se ven desde el panel; si el proceso muere a mitad de
 // un escaneo necesitamos saber hasta dónde llegó. Escribimos pocas líneas en
 // /tmp (se borra en cada despliegue, sobrevive a un reinicio del proceso) y las
-// exponemos en /api/diagnostics.
+// exponemos en /api/diagnostics si DIAGNOSTICS_TOKEN está definido.
 //
 // Nunca lanza: una traza jamás debe tumbar un escaneo.
 

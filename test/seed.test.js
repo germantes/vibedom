@@ -67,3 +67,17 @@ test("rechaza entrada que no es objeto", () => {
   assert.throws(() => normalizeSeed(null), SeedError);
   assert.throws(() => normalizeSeed("{}"), SeedError);
 });
+
+test("recorta los textos libres que devuelve el modelo", () => {
+  const seed = base();
+  seed.metadata.url = `https://example.test/${"a".repeat(3000)}`;
+  seed.metadata.detectedVibe = "v".repeat(200);
+  seed.metadata.explanation = "e".repeat(800);
+  const out = normalizeSeed(seed);
+  assert.equal(out.metadata.url.length, 2048);
+  assert.equal(out.metadata.detectedVibe.length, 80);
+  assert.equal(out.metadata.explanation.length, 300);
+  assert.ok(out.metadata.url.startsWith("https://example.test/"));
+  assert.equal(out.musicalParams.bpm, seed.musicalParams.bpm);
+  assert.equal(out.uiTheme.fontFamily, seed.uiTheme.fontFamily);
+});
