@@ -82,6 +82,44 @@ test("extractSemantic limpia etiquetas, decodifica y recorta", () => {
   assert.doesNotMatch(semantic.textSample, /Space Mono/);
 });
 
+test("extractSemantic lee la descripción en cualquier orden y cae a og:description", () => {
+  assert.equal(extractSemantic('<meta content="Primero" name="description">').description, "Primero");
+  assert.equal(extractSemantic('<meta property="og:description" content="Social">').description, "Social");
+  assert.equal(
+    extractSemantic('<meta property="og:description" content="Social"><meta name="description" content="Real">')
+      .description,
+    "Real",
+  );
+});
+
+test("extractSemantic recorta título, descripción y cada h1", () => {
+  const html = `<title>${"T".repeat(500)}</title>
+    <meta name="description" content="${"D".repeat(500)}">
+    <h1>${"H".repeat(400)}</h1>
+    <h1>Corto</h1>`;
+  const semantic = extractSemantic(html);
+  assert.equal(semantic.title, "T".repeat(200));
+  assert.equal(semantic.description, "D".repeat(200));
+  assert.equal(semantic.headings[0], "H".repeat(120));
+  assert.equal(semantic.headings[1], "Corto");
+});
+
+test("extractSemantic no se bloquea con un HTML patológico", { timeout: 5000 }, () => {
+  // `<meta ` repetido no tiene `>`. El regex `<meta[^>]*name=…[^>]*content=…`
+  // reintentaba desde cada ocurrencia y tardaba ~27 s (extractThemeColor, otros
+  // ~7 s). Al ser síncrono, el watchdog de 45 s no llegaba a abortar el proceso.
+  const html = "<meta ".repeat(40_000);
+  assert.equal(html.length, 240_000);
+  const started = Date.now();
+  const semantic = extractSemantic(html);
+  assert.equal(extractThemeColor(html), null);
+  const elapsed = Date.now() - started;
+  assert.equal(semantic.title, "");
+  assert.equal(semantic.description, "");
+  assert.deepEqual(semantic.headings, []);
+  assert.ok(elapsed < 250, `tardó ${elapsed} ms en ${html.length} bytes`);
+});
+
 test("extractThemeColor solo acepta hex", () => {
   assert.equal(extractThemeColor(HTML), "#ff0055");
   assert.equal(extractThemeColor('<meta name="theme-color" content="rebeccapurple">'), null);
@@ -141,6 +179,109 @@ test("extractFonts clasifica familias y deduplica categorías", () => {
 test("detectMotion detecta animaciones y transiciones", () => {
   assert.deepEqual(detectMotion(HTML), { hasAnimations: true, hasTransitions: true });
   assert.deepEqual(detectMotion("body { color: red }"), { hasAnimations: false, hasTransitions: false });
+});
+
+test("scrapeUrl no se bloquea con el mismo HTML patológico", { timeout: 5000 }, async () => {
+  const html = "<meta ".repeat(40_000);
+  const started = Date.now();
+  const signals = await scrapeUrl("https://evil.test/", {
+    fetchImpl: async () => textResponse(html),
+  });
+  const elapsed = Date.now() - started;
+  assert.equal(signals.description, "");
+  assert.equal(signals.themeColor, null);
+  assert.ok(elapsed < 250, `tardó ${elapsed} ms`);
+});
+
+/** Cuerpo por trozos, para comprobar que no se lee más allá del tope. */
+function chunkStream(chunks, { type = "text/html; charset=utf-8", headers = {} } = {}) {
+  let pulls = 0;
+  let cancelled = false;
+  const stream = new ReadableStream({
+    pull(controller) {
+      if (cancelled) return;
+      if (pulls >= chunks.length) {
+        controller.close();
+        return;
+      }
+      const chunk = chunks[pulls];
+      pulls += 1;
+      controller.enqueue(typeof chunk === "string" ? new TextEncoder().encode(chunk) : chunk);
+    },
+    cancel() {
+      cancelled = true;
+    },
+  });
+  const res = new Response(stream, { status: 200, headers: { "content-type": type, ...headers } });
+  return {
+    res,
+    get pulls() {
+      return pulls;
+    },
+    get cancelled() {
+      return cancelled;
+    },
+  };
+}
+
+test("un cuerpo sin content-length que supera el tope se aborta", async () => {
+  const chunk = new Uint8Array(800);
+  const body = chunkStream(Array.from({ length: 20 }, () => chunk));
+  await assert.rejects(
+    scrapeUrl("https://huge.test/", { fetchImpl: async () => body.res, maxBytes: 1000 }),
+    (err) => {
+      assert.ok(err instanceof ScrapeError);
+      assert.match(err.message, /No se pudo cargar/);
+      assert.match(err.diagnostic, /demasiado grande/);
+      return true;
+    },
+  );
+  assert.equal(body.cancelled, true);
+  assert.ok(body.pulls < 20, `leyó ${body.pulls} trozos de 20`);
+});
+
+test("content-length por encima del tope no descarga el cuerpo", async () => {
+  // 20 trozos: cancelar el body puede arrastrar el primero, pero no el resto.
+  const body = chunkStream(
+    Array.from({ length: 20 }, () => new Uint8Array(800)),
+    { headers: { "content-length": "999999" } },
+  );
+  await assert.rejects(
+    scrapeUrl("https://huge.test/", { fetchImpl: async () => body.res, maxBytes: 1000 }),
+    (err) => {
+      assert.ok(err instanceof ScrapeError);
+      assert.match(err.diagnostic, /demasiado grande \(977 KB\)/);
+      return true;
+    },
+  );
+  assert.ok(body.pulls < 5, `leyó ${body.pulls} trozos de 20`);
+});
+
+test("un cuerpo en trozos por debajo del tope se lee entero", async () => {
+  const body = chunkStream(["<title>Trozos</title>", "<h1>Hola</h1>"]);
+  const signals = await scrapeUrl("https://stream.test/", {
+    fetchImpl: async () => body.res,
+    maxBytes: 2000,
+  });
+  assert.equal(signals.title, "Trozos");
+  assert.deepEqual(signals.headings, ["Hola"]);
+  assert.equal(body.cancelled, false);
+  assert.equal(body.pulls, 2);
+});
+
+test("una hoja CSS que supera el tope se corta y el HTML sigue", async () => {
+  const chunk = new Uint8Array(800);
+  const css = chunkStream(
+    Array.from({ length: 20 }, () => chunk),
+    { type: "text/css" },
+  );
+  const signals = await scrapeUrl("https://studio.test/", {
+    fetchImpl: async (url) => (String(url).endsWith(".css") ? css.res : textResponse('<title>Ok</title><link rel="stylesheet" href="/big.css">')),
+    maxBytes: 1000,
+  });
+  assert.equal(signals.title, "Ok");
+  assert.equal(css.cancelled, true);
+  assert.ok(css.pulls < 20, `leyó ${css.pulls} trozos de CSS`);
 });
 
 test("scrapeUrl combina HTML, CSS enlazada y atributos style", async () => {

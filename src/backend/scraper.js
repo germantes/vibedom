@@ -1,5 +1,7 @@
 // Scraper ligero: extrae señales estéticas y semánticas de una URL sin navegador.
-// Usa solo fetch + regex (zero deps). No ve CSS computado ni contenido JS-rendered,
+// Usa solo fetch (zero deps). El HTML se recorre con indexOf: los regex de
+// etiquetas (`<meta[^>]*…`, `<h1[^>]*>…`) eran cuadráticos y, al ser síncronos,
+// bloqueaban el proceso entero. No ve CSS computado ni contenido JS-rendered,
 // pero el LLM interpreta las señales crudas de sobra.
 //
 // Opciones (pensadas para tests y para el servidor):
@@ -24,6 +26,15 @@ const SCRAPE_BUDGET_MS = 20000;
 const MAX_CSS_FETCHES = 4;
 const MAX_REDIRECTS = 5;
 const MAX_BYTES = 2_000_000;
+// Lo que se manda al modelo. Un <title> o un <h1> de cientos de KB no aportan
+// señal y sí inflan el prompt (y la factura).
+const MAX_TITLE_CHARS = 200;
+const MAX_DESCRIPTION_CHARS = 200;
+const MAX_HEADING_CHARS = 120;
+const MAX_TEXT_SAMPLE = 600;
+// Buscar </h1> o </title> hasta el final del documento, una vez por etiqueta,
+// vuelve a ser cuadrático si la etiqueta no cierra. Este tope acota cada búsqueda.
+const MAX_ELEMENT_RAW = 4_000;
 const TEXTUAL = /^(text\/|application\/(?:xhtml\+xml|xml|json|javascript|css)|$)/i;
 /** Host de una URL, para trazas sin rutas ni parámetros privados. */
 function hostOf(value) {
@@ -47,10 +58,43 @@ export class ScrapeError extends Error {
   }
 }
 
+/**
+ * Lee el cuerpo en trozos y corta la conexión en cuanto supera `maxBytes`.
+ * `content-length` puede faltar (chunked) o mentir; `res.text()` se lo tragaría
+ * entero, y con 4 CSS en paralelo eso tumba una instancia de 512 MB.
+ */
+async function readLimited(res, maxBytes) {
+  const body = res.body;
+  if (!body || typeof body.getReader !== "function") return { overflow: false, text: "" };
+
+  const reader = body.getReader();
+  const chunks = [];
+  let received = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const size = value?.byteLength ?? 0;
+      if (!size) continue;
+      if (received + size > maxBytes) {
+        await reader.cancel().catch(() => {});
+        return { overflow: true, text: "" };
+      }
+      received += size;
+      chunks.push(Buffer.from(value));
+    }
+  } catch (err) {
+    await reader.cancel().catch(() => {});
+    throw err;
+  }
+
+  return { overflow: false, text: chunks.length ? Buffer.concat(chunks).toString("utf8") : "" };
+}
+
 /** Fetch con timeout, redirecciones controladas y User-Agent. */
 async function safeFetch(
   url,
-  { fetchImpl = fetch, validateUrl = null, signal, headers = {}, trace, onTrace, deadline } = {},
+  { fetchImpl = fetch, validateUrl = null, signal, headers = {}, trace, onTrace, deadline, maxBytes = MAX_BYTES } = {},
 ) {
   let current = url;
   // `trace` se queda en el error (diagnóstico para el cliente); `onTrace`
@@ -112,15 +156,20 @@ async function safeFetch(
       }
 
       const length = Number(res.headers.get("content-length"));
-      if (Number.isFinite(length) && length > MAX_BYTES) {
+      if (Number.isFinite(length) && length > maxBytes) {
         note(`demasiado grande (${Math.round(length / 1024)} KB)`);
         await res.body?.cancel().catch(() => {});
         return null;
       }
 
-      const text = await res.text();
+      const read = await readLimited(res, maxBytes);
+      if (read.overflow) {
+        note(`demasiado grande (>${Math.round(maxBytes / 1024)} KB)`);
+        return null;
+      }
+      const text = read.text;
       note(`leída ${hostOf(current)} ${Math.round(text.length / 1024)}KB ${Date.now() - startedHop}ms`);
-      return { text: text.length > MAX_BYTES ? text.slice(0, MAX_BYTES) : text, url: current };
+      return { text, url: current };
     } catch (err) {
       if (signal?.aborted) throw signal.reason ?? err;
       const reason =
@@ -142,15 +191,142 @@ async function safeFetch(
 }
 
 // ---- Extractores de HTML ---------------------------------------------------
+// Un solo pase con indexOf. Cada búsqueda empieza donde acabó la anterior, así
+// que un HTML de `<meta ` repetido (sin `>`) termina en una pasada y no en el
+// reintento cuadrático del regex `[^>]*…[^>]*`.
 
-function first(html, regex) {
-  return html.match(regex)?.[1]?.trim() ?? "";
+function isNameChar(code) {
+  return (code >= 97 && code <= 122) || (code >= 48 && code <= 57) || code === 45 || code === 58;
 }
 
-function all(html, regex) {
-  const out = [];
-  for (const m of html.matchAll(regex)) out.push(m[1].trim());
-  return out;
+function isSpace(code) {
+  return code === 32 || code === 9 || code === 10 || code === 13 || code === 12;
+}
+
+function clipText(value, max) {
+  if (typeof value !== "string" || value.length <= max) return value;
+  let end = max;
+  const tail = value.charCodeAt(end - 1);
+  // No partir un par subrogado (un emoji a caballo del corte).
+  if (tail >= 0xd800 && tail <= 0xdbff) end -= 1;
+  return value.slice(0, Math.max(0, end));
+}
+
+/** Atributo dentro de una etiqueta ya delimitada por `>`. Solo mira ese trozo. */
+function attrValue(attrs, attrsLower, name) {
+  let i = 0;
+  while (i < attrs.length) {
+    while (i < attrs.length && (isSpace(attrsLower.charCodeAt(i)) || attrsLower[i] === "/")) i++;
+    if (i >= attrs.length) break;
+    let j = i;
+    while (j < attrs.length && isNameChar(attrsLower.charCodeAt(j))) j++;
+    if (j === i) {
+      i++;
+      continue;
+    }
+    const key = attrsLower.slice(i, j);
+    i = j;
+    while (i < attrs.length && isSpace(attrsLower.charCodeAt(i))) i++;
+    if (attrsLower[i] !== "=") continue;
+    i++;
+    while (i < attrs.length && isSpace(attrsLower.charCodeAt(i))) i++;
+    if (i >= attrs.length) break;
+    const quote = attrs[i];
+    let value = "";
+    if (quote === '"' || quote === "'") {
+      const end = attrs.indexOf(quote, i + 1);
+      value = end === -1 ? attrs.slice(i + 1) : attrs.slice(i + 1, end);
+      i = end === -1 ? attrs.length : end + 1;
+    } else {
+      const start = i;
+      while (i < attrs.length && !isSpace(attrsLower.charCodeAt(i))) i++;
+      value = attrs.slice(start, i);
+    }
+    if (key === name) return value;
+  }
+  return null;
+}
+
+/** Salta un <script> o <style> cerrado. null si no hay cierre: no nos tragamos el resto. */
+function skipBlock(lower, gt, name) {
+  const marker = `</${name}`;
+  const at = lower.indexOf(marker, gt + 1);
+  if (at === -1) return null;
+  const closeGt = lower.indexOf(">", at + marker.length);
+  if (closeGt === -1) return null;
+  return { contentEnd: at, next: closeGt + 1 };
+}
+
+/** Texto hasta el cierre, acotado para que un <h1> sin </h1> no rescanee la página. */
+function readInner(html, lower, gt, name) {
+  const marker = `</${name}`;
+  const windowEnd = Math.min(html.length, gt + 1 + MAX_ELEMENT_RAW);
+  const at = lower.slice(gt + 1, windowEnd).indexOf(marker);
+  if (at === -1) return html.slice(gt + 1, windowEnd);
+  return html.slice(gt + 1, gt + 1 + at);
+}
+
+/**
+ * Recorre etiquetas de apertura. `onTag` puede devolver el índice por el que
+ * seguir, o false para parar. <script> y <style> cerrados no se visitan: su
+ * contenido no es texto visible. El CSS de <style> sale por `onStyle`.
+ */
+function walkHtml(html, { onText, onTag, onStyle } = {}) {
+  const lower = html.toLowerCase();
+  let i = 0;
+  while (i < html.length) {
+    const lt = lower.indexOf("<", i);
+    if (lt === -1) {
+      if (i < html.length) onText?.(html.slice(i));
+      break;
+    }
+    if (lt > i) onText?.(html.slice(i, lt));
+
+    if (lower.startsWith("<!--", lt)) {
+      const end = lower.indexOf("-->", lt + 4);
+      if (end === -1) break;
+      i = end + 3;
+      continue;
+    }
+
+    const gt = lower.indexOf(">", lt + 1);
+    if (gt === -1) {
+      onText?.(html.slice(lt));
+      break;
+    }
+
+    const code = lower.charCodeAt(lt + 1);
+    if (code < 97 || code > 122) {
+      i = gt + 1;
+      continue;
+    }
+
+    let nameEnd = lt + 2;
+    while (nameEnd < gt && isNameChar(lower.charCodeAt(nameEnd))) nameEnd++;
+    const name = lower.slice(lt + 1, nameEnd);
+
+    if (name === "script" || name === "style") {
+      const skipped = skipBlock(lower, gt, name);
+      if (skipped) {
+        if (name === "style") onStyle?.(html.slice(gt + 1, skipped.contentEnd));
+        i = skipped.next;
+        continue;
+      }
+    }
+
+    // El retorno es una señal: un índice para seguir, o false para parar.
+    // Cualquier otro valor (también el número que devuelve Array.push) se ignora.
+    const next = onTag?.({
+      name,
+      attrs: html.slice(nameEnd, gt),
+      attrsLower: lower.slice(nameEnd, gt),
+      gt,
+      lower,
+      html,
+    });
+    if (next === false) return;
+    i = typeof next === "number" && next > gt ? next : gt + 1;
+  }
 }
 
 const ENTITIES = {
@@ -186,53 +362,98 @@ function safeCodePoint(code) {
 }
 
 export function stripTags(html) {
-  return decodeEntities(
-    html
-      .replace(/<script[\s\S]*?<\/script>/gi, "")
-      .replace(/<style[\s\S]*?<\/style>/gi, "")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim(),
-  );
+  const parts = [];
+  walkHtml(html, {
+    onText: (chunk) => parts.push(chunk),
+    onTag: () => {
+      parts.push(" ");
+    },
+  });
+  return decodeEntities(parts.join("").replace(/\s+/g, " ").trim());
 }
 
 export function extractSemantic(html) {
-  const title = decodeEntities(first(html, /<title[^>]*>([\s\S]*?)<\/title>/i));
-  const description =
-    decodeEntities(first(html, /<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["']/i)) ||
-    decodeEntities(first(html, /<meta[^>]*content=["']([^"']*)["'][^>]*name=["']description["']/i)) ||
-    decodeEntities(first(html, /<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']*)["']/i));
+  let title = "";
+  let description = "";
+  let ogDescription = "";
+  const headings = [];
+  let sample = "";
+
+  walkHtml(html, {
+    onText: (chunk) => {
+      if (sample.length >= MAX_TEXT_SAMPLE + 200) return;
+      sample += chunk.slice(0, MAX_TEXT_SAMPLE + 200 - sample.length);
+    },
+    onTag: (tag) => {
+      if (tag.name === "title" && !title) {
+        title = clipText(decodeEntities(readInner(tag.html, tag.lower, tag.gt, "title")).trim(), MAX_TITLE_CHARS);
+        return;
+      }
+      if (tag.name === "meta") {
+        const content = attrValue(tag.attrs, tag.attrsLower, "content");
+        if (!content) return;
+        const name = (attrValue(tag.attrs, tag.attrsLower, "name") || "").toLowerCase();
+        const prop = (attrValue(tag.attrs, tag.attrsLower, "property") || "").toLowerCase();
+        const text = clipText(decodeEntities(content).trim(), MAX_DESCRIPTION_CHARS);
+        if (!text) return;
+        if (!description && name === "description") description = text;
+        else if (!ogDescription && prop === "og:description") ogDescription = text;
+        return;
+      }
+      if (tag.name === "h1" && headings.length < 5) {
+        const text = stripTags(readInner(tag.html, tag.lower, tag.gt, "h1"));
+        if (text) headings.push(clipText(text, MAX_HEADING_CHARS));
+      }
+    },
+  });
 
   return {
     title,
-    description,
-    headings: all(html, /<h1[^>]*>([\s\S]*?)<\/h1>/gi).map(stripTags).filter(Boolean).slice(0, 5),
-    textSample: stripTags(html).slice(0, 600),
+    description: description || ogDescription,
+    headings,
+    textSample: decodeEntities(sample.replace(/\s+/g, " ").trim()).slice(0, MAX_TEXT_SAMPLE),
   };
 }
 
 export function extractThemeColor(html) {
-  const value = first(html, /<meta[^>]*name=["']theme-color["'][^>]*content=["']([^"']+)["']/i);
-  return /^#[0-9a-fA-F]{3,8}$/.test(value) ? value : null;
+  let value = null;
+  walkHtml(html, {
+    onTag: (tag) => {
+      if (tag.name !== "meta") return;
+      if ((attrValue(tag.attrs, tag.attrsLower, "name") || "").toLowerCase() !== "theme-color") return;
+      value = (attrValue(tag.attrs, tag.attrsLower, "content") || "").trim();
+      return false;
+    },
+  });
+  return /^#[0-9a-fA-F]{3,8}$/.test(value ?? "") ? value : null;
 }
 
 // ---- Extractores de CSS ----------------------------------------------------
 
 async function gatherCSS(html, baseUrl, fetchOptions) {
-  // CSS inline dentro de <style>
-  const inline = all(html, /<style[^>]*>([\s\S]*?)<\/style>/gi).join("\n");
+  const styles = [];
+  const hrefs = [];
+  const inlineAttrs = [];
 
-  // Hojas enlazadas
-  const hrefs = all(html, /<link[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["']/gi).concat(
-    all(html, /<link[^>]*href=["']([^"']+)["'][^>]*rel=["']stylesheet["']/gi),
-  );
+  walkHtml(html, {
+    onStyle: (css) => styles.push(css),
+    onTag: (tag) => {
+      if (tag.name === "link") {
+        const rel = (attrValue(tag.attrs, tag.attrsLower, "rel") || "").toLowerCase();
+        if (rel.split(/\s+/).includes("stylesheet")) {
+          const href = attrValue(tag.attrs, tag.attrsLower, "href")?.trim();
+          if (href) hrefs.push(href);
+        }
+      }
+      const style = attrValue(tag.attrs, tag.attrsLower, "style");
+      if (style) inlineAttrs.push(style);
+    },
+  });
+
   const unique = [...new Set(hrefs)].slice(0, MAX_CSS_FETCHES);
   const sheets = await Promise.all(unique.map(async (href) => (await safeFetch(new URL(href, baseUrl).href, fetchOptions))?.text));
 
-  // Atributos style= en elementos
-  const inlineAttrs = all(html, /style=["']([^"']+)["']/gi).join("; ");
-
-  return [inline, ...sheets.filter(Boolean), inlineAttrs].join("\n");
+  return [styles.join("\n"), ...sheets.filter(Boolean), inlineAttrs.join("; ")].join("\n");
 }
 
 const HEX_RE = /#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})\b/g;

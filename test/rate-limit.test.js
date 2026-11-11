@@ -8,10 +8,30 @@ const req = (headers = {}, remoteAddress = "203.0.113.7") => ({
   socket: { remoteAddress },
 });
 
-test("clientIp usa la última IP de X-Forwarded-For y cae al socket", () => {
-  assert.equal(clientIp(req({ "x-forwarded-for": "1.1.1.1, 198.51.100.4" })), "198.51.100.4");
+test("clientIp prefiere Cloudflare y, si no, la última X-Forwarded-For", () => {
+  const edge = { "x-forwarded-for": "1.1.1.1, 198.51.100.4" };
+  assert.equal(
+    clientIp(req({ "cf-connecting-ip": "203.0.113.10", "true-client-ip": "203.0.113.11", ...edge })),
+    "203.0.113.10",
+  );
+  assert.equal(clientIp(req({ "true-client-ip": "203.0.113.11", ...edge })), "203.0.113.11");
+  assert.equal(clientIp(req({ "cf-connecting-ip": ["203.0.113.12", "9.9.9.9"] })), "203.0.113.12");
+  assert.equal(clientIp(req({ "cf-connecting-ip": "no-es-una-ip", ...edge })), "198.51.100.4");
+  assert.equal(clientIp(req(edge)), "198.51.100.4");
   assert.equal(clientIp(req({ "x-forwarded-for": ["1.1.1.1", "198.51.100.5"] })), "198.51.100.5");
   assert.equal(clientIp(req()), "203.0.113.7");
+});
+
+test("la cuota separa clientes detrás del mismo edge de Cloudflare", () => {
+  const check = createRateLimiter({ limit: 1, windowMs: 60_000, now: () => 0 });
+  const headers = (ip) => ({
+    "cf-connecting-ip": ip,
+    "x-forwarded-for": "10.1.1.1, 198.51.100.9",
+  });
+
+  assert.equal(check(req(headers("203.0.113.10"))).ok, true);
+  assert.equal(check(req(headers("203.0.113.10"))).ok, false);
+  assert.equal(check(req(headers("203.0.113.11"))).ok, true);
 });
 
 test("el limitador permite hasta el límite y luego devuelve retryAfter", () => {

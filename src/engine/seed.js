@@ -1,6 +1,7 @@
 // Validación de la "Semilla Sonora" (contrato JSON de la spec, sección 4).
 // Política: tipos, enums y colores inválidos → SeedError con todos los problemas;
-// números fuera de rango → se recortan al rango seguro (el LLM puede pasarse).
+// números fuera de rango → se recortan al rango seguro (el LLM puede pasarse);
+// textos libres → se recortan para que un párrafo enorme no se guarde ni se pinte.
 
 import { SCALES, pitchClass } from "./scales.js";
 
@@ -24,6 +25,21 @@ export const RANGES = Object.freeze({
 });
 
 const HEX_COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+
+/** Tope de los textos que devuelve el modelo. No cambia la forma de la semilla. */
+const TEXT_LIMITS = Object.freeze({
+  "metadata.url": 2048,
+  "metadata.detectedVibe": 80,
+  "metadata.explanation": 300,
+});
+
+function clipText(value, max) {
+  if (value.length <= max) return value;
+  let end = max;
+  const tail = value.charCodeAt(end - 1);
+  if (tail >= 0xd800 && tail <= 0xdbff) end -= 1;
+  return value.slice(0, Math.max(0, end));
+}
 
 export class SeedError extends Error {
   constructor(issues) {
@@ -68,6 +84,12 @@ export function normalizeSeed(input) {
     return Math.min(max, Math.max(min, value));
   };
 
+  const capped = (path) => {
+    const value = string(path);
+    const max = TEXT_LIMITS[path];
+    return typeof value === "string" && value.length > max ? clipText(value, max) : value;
+  };
+
   const rootNote = string("musicalParams.rootNote");
   if (typeof rootNote === "string") {
     try {
@@ -79,9 +101,9 @@ export function normalizeSeed(input) {
 
   const seed = {
     metadata: {
-      url: string("metadata.url"),
-      detectedVibe: string("metadata.detectedVibe"),
-      explanation: string("metadata.explanation"),
+      url: capped("metadata.url"),
+      detectedVibe: capped("metadata.detectedVibe"),
+      explanation: capped("metadata.explanation"),
     },
     uiTheme: {
       backgroundColor: color("uiTheme.backgroundColor"),

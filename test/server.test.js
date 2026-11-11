@@ -4,6 +4,7 @@ import { request } from "node:http";
 import { readFileSync } from "node:fs";
 
 import { startServer } from "../src/backend/server.js";
+import { createRateLimiter } from "../src/backend/rate-limit.js";
 import { createScanCache } from "../src/backend/scan-cache.js";
 import { createScanBudget } from "../src/backend/scan-budget.js";
 import { UnsafeUrlError } from "../src/backend/url-guard.js";
@@ -677,12 +678,78 @@ test("si la IA se cuelga, el presupuesto de la petición responde con la semilla
   }
 });
 
-test("GET /api/diagnostics expone la traza y el estado del proceso", async () => {
-  const res = await fetch(`${base}/api/diagnostics`);
-  assert.equal(res.status, 200);
-  const body = await res.json();
-  assert.equal(body.ok, true);
-  assert.ok(Array.isArray(body.events));
-  assert.ok(body.uptimeS >= 0);
-  assert.ok(body.rssMb > 0);
+test("GET /api/diagnostics exige DIAGNOSTICS_TOKEN y no afecta al resto", async () => {
+  const previous = process.env.DIAGNOSTICS_TOKEN;
+  const restore = () => {
+    if (previous === undefined) delete process.env.DIAGNOSTICS_TOKEN;
+    else process.env.DIAGNOSTICS_TOKEN = previous;
+  };
+
+  try {
+    delete process.env.DIAGNOSTICS_TOKEN;
+    const disabled = await fetch(`${base}/api/diagnostics`);
+    assert.equal(disabled.status, 404);
+    assert.equal((await disabled.json()).events, undefined);
+
+    const health = await fetch(`${base}/api/health`);
+    assert.equal(health.status, 200);
+
+    process.env.DIAGNOSTICS_TOKEN = "secreto-de-prueba";
+    const missing = await fetch(`${base}/api/diagnostics`);
+    assert.equal(missing.status, 401);
+    const wrong = await fetch(`${base}/api/diagnostics`, { headers: { authorization: "Bearer otro" } });
+    assert.equal(wrong.status, 401);
+    const viaQuery = await fetch(`${base}/api/diagnostics?token=secreto-de-prueba`);
+    assert.equal(viaQuery.status, 401);
+
+    const ok = await fetch(`${base}/api/diagnostics`, { headers: { authorization: "Bearer secreto-de-prueba" } });
+    assert.equal(ok.status, 200);
+    const body = await ok.json();
+    assert.equal(body.ok, true);
+    assert.ok(Array.isArray(body.events));
+    assert.ok(body.uptimeS >= 0);
+    assert.ok(body.rssMb > 0);
+
+    const header = await fetch(`${base}/api/diagnostics?ruido=1`, { headers: { "x-diagnostics-token": "secreto-de-prueba" } });
+    assert.equal(header.status, 200);
+  } finally {
+    restore();
+  }
+});
+
+test("el tope diario por IP usa CF-Connecting-IP, no la IP del edge", async () => {
+  const srv = await startServer({
+    port: 0,
+    logger: silent,
+    validateUrl: async (url) => url,
+    scrape: async (url) => ({ url, title: "Studio", colors: { all: ["#111111"], background: "#111111", isDark: true } }),
+    translateSeed: async () => SEED,
+    rateLimit: createRateLimiter({ limit: 10, windowMs: 60_000 }),
+    scanBudget: createScanBudget({ dailyLimit: 10, ipLimit: 1 }),
+    cache: createScanCache({ ttlMs: 0 }),
+  });
+  const url = `http://127.0.0.1:${srv.address().port}`;
+  const scan = (ip) =>
+    fetch(`${url}/api/scan`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "cf-connecting-ip": ip,
+        "x-forwarded-for": "10.0.0.1, 198.51.100.9",
+      },
+      body: JSON.stringify({ url: "https://studio.test/budget" }),
+    });
+
+  try {
+    const first = await (await scan("203.0.113.10")).json();
+    const second = await (await scan("203.0.113.10")).json();
+    const other = await (await scan("203.0.113.11")).json();
+    assert.equal(first.metadata.detectedVibe, SEED.metadata.detectedVibe);
+    assert.equal(first.metadata.source, undefined);
+    assert.equal(second.metadata.source, "local");
+    assert.equal(other.metadata.detectedVibe, SEED.metadata.detectedVibe);
+    assert.equal(other.metadata.source, undefined);
+  } finally {
+    await new Promise((resolve) => srv.close(resolve));
+  }
 });

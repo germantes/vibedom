@@ -4,6 +4,7 @@
 // Exporta createVibedomServer() para poder montarlo en tests con dependencias
 // falsas (scraper, traductor y validador de URLs inyectables).
 
+import { timingSafeEqual } from "node:crypto";
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { extname, isAbsolute, relative, resolve } from "node:path";
@@ -405,6 +406,39 @@ function makeStaticHandler(root) {
   };
 }
 
+function diagnosticsSecret() {
+  const token = String(process.env.DIAGNOSTICS_TOKEN ?? "").trim();
+  return token || null;
+}
+
+function presentedDiagnosticsToken(req) {
+  const header = req.headers?.["x-diagnostics-token"];
+  const raw = Array.isArray(header) ? header[0] : header;
+  const fromHeader = String(raw ?? "").trim();
+  if (fromHeader) return fromHeader;
+  const match = /^Bearer\s+(\S+)\s*$/i.exec(String(req.headers?.authorization ?? ""));
+  return match?.[1] ?? "";
+}
+
+function sameSecret(provided, expected) {
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || a.length === 0) return false;
+  return timingSafeEqual(a, b);
+}
+
+/**
+ * 404 si la ruta está apagada (sin DIAGNOSTICS_TOKEN): no anuncia que existe.
+ * 401 si el secreto está puesto y la petición no lo trae. El token va en
+ * `Authorization: Bearer` o en `X-Diagnostics-Token`, nunca en la query (acabaría
+ * en logs y en Referer).
+ */
+function authorizeDiagnostics(req) {
+  const expected = diagnosticsSecret();
+  if (!expected) return 404;
+  return sameSecret(presentedDiagnosticsToken(req), expected) ? 200 : 401;
+}
+
 // ---- Router ----------------------------------------------------------------
 
 /**
@@ -472,8 +506,14 @@ export function createVibedomServer({
       return res.end(req.method === "HEAD" ? undefined : "ok");
     }
 
-    if (req.method === "GET" && req.url === "/api/diagnostics") {
+    const requestPath = (req.url ?? "").split("?")[0];
+    if (req.method === "GET" && requestPath === "/api/diagnostics") {
       // Traza mínima para depurar caídas: solo hosts, estados y tiempos.
+      // No es pública: lista webs recién escaneadas y mensajes de error.
+      const status = authorizeDiagnostics(req);
+      if (status !== 200) {
+        return json(res, status, { error: status === 401 ? "No autorizado" : "Not found" });
+      }
       return json(res, 200, {
         ok: true,
         uptimeS: Math.round(process.uptime()),
