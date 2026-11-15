@@ -323,6 +323,7 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **Cliente**: la sección está oculta hasta que `IntersectionObserver` la acerca, cachea cada periodo 5 min y usa pestañas ARIA con navegación por flechas. Si `CAN_SCAN` es falso, no se muestra.
 - **Privacidad**: landing, FAQ y páginas de privacidad explican el cambio: desaparece la frase «la URL no se guarda en una base de datos» y se concreta «del ranking solo quedan el dominio y el día».
 - **Verificación**: 185 tests (nuevos los del store y `/api/top`), ES/EN en Chromium y `curl` contra Upstash con `ZINCRBY`/`ZUNIONSTORE`/`ZREVRANGE`.
+- **Producción (2026-11-15)**: deploy de `873fe74` en Render y GitHub Pages; `/api/health` expone `top`, `/api/top` responde en los tres periodos y un escaneo real de `example.com` apareció en el ranking ES/EN de `vibedom.dev` sin errores de consola ni overflow a 390 px.
 - **Pendiente operativo**: la base Upstash temporal caduca el **2026-11-18** si no se reclama; Render aún no tiene `UPSTASH_REDIS_REST_URL` ni `UPSTASH_REDIS_REST_TOKEN`, así que producción usa memoria hasta añadirlos.
 
 ### 🔎 Strudel frente a Tone.js (evaluado, no adoptado)
