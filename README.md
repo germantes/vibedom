@@ -83,7 +83,7 @@ Si Gemini no está disponible (cuota agotada, sin clave o error de red), el paso
 - Demo inmediata con tres presets, botón de play, espectro, osciloscopio y paleta de la semilla.
 - Panel de análisis animado y cancelable durante el escaneo; el resultado se reproduce automáticamente si el navegador lo permite.
 - Secciones de cómo funciona, identidad sonora, privacidad, CTA al playground y FAQ.
-- **Ranking público**: pestañas Hoy / 7 días / 30 días con los dominios más escaneados. Cada fila muestra el puesto, el dominio y una barra proporcional al primero; la cifra de escaneos no se publica. Se actualiza al acercarse a la sección y solo guarda el dominio y el día UTC; nunca la ruta, la búsqueda ni la IP. Si no hay backend, la sección no aparece.
+- **Ranking público**: pestañas Hoy / 7 días / 30 días con los dominios más escaneados. Cada fila muestra el puesto, el dominio y una barra proporcional al primero; la cifra de escaneos no se publica. Se actualiza al acercarse a la sección y se refresca al terminar cada escaneo (sin recargar). Solo guarda el dominio y el día UTC; nunca la ruta, la búsqueda ni la IP. Si no hay backend, la sección no aparece.
 - Sin JSON ni sliders a la vista: esos viven en el playground.
 - **Tema dinámico**: al escanear un sitio, la landing adopta su fondo, su texto y su acento (también `theme-color` y `color-scheme`). Elegir un preset devuelve la paleta de marca al instante.
 - Si el sitio se sirve en un host estático sin backend propio (GitHub Pages, `file:`, o un dominio con `<meta name="vibedom-api">` externo), se muestra un aviso de espera y `warmApi()` despierta Render antes de escanear.
@@ -202,7 +202,7 @@ src/backend/top-store.js     ranking de dominios por día (Upstash REST o memori
 src/backend/server.js        servidor node:http (estáticos + /api/scan + /api/top + health + /s/)
 src/backend/share-preview.js vista previa OG de un enlace compartido
 src/backend/share-image.js   tarjeta PNG 1200×630 generada desde la semilla
-.github/workflows/test.yml   185 tests en cada push y PR
+.github/workflows/test.yml   186 tests en cada push y PR
 .github/workflows/render-deploy.yml  Deploy Hook de Render tras cada push a main
 src/demo/main.js             orquestación del playground
 src/demo/analysis.js         estados y animación del panel de análisis
@@ -274,6 +274,7 @@ La landing muestra los dominios más escaneados en Hoy / 7 días / 30 días. No 
 - **Almacén**: Upstash Redis por REST, sin dependencias npm. Cada día es un sorted set (`vibedom:top:v1:YYYY-MM-DD`) que crece con `ZINCRBY`; los periodos se leen con `ZUNIONSTORE` + `ZREVRANGE` y las claves caducan a los 32 días.
 - **Configuración**: crea una base gratuita en Upstash, copia el endpoint y el token REST y define `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` en Render (`sync: false`) o en `.env`. Sin ellas el ranking funciona en memoria y `/api/health` lo indica con `top.backend: "memory"`.
 - **Resiliencia**: si Upstash falla, el escaneo responde igual y el ranking usa los contadores del proceso. La sección se oculta cuando la página no tiene backend (`CAN_SCAN` es falso).
+- **Refresco inmediato**: al terminar un escaneo, la landing invalida su caché de 5 min y vuelve a pedir el ranking sin recargar. `GET /api/top` espera los conteos en vuelo antes de leer, así el dominio recién escaneado aparece en esa misma consulta; el cliente pide con `cache: "no-store"` para saltarse el `max-age` del navegador.
 
 ### Vertex AI (recomendado si hay facturación de Google Cloud)
 
@@ -434,7 +435,7 @@ Para añadir uno, crea el JSON en `presets/` y regístralo en `PRESET_IDS` (`src
 npm test
 ```
 
-**185 tests** con `node:test`, sin dependencias:
+**186 tests** con `node:test`, sin dependencias:
 
 * escalas, acordes y conversión MIDI;
 * validación de la semilla y presets reales;

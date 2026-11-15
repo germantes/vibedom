@@ -120,6 +120,15 @@ test("con Upstash usa ZINCRBY para sumar y ZUNIONSTORE para leer", async () => {
   // La segunda lectura sale de caché: no vuelve a llamar a Upstash.
   await store.top("week");
   assert.equal(requests.length, 2);
+
+  // Un conteo nuevo invalida la caché: la siguiente lectura vuelve al almacén.
+  await store.record("https://c.test/", { ip: "8" });
+  const afterWrite = await store.top("week");
+  assert.deepEqual(afterWrite, [
+    { host: "a.test", count: 4 },
+    { host: "b.test", count: 2 },
+  ]);
+  assert.equal(requests.length, 4);
 });
 
 test("si Upstash falla, el store no lanza y cae a memoria", async () => {

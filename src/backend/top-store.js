@@ -237,6 +237,11 @@ export function createTopStore({
       return items;
     },
 
+    /** Vacía la caché de lecturas; el próximo `top()` consulta el almacén. */
+    invalidate() {
+      cache.clear();
+    },
+
     /** Estado para `/api/health`; nunca expone credenciales. */
     snapshot() {
       return { backend: durable ? "upstash" : "memory", durable };

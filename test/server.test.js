@@ -18,6 +18,8 @@ let base;
 
 const calls = { validate: [], scrape: [], translate: [] };
 const topCalls = [];
+let topGate = null;
+let topReads = 0;
 
 before(async () => {
   server = await startServer({
@@ -26,9 +28,11 @@ before(async () => {
     topStore: {
       async record(url, options) {
         topCalls.push({ url, ...options });
+        if (topGate) await topGate;
         return true;
       },
       async top(period) {
+        topReads += 1;
         return [{ host: "studio.test", count: period === "today" ? 1 : 3 }];
       },
       snapshot: () => ({ backend: "memory", durable: false }),
@@ -368,6 +372,48 @@ test("un escaneo válido suma al ranking; una URL inválida no", async () => {
   });
   assert.equal(blocked.status, 400);
   assert.equal(topCalls.length, 1);
+});
+
+test("/api/top espera al conteo en vuelo de un escaneo reciente", async () => {
+  resetCalls();
+  topReads = 0;
+  let release;
+  topGate = new Promise((resolve) => {
+    release = resolve;
+  });
+
+  let settled = false;
+  try {
+    const scan = await fetch(`${base}/api/scan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: "https://espera.test/" }),
+    });
+    assert.equal(scan.status, 200);
+    assert.equal(topCalls.length, 1);
+
+    const topPromise = fetch(`${base}/api/top?period=today`).then((res) => {
+      settled = true;
+      return res;
+    });
+    // Sin soltar el conteo, la lectura no puede completarse ni llegar al store.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.equal(settled, false);
+    assert.equal(topReads, 0);
+
+    release();
+    topGate = null;
+    const top = await topPromise;
+    assert.equal(top.status, 200);
+    assert.equal(topReads, 1);
+    assert.deepEqual(await top.json(), {
+      period: "today",
+      items: [{ host: "studio.test", count: 1 }],
+    });
+  } finally {
+    release();
+    topGate = null;
+  }
 });
 
 test("un 429 de Gemini se cubre con una semilla local en vez de bloquear la demo", async () => {

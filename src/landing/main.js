@@ -373,6 +373,8 @@ scanForm.addEventListener("submit", async (event) => {
     }
 
     analysis.finish();
+    // El ranking se refresca ya: el servidor espera el conteo de este escaneo.
+    refreshTop();
     await audioReady;
     await loadSeed(data, { autoplay: true, showSource: true });
     analysis.hideSoon();
@@ -461,7 +463,10 @@ async function loadTop(period) {
   topStatus.textContent = t("landing.top.loading");
 
   try {
-    const res = await fetch(topEndpoint(period), { headers: { Accept: "application/json" } });
+    const res = await fetch(topEndpoint(period), {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
     if (!res.ok) throw new Error(`Error ${res.status}`);
     const data = await res.json();
     if (request !== topRequest) return;
@@ -499,12 +504,22 @@ function selectTopPeriod(period, { focus = false } = {}) {
   loadTop(period);
 }
 
+/**
+ * Un escaneo recién terminado invalida la caché del ranking y lo recarga,
+ * aunque la sección todavía no se haya acercado al viewport. El servidor
+ * espera los conteos en vuelo antes de responder.
+ */
+function refreshTop() {
+  if (!CAN_SCAN || !topSection) return;
+  topCache.clear();
+  selectTopPeriod(topPeriod);
+}
+
 function initTop() {
   if (!topSection) return;
   // Sin backend no hay ranking; la sección no llega a mostrarse.
   if (!CAN_SCAN) return;
   topSection.hidden = false;
-
   for (const tab of topTabs) {
     tab.addEventListener("click", () => selectTopPeriod(tab.dataset.period));
     tab.addEventListener("keydown", (event) => {

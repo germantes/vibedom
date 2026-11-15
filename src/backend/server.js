@@ -184,6 +184,7 @@ function makeScanHandler({
   limiter,
   scanBudget,
   topStore,
+  topPending = new Set(),
   requestBudgetMs = DEFAULT_REQUEST_BUDGET_MS,
 }) {
   /**
@@ -230,8 +231,19 @@ function makeScanHandler({
     }
 
     // El ranking es secundario: si el almacén falla, el escaneo sigue igual.
+    // Guardamos la promesa para que `/api/top` espere a los conteos en vuelo:
+    // así el dominio recién escaneado aparece en la siguiente consulta.
     const countScan = () => {
-      void topStore.record(target, { ip: clientIp(req) }).catch(() => {});
+      const write = topStore
+        .record(target, { ip: clientIp(req) })
+        .catch(() => {})
+        .finally(() => {
+          // Una lectura concurrente pudo repoblar la caché con datos viejos.
+          topStore.invalidate?.();
+          topPending.delete(write);
+        });
+      topPending.add(write);
+      return write;
     };
 
     // Repetir un escaneo reciente no vuelve a llamar a Gemini. La copia cambia
@@ -475,6 +487,9 @@ export function createVibedomServer({
   topStore = createTopStore({ logger }),
   requestBudgetMs = DEFAULT_REQUEST_BUDGET_MS,
 } = {}) {
+  // Conteos del ranking aún en vuelo: `/api/top` los espera antes de leer para
+  // que el dominio recién escaneado no se pierda por una carrera.
+  const topPending = new Set();
   // El limitador global se aplica a todas las llamadas a Gemini del proceso.
   const translateWithLimit =
     translateSeed ??
@@ -495,6 +510,7 @@ export function createVibedomServer({
     limiter: geminiLimiter,
     scanBudget,
     topStore,
+    topPending,
     requestBudgetMs,
   });
   const handleStatic = makeStaticHandler(root);
@@ -571,6 +587,9 @@ export function createVibedomServer({
       const requested = parsed.searchParams.get("period");
       const period = Object.hasOwn(PERIODS, requested ?? "") ? requested : "month";
       try {
+        // Los conteos en vuelo se resuelven antes de leer; si el almacén se
+        // atasca, su propio timeout (5 s) acota la espera.
+        if (topPending.size) await Promise.allSettled([...topPending]);
         const items = await topStore.top(period);
         return json(
           res,
