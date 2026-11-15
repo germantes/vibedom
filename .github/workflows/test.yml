@@ -1,6 +1,6 @@
 name: tests
 
-# Los 145 tests son la única red de seguridad del motor, la API y las páginas
+# Los 186 tests son la única red de seguridad del motor, la API y las páginas
 # estáticas (aquí no hay bundler ni tipos). Se ejecutan en cada push y PR.
 
 on:

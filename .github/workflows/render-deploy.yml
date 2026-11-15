@@ -26,13 +26,20 @@ jobs:
       - name: Lanzar deploy en Render
         if: env.RENDER_DEPLOY_HOOK != ''
         run: |
-          code=$(curl -sS -o /tmp/render-deploy.txt -w '%{http_code}' --max-time 30 -X POST "$RENDER_DEPLOY_HOOK")
-          echo "Render respondió $code"
-          cat /tmp/render-deploy.txt || true
-          case "$code" in
-            200|201|202) ;;
-            *) echo "El Deploy Hook falló (HTTP $code)"; exit 1 ;;
-          esac
+          # El hook puede tardar o cortar la conexión si Render está arrancando:
+          # reintentamos para no marcar en rojo un despliegue que sí ocurre.
+          for attempt in 1 2 3; do
+            code=$(curl -sS -o /tmp/render-deploy.txt -w '%{http_code}' \
+              --connect-timeout 10 --max-time 45 -X POST "$RENDER_DEPLOY_HOOK") || code=000
+            echo "Intento $attempt: Render respondió $code"
+            cat /tmp/render-deploy.txt || true
+            case "$code" in
+              200|201|202) exit 0 ;;
+            esac
+            [ "$attempt" -lt 3 ] && sleep 10
+          done
+          echo "El Deploy Hook falló tras 3 intentos"
+          exit 1
 
       - name: Sin secreto configurado
         if: env.RENDER_DEPLOY_HOOK == ''
