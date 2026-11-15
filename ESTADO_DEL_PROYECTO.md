@@ -312,7 +312,7 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 
 - **Tag y release**: [`v1.0.0`](https://github.com/germantes/vibedom/releases/tag/v1.0.0) sobre el commit `6bb9307`; `package.json` pasa a `1.0.0`.
 - **Producción**: `vibedom.dev` sirve las 10 URLs del sitemap (incluidas `/widget/`, `/en/widget/`, `/privacidad/` y `/en/privacy/`) y Render confirma el commit desplegado en `/api/health` con `dailyLimit: 25` y `perIpDailyLimit: 8`.
-- **Cierre**: 162 tests en verde en el momento del release. Hoy la suite tiene 185 tras añadir el ranking y los refuerzos de seguridad. Lo que queda es operativo y externo al repo (cronjob, facturación de Google Cloud, Upstash en Render y decisión sobre el plan de Render), listado en el roadmap.
+- **Cierre**: 162 tests en verde en el momento del release. Hoy la suite tiene 185 tras añadir el ranking y los refuerzos de seguridad. Lo que queda es operativo y externo al repo (cronjob, facturación de Google Cloud, reclamo de Upstash y decisión sobre el plan de Render), listado en el roadmap.
 
 ### ✅ FASE 4.9: Ranking público de webs escaneadas (COMPLETADA)
 
@@ -323,8 +323,8 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **Cliente**: la sección está oculta hasta que `IntersectionObserver` la acerca, cachea cada periodo 5 min y usa pestañas ARIA con navegación por flechas. Si `CAN_SCAN` es falso, no se muestra.
 - **Privacidad**: landing, FAQ y páginas de privacidad explican el cambio: desaparece la frase «la URL no se guarda en una base de datos» y se concreta «del ranking solo quedan el dominio y el día».
 - **Verificación**: 185 tests (nuevos los del store y `/api/top`), ES/EN en Chromium y `curl` contra Upstash con `ZINCRBY`/`ZUNIONSTORE`/`ZREVRANGE`.
-- **Producción (2026-11-15)**: deploy de `873fe74` en Render y GitHub Pages; `/api/health` expone `top`, `/api/top` responde en los tres periodos y un escaneo real de `example.com` apareció en el ranking ES/EN de `vibedom.dev` sin errores de consola ni overflow a 390 px.
-- **Pendiente operativo**: la base Upstash temporal caduca el **2026-11-18** si no se reclama; Render aún no tiene `UPSTASH_REDIS_REST_URL` ni `UPSTASH_REDIS_REST_TOKEN`, así que producción usa memoria hasta añadirlos.
+- **Producción (2026-11-15)**: deploy de `873fe74` en Render y GitHub Pages; `/api/health` expone `top`, `/api/top` responde en los tres periodos y un escaneo real de `example.com` apareció en el ranking ES/EN de `vibedom.dev` sin errores de consola ni overflow a 390 px. Tras configurar Upstash en Render, `/api/health` pasa a `top: { backend: "upstash", durable: true }`, el escaneo escribe en `vibedom:top:v1:YYYY-MM-DD` (TTL de 32 días, solo dominio) y `/api/top` lo lee desde Redis.
+- **Pendiente operativo**: la base Upstash ya responde desde Render (`top.backend: "upstash"`, durable); si aún no se ha reclamado la base temporal, hacerlo antes del **2026-11-18** con el enlace de reclamo.
 
 ### 🔎 Strudel frente a Tone.js (evaluado, no adoptado)
 
@@ -340,7 +340,7 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 - Revisar en Google Cloud Billing si el crédito de 50 USD se agotó y mantener las alertas de 2,50 / 4,50 / 5 USD. Un tope duro de gasto no se puede imponer desde la app: hay que fijarlo como cuota en Google Cloud o apagar la IA.
 - Reactivar el cronjob de cron-job.org con `HEAD https://vibedom.onrender.com/api/ping` **cada 10 minutos** (menos que la ventana de sueño de 15 min). Se desactivó solo tras 26 fallos por «Response data too big»: el job corría con más de 15 min de separación, así que siempre encontraba Render dormido y recibía su página de arranque. El primer intento tras un despliegue puede fallar; los siguientes ya reciben `ok`.
 - Decidir el cold start de Render: plan Starter (7 USD/mes) o mantener el cron de keep-alive con la franja horaria limitada.
-- **Reclamar la base Upstash temporal antes del 2026-11-18** (enlace en `/tmp/opencode/vibedom-upstash-claim.txt`) y añadir `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` en Render (`sync: false`). Sin eso, el ranking de producción se reinicia con cada deploy.
+- **Reclamar la base Upstash temporal antes del 2026-11-18** si aún no se ha hecho (enlace en `/tmp/opencode/vibedom-upstash-claim.txt`). Las variables `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` ya están configuradas en Render (`sync: false`) y producción reporta `top.backend: "upstash"` con `durable: true`.
 - Historial de escaneos recientes (localStorage).
 - Exportar/importar Semilla Sonora.
 - Tests de UI automatizados estables (los actuales son verificación manual con Playwright en `/tmp`).
