@@ -258,6 +258,71 @@
         </div>
       </section>
 
+      <section id="top" class="section wrap" hidden>
+        <div class="top-card">
+          <div class="top-head">
+            <div class="top-copy">
+              <p class="eyebrow" data-i18n="landing.top.eyebrow">Ranking público</p>
+              <h2 data-i18n="landing.top.title">Lo más escuchado</h2>
+              <p class="section-lead" data-i18n="landing.top.lead">
+                Las webs que más se han escaneado. Guardamos solo el dominio y el día del escaneo: nunca la
+                ruta, la búsqueda ni tu IP.
+              </p>
+            </div>
+            <div
+              class="top-tabs"
+              role="tablist"
+              data-i18n-aria-label="landing.top.tabsAria"
+              aria-label="Periodo del ranking"
+            >
+              <button
+                type="button"
+                class="top-tab"
+                id="top-tab-today"
+                role="tab"
+                data-period="today"
+                aria-selected="false"
+                aria-controls="top-panel"
+                tabindex="-1"
+                data-i18n="landing.top.today"
+              >Hoy</button>
+              <button
+                type="button"
+                class="top-tab"
+                id="top-tab-week"
+                role="tab"
+                data-period="week"
+                aria-selected="false"
+                aria-controls="top-panel"
+                tabindex="-1"
+                data-i18n="landing.top.week"
+              >7 días</button>
+              <button
+                type="button"
+                class="top-tab"
+                id="top-tab-month"
+                role="tab"
+                data-period="month"
+                aria-selected="true"
+                aria-controls="top-panel"
+                tabindex="0"
+                data-i18n="landing.top.month"
+              >30 días</button>
+            </div>
+          </div>
+          <div id="top-panel" class="top-panel" role="tabpanel" aria-labelledby="top-tab-month" tabindex="0">
+            <ol id="top-list" class="top-list"></ol>
+            <p
+              id="top-status"
+              class="top-status"
+              role="status"
+              aria-live="polite"
+              data-i18n="landing.top.loading"
+            >Cargando el ranking…</p>
+          </div>
+        </div>
+      </section>
+
       <section id="privacy" class="section wrap">
         <div class="privacy-card">
           <div>

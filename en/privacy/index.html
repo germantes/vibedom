@@ -10,7 +10,7 @@
     <title>Privacy · vibedom</title>
     <meta
       name="description"
-      content="What data vibedom uses, who processes it and what we never store. No cookies, no analytics and no accounts: music is generated in your browser."
+      content="What data vibedom uses, who processes it and what we never store. No cookies or accounts: music is generated in your browser and the ranking only keeps the domain and the day."
     />
 
     <link rel="canonical" href="https://vibedom.dev/en/privacy/" />
@@ -23,7 +23,7 @@
     <meta property="og:title" content="Privacy · vibedom" />
     <meta
       property="og:description"
-      content="No cookies or analytics. Only the URL you choose to analyse travels to the backend and Google to generate the seed."
+      content="No cookies or accounts. The URL you analyse travels to the backend to generate the seed; the ranking only keeps the domain and the day."
     />
     <meta property="og:url" content="https://vibedom.dev/en/privacy/" />
     <meta property="og:locale" content="en_US" />
@@ -36,7 +36,7 @@
     <meta name="twitter:title" content="Privacy · vibedom" />
     <meta
       name="twitter:description"
-      content="No cookies or analytics. Music is synthesised in your browser and the analysed URL is not stored in a database."
+      content="No tracking cookies. Music is synthesised in your browser and the ranking only stores the domain and the day, never the path or your IP."
     />
     <meta name="twitter:image" content="https://vibedom.dev/assets/og-en.png" />
 
@@ -75,7 +75,7 @@
           vibedom has no accounts, no tracking cookies and no third-party analytics. Music is synthesised in
           your browser. This page explains the little that does travel over the network.
         </p>
-        <p class="hint">Last updated: 1 November 2026.</p>
+        <p class="hint">Last updated: 15 November 2026.</p>
       </section>
 
       <div class="wrap doc-content legal">
@@ -84,6 +84,10 @@
           <ul>
             <li>No sign-up, no first-party cookies, no pixels and no vibedom analytics.</li>
             <li>We do not store the HTML, screenshots or content of analysed websites.</li>
+            <li>
+              The public ranking only stores the domain and the day of each scan: never the path, the query
+              string or your IP.
+            </li>
             <li>Music is generated in your browser; there is no pre-recorded audio or streaming.</li>
             <li>Shared links carry the seed inside: they need no server or database.</li>
           </ul>
@@ -99,8 +103,14 @@
           </p>
           <ul>
             <li>
-              The URL and HTML are used for that analysis. They are not stored in a database, sold or used
-              for advertising.
+              The URL and HTML are used for that analysis. The HTML is not stored and neither is the full
+              URL: we only add the domain (without path or query) to the public ranking, together with the
+              day of the scan. It is not sold or used for advertising.
+            </li>
+            <li>
+              So the same visitor is not counted twice on the same day we use an in-memory hash of the IP;
+              the IP itself is never stored. The ranking runs on <strong>Upstash</strong> (data processor),
+              which keeps the daily counters for up to 32 days.
             </li>
             <li>
               The resulting seed is kept in memory for up to 6 hours so the same URL is not analysed twice.
@@ -141,6 +151,7 @@
             <li><strong>Render</strong>: hosts the backend that analyses URLs and serves shared-link previews.</li>
             <li><strong>GitHub Pages</strong>: serves the static site at <code>vibedom.dev</code>.</li>
             <li><strong>Google</strong>: Gemini or Vertex AI generate the seed; Google Cloud bills the project's usage.</li>
+            <li><strong>Upstash</strong>: stores the aggregated ranking counters (domain and day) in Redis.</li>
             <li><strong>jsDelivr</strong>: delivers Tone.js when you press play in the demo or the widget.</li>
           </ul>
           <p>
@@ -152,8 +163,9 @@
         <section>
           <h2>Your rights and contact</h2>
           <p>
-            Since there are no accounts or user database, there is no profile to delete. If you have questions
-            about this processing or want to exercise your access, rectification or erasure rights, email
+            Since there are no accounts or profiles, there is no profile to delete. The ranking only contains
+            domains and aggregated daily counters, with no IPs or personal data. If you have questions about
+            this processing or want to exercise your access, rectification or erasure rights, email
             <a href="mailto:gtorrestendero@gmail.com">gtorrestendero@gmail.com</a>.
           </p>
           <p>

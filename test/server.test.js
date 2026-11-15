@@ -17,11 +17,22 @@ let server;
 let base;
 
 const calls = { validate: [], scrape: [], translate: [] };
+const topCalls = [];
 
 before(async () => {
   server = await startServer({
     port: 0,
     logger: silent,
+    topStore: {
+      async record(url, options) {
+        topCalls.push({ url, ...options });
+        return true;
+      },
+      async top(period) {
+        return [{ host: "studio.test", count: period === "today" ? 1 : 3 }];
+      },
+      snapshot: () => ({ backend: "memory", durable: false }),
+    },
     validateUrl: async (url) => {
       calls.validate.push(url);
       if (url.includes("bloqueada")) throw new UnsafeUrlError("destino bloqueado");
@@ -49,6 +60,7 @@ function resetCalls() {
   calls.validate.length = 0;
   calls.scrape.length = 0;
   calls.translate.length = 0;
+  topCalls.length = 0;
 }
 
 /** Petición HTTP cruda (sin normalizar el path como hace fetch). */
@@ -284,13 +296,14 @@ test("GET /api/health responde sin caché y con CORS", async () => {
   assert.equal(res.headers.get("cache-control"), "no-store");
   assert.equal(res.headers.get("access-control-allow-origin"), "*");
   const body = await res.json();
-  assert.deepEqual({ ...body, engine: undefined, budget: undefined, usage: undefined }, {
+  assert.deepEqual({ ...body, engine: undefined, budget: undefined, usage: undefined, top: undefined }, {
     ok: true,
     service: "vibedom",
     commit: null,
     engine: undefined,
     budget: undefined,
     usage: undefined,
+    top: undefined,
   });
   assert.ok(["local", "gemini", "vertex"].includes(body.engine));
   assert.equal(body.budget.dailyLimit, 0);
@@ -298,11 +311,63 @@ test("GET /api/health responde sin caché y con CORS", async () => {
   assert.equal(typeof body.budget.usedToday, "number");
   assert.equal(body.usage.calls, 0);
   assert.equal(body.usage.estimatedUsd, 0);
+  assert.deepEqual(body.top, { backend: "memory", durable: false });
 
   const head = await fetch(`${base}/api/health`, { method: "HEAD" });
   assert.equal(head.status, 200);
   assert.equal(await head.text(), "");
   assert.ok(Number(head.headers.get("content-length")) > 0);
+});
+
+test("GET /api/top devuelve el ranking del periodo y acepta HEAD", async () => {
+  const month = await fetch(`${base}/api/top?period=month`);
+  assert.equal(month.status, 200);
+  assert.equal(month.headers.get("access-control-allow-origin"), "*");
+  assert.match(month.headers.get("content-type"), /application\/json/);
+  assert.match(month.headers.get("cache-control"), /max-age=30/);
+  assert.deepEqual(await month.json(), {
+    period: "month",
+    items: [{ host: "studio.test", count: 3 }],
+  });
+
+  const today = await fetch(`${base}/api/top?period=today`);
+  assert.deepEqual(await today.json(), {
+    period: "today",
+    items: [{ host: "studio.test", count: 1 }],
+  });
+
+  // Un periodo desconocido (o ausente) cae a 30 días en vez de romper.
+  const unknown = await fetch(`${base}/api/top?period=year`);
+  assert.deepEqual(await unknown.json(), {
+    period: "month",
+    items: [{ host: "studio.test", count: 3 }],
+  });
+
+  const head = await fetch(`${base}/api/top?period=week`, { method: "HEAD" });
+  assert.equal(head.status, 200);
+  assert.equal(await head.text(), "");
+});
+
+test("un escaneo válido suma al ranking; una URL inválida no", async () => {
+  resetCalls();
+
+  const ok = await fetch(`${base}/api/scan`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url: "https://studio.test/ranking" }),
+  });
+  assert.equal(ok.status, 200);
+  assert.equal(topCalls.length, 1);
+  assert.equal(topCalls[0].url, "https://studio.test/ranking");
+  assert.equal(typeof topCalls[0].ip, "string");
+
+  const blocked = await fetch(`${base}/api/scan`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url: "https://bloqueada.test/" }),
+  });
+  assert.equal(blocked.status, 400);
+  assert.equal(topCalls.length, 1);
 });
 
 test("un 429 de Gemini se cubre con una semilla local en vez de bloquear la demo", async () => {

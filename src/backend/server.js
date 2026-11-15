@@ -18,6 +18,7 @@ import { cacheKey, createScanCache } from "./scan-cache.js";
 import { createGeminiLimiter } from "./gemini-limiter.js";
 import { createScanBudget } from "./scan-budget.js";
 import { createAiUsage } from "./ai-usage.js";
+import { createTopStore, PERIODS } from "./top-store.js";
 import { composeLocalSeed } from "./local-seed.js";
 import { resolveEngine } from "./providers.js";
 import { loadDotEnv } from "./dotenv.js";
@@ -182,6 +183,7 @@ function makeScanHandler({
   cache,
   limiter,
   scanBudget,
+  topStore,
   requestBudgetMs = DEFAULT_REQUEST_BUDGET_MS,
 }) {
   /**
@@ -227,12 +229,18 @@ function makeScanHandler({
       return json(res, 400, { error: "URL inválida" });
     }
 
+    // El ranking es secundario: si el almacén falla, el escaneo sigue igual.
+    const countScan = () => {
+      void topStore.record(target, { ip: clientIp(req) }).catch(() => {});
+    };
+
     // Repetir un escaneo reciente no vuelve a llamar a Gemini. La copia cambia
     // con el idioma de la página, así que cada idioma tiene su propia entrada.
     const key = `${lang}:${cacheKey(target)}`;
     const cached = cache.get(key);
     if (cached) {
       logger.log(`[scan] ♻ ${target} (caché)`);
+      countScan();
       return json(res, 200, cached, { "X-Vibedom-Cache": "HIT" });
     }
 
@@ -280,6 +288,7 @@ function makeScanHandler({
       // enfriamiento respondemos con la semilla local sin esperar la cola.
       const cooldown = Number(limiter?.cooldownSeconds) || 0;
       if (composeFallback && cooldown > skipCooldownS) {
+        countScan();
         return sendLocalSeed(res, signals, lang, `cuota en enfriamiento (${cooldown} s)`);
       }
 
@@ -288,7 +297,10 @@ function makeScanHandler({
       const budget = scanBudget.take(clientIp(req));
       if (!budget.ok) {
         const reason = budget.scope === "ip" ? "tope diario por IP" : "tope diario de IA";
-        if (composeFallback) return sendLocalSeed(res, signals, lang, reason);
+        if (composeFallback) {
+          countScan();
+          return sendLocalSeed(res, signals, lang, reason);
+        }
 
         const copy = SCAN_ERROR_COPY[lang] ?? SCAN_ERROR_COPY.es;
         const retryAfter = Math.max(1, Math.ceil(Number(budget.retryAfter) || RATE_LIMIT_FALLBACK_S));
@@ -308,6 +320,7 @@ function makeScanHandler({
       );
       cache.set(key, seed);
       recordEvent(`ok ${host} ${Date.now() - startedScan}ms ${seed.metadata.detectedVibe}`);
+      countScan();
       return json(res, 200, seed, { "X-Vibedom-Cache": "MISS", "X-Vibedom-Source": resolveEngine() });
     } catch (err) {
       recordEvent(`err ${host} ${Date.now() - startedScan}ms ${err?.message ?? err}`);
@@ -331,6 +344,7 @@ function makeScanHandler({
             ? `tiempo agotado (${Math.round(requestBudgetMs / 1000)} s)`
             : err?.message ?? "IA no disponible";
           const diagnostic = deadlineHit ? { diagnostic: reason } : err;
+          countScan();
           return sendLocalSeed(res, signals ?? { url: target }, lang, reason, diagnostic, {
             unreadable: !signals,
           });
@@ -458,6 +472,7 @@ export function createVibedomServer({
   rateLimit = createRateLimiter(),
   cache = createScanCache(),
   logger = console,
+  topStore = createTopStore({ logger }),
   requestBudgetMs = DEFAULT_REQUEST_BUDGET_MS,
 } = {}) {
   // El limitador global se aplica a todas las llamadas a Gemini del proceso.
@@ -479,6 +494,7 @@ export function createVibedomServer({
     logger,
     limiter: geminiLimiter,
     scanBudget,
+    topStore,
     requestBudgetMs,
   });
   const handleStatic = makeStaticHandler(root);
@@ -533,10 +549,40 @@ export function createVibedomServer({
           engine: resolveEngine(),
           budget: scanBudget.snapshot(),
           usage: aiUsage.snapshot(),
+          top: topStore.snapshot(),
         },
         {},
         req.method === "HEAD",
       );
+    }
+
+    if (
+      (req.method === "GET" || req.method === "HEAD") &&
+      (req.url === "/api/top" || req.url.startsWith("/api/top?"))
+    ) {
+      // Ranking público: solo dominios y número de escaneos. Sin cifras de
+      // posiciones en la UI; el límite es interno.
+      let parsed;
+      try {
+        parsed = new URL(req.url, "http://localhost");
+      } catch {
+        return json(res, 400, { error: "Bad request" });
+      }
+      const requested = parsed.searchParams.get("period");
+      const period = Object.hasOwn(PERIODS, requested ?? "") ? requested : "month";
+      try {
+        const items = await topStore.top(period);
+        return json(
+          res,
+          200,
+          { period, items },
+          { "Cache-Control": "public, max-age=30" },
+          req.method === "HEAD",
+        );
+      } catch (err) {
+        logger.warn(`[top] /api/top falló: ${err?.message ?? err}`);
+        return json(res, 200, { period, items: [] }, { "Cache-Control": "no-store" }, req.method === "HEAD");
+      }
     }
 
     if (req.method === "POST" && req.url === "/api/scan") {

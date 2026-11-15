@@ -109,7 +109,7 @@
                 "name": "¿Guardáis mi URL o el contenido de mi web?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "No. La petición se usa para descargar el HTML y las hojas de estilo públicas, extraer señales y devolver la semilla. No guardamos capturas, HTML ni contenido, y la semilla se cachea en memoria solo una hora."
+                  "text": "No. La petición descarga el HTML y las hojas de estilo públicas, extrae señales y devuelve la semilla. No guardamos capturas, HTML ni contenido. Del ranking público solo guardamos el dominio y el día del escaneo, nunca la ruta ni la IP. La semilla se cachea en memoria hasta 6 horas."
                 }
               },
               {
@@ -405,7 +405,7 @@
               <li>Imágenes, vídeos o texto para entrenar modelos.</li>
               <li>Cookies, analytics o datos de tus visitantes.</li>
               <li>Audio, capturas de pantalla o historial de navegación.</li>
-              <li>Tu URL o el HTML: no se guardan en disco.</li>
+              <li>Tu URL completa o el HTML: no se guardan en disco (del ranking solo queda el dominio y el día).</li>
             </ul>
           </article>
         </div>
@@ -497,9 +497,10 @@
             <details>
               <summary>¿Guardáis mi URL o el contenido de mi web?</summary>
               <p>
-                No. La petición se usa para descargar el HTML y las hojas de estilo públicas, extraer
-                señales y devolver la semilla. No guardamos capturas, HTML ni contenido, y la semilla se
-                cachea en memoria solo una hora.
+                No. La petición descarga el HTML y las hojas de estilo públicas, extrae señales y devuelve
+                la semilla. No guardamos capturas, HTML ni contenido. Del ranking público solo guardamos el
+                dominio y el día del escaneo, nunca la ruta ni la IP. La semilla se cachea en memoria hasta
+                6 horas.
               </p>
             </details>
             <details>

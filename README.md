@@ -83,6 +83,7 @@ Si Gemini no está disponible (cuota agotada, sin clave o error de red), el paso
 - Demo inmediata con tres presets, botón de play, espectro, osciloscopio y paleta de la semilla.
 - Panel de análisis animado y cancelable durante el escaneo; el resultado se reproduce automáticamente si el navegador lo permite.
 - Secciones de cómo funciona, identidad sonora, privacidad, CTA al playground y FAQ.
+- **Ranking público**: pestañas Hoy / 7 días / 30 días con los dominios más escaneados. Se actualiza al acercarse a la sección y solo guarda el dominio y el día UTC; nunca la ruta, la búsqueda ni la IP. Si no hay backend, la sección no aparece.
 - Sin JSON ni sliders a la vista: esos viven en el playground.
 - **Tema dinámico**: al escanear un sitio, la landing adopta su fondo, su texto y su acento (también `theme-color` y `color-scheme`). Elegir un preset devuelve la paleta de marca al instante.
 - Si el sitio se sirve en un host estático sin backend propio (GitHub Pages, `file:`, o un dominio con `<meta name="vibedom-api">` externo), se muestra un aviso de espera y `warmApi()` despierta Render antes de escanear.
@@ -186,7 +187,7 @@ widget.js                    botón flotante < 5 KB en Shadow DOM
 widget-player.js             motor + Tone.js bajo demanda (primer clic)
 src/i18n.js                  diccionarios ES/EN y utilidades
 src/embed.js                 semilla base64, enlace compartido y snippet del widget
-src/api.js                   resolución de /api/scan y backend externo
+src/api.js                   resolución de /api/scan, /api/top y backend externo
 src/host-mode.js             detección de host estático (Pages, dominio propio, file:)
 src/landing/main.js          demo, escaneo y audio de la landing
 src/landing/theme.js         contraste WCAG y tema dinámico desde la semilla
@@ -197,10 +198,11 @@ src/backend/local-seed.js    compositor determinista sin IA (cuota agotada)
 src/backend/url-guard.js     validación anti-SSRF (DNS, IPs privadas, redirects)
 src/backend/rate-limit.js    cuota de escaneos por IP
 src/backend/scan-cache.js    caché en memoria de semillas por URL
-src/backend/server.js        servidor node:http (estáticos + /api/scan + health + /s/)
+src/backend/top-store.js     ranking de dominios por día (Upstash REST o memoria)
+src/backend/server.js        servidor node:http (estáticos + /api/scan + /api/top + health + /s/)
 src/backend/share-preview.js vista previa OG de un enlace compartido
 src/backend/share-image.js   tarjeta PNG 1200×630 generada desde la semilla
-.github/workflows/test.yml   164 tests en cada push y PR
+.github/workflows/test.yml   185 tests en cada push y PR
 .github/workflows/render-deploy.yml  Deploy Hook de Render tras cada push a main
 src/demo/main.js             orquestación del playground
 src/demo/analysis.js         estados y animación del panel de análisis
@@ -250,7 +252,8 @@ El esquema es el de la spec (sección 4). `normalizeSeed()` aplica dos política
 
 - `POST /api/scan` con `{ "url": "https://...", "lang": "es" }` → `200` con la Semilla Sonora. `lang` (`es` o `en`) controla el idioma de `detectedVibe` y `explanation`; la caché guarda una entrada por idioma y la cabecera `X-Vibedom-Cache` indica `HIT` o `MISS`.
 - **Resiliencia del escaneo**: si la IA devuelve `429` o falla después de descargar las señales, se responde `200` con una semilla local (`metadata.source: "local"`, cabecera `X-Vibedom-Source: local`). Durante un enfriamiento conocido (`429` previo) ni siquiera se espera la cola. La semilla local no se cachea: cuando la cuota vuelve, el siguiente escaneo usa la IA. Si el scraper no puede cargar la web, siguen aplicando `400` (URL), `429` (límite por IP) o `502` (`{ code: "ANALYSIS_FAILED" }`) con un mensaje localizado en `error`.
-- `GET /api/health` → `200` con `{ ok: true, service: "vibedom", commit, engine, budget, usage }`; sirve de health check, despierta el servicio en Render y permite comprobar qué commit y qué motor (`vertex`, `gemini` o `local`) están activos. `usage` estima tokens y coste del día desde el último arranque.
+- `GET /api/health` → `200` con `{ ok: true, service: "vibedom", commit, engine, budget, usage, top }`; sirve de health check, despierta el servicio en Render y permite comprobar qué commit y qué motor (`vertex`, `gemini` o `local`) están activos. `usage` estima tokens y coste del día desde el último arranque; `top` indica si el ranking es durable (`upstash`) o vive en memoria.
+- `GET /api/top?period=today|week|month` → `200` con `{ period, items: [{ host, count }] }`, ordenado por escaneos. Sin `period`, o con un valor desconocido, responde `month`. Solo devuelve dominios normalizados (sin `www.`) y contadores; nunca rutas ni IPs.
 - `GET /api/ping` → `200` con `ok` en texto plano y menos de 100 bytes, pensado para monitores externos con límite de respuesta. No evita el cold start por sí solo: el ping debe llegar con el servicio despierto, es decir, con una frecuencia menor que los 15 min de sueño.
 - `GET /api/diagnostics` → traza técnica (hosts, estados, tiempos), `uptimeS` y RSS. Exige `Authorization: Bearer <DIAGNOSTICS_TOKEN>` o la cabecera `X-Diagnostics-Token`. Sin la variable responde `404`; con el token ausente o incorrecto, `401`. No es un endpoint público y el token no va en la query.
 - **Cabecera `X-Vibedom-Source`**: `vertex`, `gemini` o `local` indican qué produjo la semilla. Útil para verificar un despliegue sin mirar logs.
@@ -260,7 +263,17 @@ El esquema es el de la spec (sección 4). `normalizeSeed()` aplica dos política
 - El servidor valida cada salto de redirección y cada hoja de estilos para evitar SSRF, bloquea dotfiles y *path traversal*, limita el cuerpo de las peticiones a 16 KB y el de cada respuesta descargada (HTML o CSS, con o sin `Content-Length`) a 2 MB, y aplica la cuota antes de llamar a Gemini. La IP de la cuota es `CF-Connecting-IP` (o `True-Client-IP`); sin esas cabeceras, la última de `X-Forwarded-For`.
 - La cuota gratuita de Gemini es **por proyecto, no por IP**: el limitador por IP no basta. Por eso las llamadas se serializan y se espacian (`GEMINI_MIN_INTERVAL_MS`); si Gemini devuelve `429`, no se reintenta ni se prueba otro modelo, se enfría la cola global y se compone la semilla local al instante. La cabecera `X-Vibedom-Source: local` y `metadata.source` lo hacen visible sin romper la experiencia. Si se desactiva `SCAN_FALLBACK`, el servidor vuelve al `429` con `Retry-After` y un mensaje que, a partir de 10 minutos, habla de límite de uso y horas.
 - La semilla de cada URL se guarda en memoria 6 h (`SCAN_CACHE_TTL`): repetir un escaneo no vuelve a llamar a Gemini.
+- **Ranking**: cada escaneo válido (IA, caché o semilla local) suma uno al dominio y al día UTC en `src/backend/top-store.js`. La IP solo se usa en memoria y hasheada para no contar dos veces al mismo visitante y dominio el mismo día; nunca se almacena. `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` activan un almacén durable y gratuito (250 MB y 500K comandos/mes); sin ellas el ranking vive en memoria y se reinicia con el proceso. Un fallo del ranking nunca bloquea el escaneo.
 - Modelos: `gemini-3.5-flash` → `gemini-3.5-flash-lite` → `gemini-3.6-flash`. No uses `gemini-2.x` (retirado para esta clave) ni `gemini-3.8-flash` (latencia inaceptable).
+
+### Ranking público (Upstash)
+
+La landing muestra los dominios más escaneados en Hoy / 7 días / 30 días. No anuncia un «Top 10» ni el número de posiciones: la lista enseña solo lo que hay, y con poco tráfico aparece un estado vacío honesto.
+
+- **Qué se guarda**: dominio normalizado (sin `www.`, ruta ni query) y día UTC. La IP nunca se almacena; se hashea en memoria para no contar dos veces al mismo visitante y dominio el mismo día.
+- **Almacén**: Upstash Redis por REST, sin dependencias npm. Cada día es un sorted set (`vibedom:top:v1:YYYY-MM-DD`) que crece con `ZINCRBY`; los periodos se leen con `ZUNIONSTORE` + `ZREVRANGE` y las claves caducan a los 32 días.
+- **Configuración**: crea una base gratuita en Upstash, copia el endpoint y el token REST y define `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` en Render (`sync: false`) o en `.env`. Sin ellas el ranking funciona en memoria y `/api/health` lo indica con `top.backend: "memory"`.
+- **Resiliencia**: si Upstash falla, el escaneo responde igual y el ranking usa los contadores del proceso. La sección se oculta cuando la página no tiene backend (`CAN_SCAN` es falso).
 
 ### Vertex AI (recomendado si hay facturación de Google Cloud)
 
@@ -380,6 +393,8 @@ Comprobación: `curl -s https://TU-SERVICIO.onrender.com/api/health` devuelve el
 | `VERTEX_ACCESS_TOKEN` | No | Token de corta duración para pruebas (`gcloud auth print-access-token`). |
 | `VERTEX_MODELS` | No | Cadena de modelos separada por comas para Vertex. |
 | `GEMINI_KEY` | No | Clave de Google AI Studio (alternativa a Vertex). Sin Vertex ni key se usa el compositor local. |
+| `UPSTASH_REDIS_REST_URL` | No | Endpoint REST de Upstash Redis para el ranking público. Sin URL y token, el ranking vive en memoria. |
+| `UPSTASH_REDIS_REST_TOKEN` | No | Token REST de Upstash. Secreto: solo en `.env` local y en el panel de Render. |
 | `PORT` | No | Render la inyecta; en local es 3000. |
 | `SCAN_RATE_LIMIT` | No | Escaneos por minuto y por IP. Por defecto 5; `0` desactiva el límite. |
 | `SCAN_DAILY_LIMIT` | No | Escaneos facturables al día en total. Por defecto 25; `0` desactiva el tope. Al agotarse se sirve la semilla local sin llamar a la IA. |
@@ -419,7 +434,7 @@ Para añadir uno, crea el JSON en `presets/` y regístralo en `PRESET_IDS` (`src
 npm test
 ```
 
-**164 tests** con `node:test`, sin dependencias:
+**185 tests** con `node:test`, sin dependencias:
 
 * escalas, acordes y conversión MIDI;
 * validación de la semilla y presets reales;
@@ -428,7 +443,8 @@ npm test
 * traductor con `fetch` falso (reintentos, fallback de modelos, timeout, errores);
 * compositor local determinista (contrato, idioma, fondo claro/oscuro, colores legibles y ausencia de señales);
 * guard anti-SSRF (IPs privadas, redirects, DNS);
-* servidor (rutas estáticas ES/EN y playground, `/api/scan`, health, `/api/ping`, 405/413/404/429, semilla local ante 429, path traversal y cancelación);
+* servidor (rutas estáticas ES/EN y playground, `/api/scan`, `/api/top`, health, `/api/ping`, 405/413/404/429, semilla local ante 429, path traversal y cancelación);
+* ranking público (normalización de dominios, día UTC, deduplicación por IP+dominio+día, periodos, fallback a memoria y comandos `ZINCRBY`/`ZUNIONSTORE` de Upstash);
 * limitador de peticiones por IP (`X-Forwarded-For`, ventana deslizante y cuota);
 * caché de semillas por URL (normalización, TTL, desalojo y acierto sin volver a llamar a Gemini);
 * tema dinámico (normalización de hex, luminancia, contraste WCAG, texto y acento corregidos, mezclas y `rgba()`);
@@ -442,7 +458,7 @@ npm test
 * presupuesto de IA (recorte de valores antiguos, límite explícito intacto) y consumo (tokens de entrada, respuesta y razonamiento, coste por modelo y reinicio diario);
 * vista previa compartida (`/s/<token>` con OG, redirección al playground, token corrupto y PNG 1200×630 con los colores de la semilla).
 
-El flujo real se validó en navegador con Playwright (fuera del repo): landing ES/EN, presets, play/pausa, espectro, escaneo mockeado, error de backend, responsive a 390 px, playground ES/EN, sliders, JSON y cambio de idioma. También se validó un escaneo real de `example.com` (~3 s). El tema dinámico se comprobó con escaneos mockeados (sitio claro, oscuro y un caso hostil blanco sobre blanco) y una auditoría de contraste de 26 elementos en ambos esquemas: 26/26 en claro y 26/26 en oscuro. El widget se probó con Chromium headless en una página anfitriona: `widget.js` → `widget-player.js` → Tone.js solo tras el clic, arranque y pausa, snippet de 1.217 bytes generado desde el playground y copiado al portapapeles sin errores 404. El enlace compartido se validó de extremo a extremo: mover un slider cambia el `#seed` a un token corto (~200 caracteres), «Copiar enlace» copia la URL, abrirla en otra pestaña restaura la misma semilla (100 BPM) sin ninguna petición a `/api/scan`, un token corrupto cae en el preset con aviso y la versión inglesa traduce los botones. La vista previa `/s/<token>` se comprobó con `curl` y decodificando el PNG generado: cabecera IHDR 1200×630, muestras de color idénticas a `uiTheme` y Open Graph con el host y el BPM de la semilla. Las páginas SEO se probaron en Chromium: ES/EN cargan sin 404 ni errores JS, los 3 presets y el play/pausa funcionan, el escaneo simulado aplica el tema y el responsive a 320/390 px no genera overflow. La documentación del widget y las páginas de privacidad se auditaron igual en 320/390 px, con enlaces internos sanos; el snippet real se probó en una página anfitriona servida por HTTP (botón → reproductor → `aria-pressed=true`) y el copiado funciona en ambos idiomas.
+El flujo real se validó en navegador con Playwright (fuera del repo): landing ES/EN, presets, play/pausa, espectro, escaneo mockeado, error de backend, responsive a 390 px, playground ES/EN, sliders, JSON y cambio de idioma. También se validó un escaneo real de `example.com` (~3 s). El ranking se probó con la API interceptada en Chromium (pestañas ES/EN, teclado, estado vacío y 390 px sin overflow) y contra la base Upstash real (`ZINCRBY` + `ZUNIONSTORE`, dominio sin ruta ni query). El tema dinámico se comprobó con escaneos mockeados (sitio claro, oscuro y un caso hostil blanco sobre blanco) y una auditoría de contraste de 26 elementos en ambos esquemas: 26/26 en claro y 26/26 en oscuro. El widget se probó con Chromium headless en una página anfitriona: `widget.js` → `widget-player.js` → Tone.js solo tras el clic, arranque y pausa, snippet de 1.217 bytes generado desde el playground y copiado al portapapeles sin errores 404. El enlace compartido se validó de extremo a extremo: mover un slider cambia el `#seed` a un token corto (~200 caracteres), «Copiar enlace» copia la URL, abrirla en otra pestaña restaura la misma semilla (100 BPM) sin ninguna petición a `/api/scan`, un token corrupto cae en el preset con aviso y la versión inglesa traduce los botones. La vista previa `/s/<token>` se comprobó con `curl` y decodificando el PNG generado: cabecera IHDR 1200×630, muestras de color idénticas a `uiTheme` y Open Graph con el host y el BPM de la semilla. Las páginas SEO se probaron en Chromium: ES/EN cargan sin 404 ni errores JS, los 3 presets y el play/pausa funcionan, el escaneo simulado aplica el tema y el responsive a 320/390 px no genera overflow. La documentación del widget y las páginas de privacidad se auditaron igual en 320/390 px, con enlaces internos sanos; el snippet real se probó en una página anfitriona servida por HTTP (botón → reproductor → `aria-pressed=true`) y el copiado funciona en ambos idiomas.
 
 ## Roadmap
 

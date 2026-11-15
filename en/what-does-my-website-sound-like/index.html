@@ -109,7 +109,7 @@
                 "name": "Do you store my URL or my website's content?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "No. The request downloads the public HTML and stylesheets, extracts signals and returns the seed. We do not store screenshots, HTML or content, and the seed is cached in memory for one hour only."
+                  "text": "No. The request downloads the public HTML and stylesheets, extracts signals and returns the seed. We do not store screenshots, HTML or content. From the public ranking we only keep the domain and the day of the scan, never the path or your IP. The seed is cached in memory for up to 6 hours."
                 }
               },
               {
@@ -405,7 +405,7 @@
               <li>Images, videos or text used to train models.</li>
               <li>Cookies, analytics or your visitors' data.</li>
               <li>Audio, screenshots or browsing history.</li>
-              <li>Your URL or HTML: they are not written to disk.</li>
+              <li>Your full URL or HTML: not written to disk (the ranking only keeps the domain and the day).</li>
             </ul>
           </article>
         </div>
@@ -496,8 +496,9 @@
               <summary>Do you store my URL or my website's content?</summary>
               <p>
                 No. The request downloads the public HTML and stylesheets, extracts signals and returns the
-                seed. We do not store screenshots, HTML or content, and the seed is cached in memory for
-                one hour only.
+                seed. We do not store screenshots, HTML or content. From the public ranking we only keep the
+                domain and the day of the scan, never the path or your IP. The seed is cached in memory for
+                up to 6 hours.
               </p>
             </details>
             <details>

@@ -312,7 +312,18 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 
 - **Tag y release**: [`v1.0.0`](https://github.com/germantes/vibedom/releases/tag/v1.0.0) sobre el commit `6bb9307`; `package.json` pasa a `1.0.0`.
 - **Producción**: `vibedom.dev` sirve las 10 URLs del sitemap (incluidas `/widget/`, `/en/widget/`, `/privacidad/` y `/en/privacy/`) y Render confirma el commit desplegado en `/api/health` con `dailyLimit: 25` y `perIpDailyLimit: 8`.
-- **Cierre**: 162 tests en verde. Lo que queda es operativo y externo al repo (cronjob, facturación de Google Cloud y decisión sobre el plan de Render), listado en el roadmap.
+- **Cierre**: 162 tests en verde en el momento del release. Hoy la suite tiene 185 tras añadir el ranking y los refuerzos de seguridad. Lo que queda es operativo y externo al repo (cronjob, facturación de Google Cloud, Upstash en Render y decisión sobre el plan de Render), listado en el roadmap.
+
+### ✅ FASE 4.9: Ranking público de webs escaneadas (COMPLETADA)
+
+- **Qué muestra**: una sección en la landing (ES/EN) con pestañas **Hoy / 7 días / 30 días** y los dominios más escaneados. El título es «Lo más escuchado»: no se anuncia un «Top 10» ni el número de posiciones, porque con poco tráfico la lista estaría casi siempre incompleta. Por defecto abre 30 días para reducir el estado vacío.
+- **Qué se guarda**: solo el dominio normalizado (sin `www.`, ruta ni query) y el día UTC. La IP no se almacena: se hashea en memoria para no contar dos veces al mismo visitante y dominio el mismo día.
+- **Almacén**: Upstash Redis por REST (`src/backend/top-store.js`), sin dependencias npm. Cada día es un sorted set `vibedom:top:v1:YYYY-MM-DD`; se suma con `ZINCRBY`, se lee con `ZUNIONSTORE` + `ZREVRANGE` y las claves caducan a los 32 días. Sin credenciales cae a memoria y `/api/health` lo indica (`top.backend: "memory"`).
+- **API**: `GET /api/top?period=today|week|month` devuelve `{ period, items: [{ host, count }] }`; `period` inválido cae a `month`. `HEAD` también responde.
+- **Cliente**: la sección está oculta hasta que `IntersectionObserver` la acerca, cachea cada periodo 5 min y usa pestañas ARIA con navegación por flechas. Si `CAN_SCAN` es falso, no se muestra.
+- **Privacidad**: landing, FAQ y páginas de privacidad explican el cambio: desaparece la frase «la URL no se guarda en una base de datos» y se concreta «del ranking solo quedan el dominio y el día».
+- **Verificación**: 185 tests (nuevos los del store y `/api/top`), ES/EN en Chromium y `curl` contra Upstash con `ZINCRBY`/`ZUNIONSTORE`/`ZREVRANGE`.
+- **Pendiente operativo**: la base Upstash temporal caduca el **2026-11-18** si no se reclama; Render aún no tiene `UPSTASH_REDIS_REST_URL` ni `UPSTASH_REDIS_REST_TOKEN`, así que producción usa memoria hasta añadirlos.
 
 ### 🔎 Strudel frente a Tone.js (evaluado, no adoptado)
 
@@ -328,6 +339,7 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 - Revisar en Google Cloud Billing si el crédito de 50 USD se agotó y mantener las alertas de 2,50 / 4,50 / 5 USD. Un tope duro de gasto no se puede imponer desde la app: hay que fijarlo como cuota en Google Cloud o apagar la IA.
 - Reactivar el cronjob de cron-job.org con `HEAD https://vibedom.onrender.com/api/ping` **cada 10 minutos** (menos que la ventana de sueño de 15 min). Se desactivó solo tras 26 fallos por «Response data too big»: el job corría con más de 15 min de separación, así que siempre encontraba Render dormido y recibía su página de arranque. El primer intento tras un despliegue puede fallar; los siguientes ya reciben `ok`.
 - Decidir el cold start de Render: plan Starter (7 USD/mes) o mantener el cron de keep-alive con la franja horaria limitada.
+- **Reclamar la base Upstash temporal antes del 2026-11-18** (enlace en `/tmp/opencode/vibedom-upstash-claim.txt`) y añadir `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` en Render (`sync: false`). Sin eso, el ranking de producción se reinicia con cada deploy.
 - Historial de escaneos recientes (localStorage).
 - Exportar/importar Semilla Sonora.
 - Tests de UI automatizados estables (los actuales son verificación manual con Playwright en `/tmp`).
@@ -338,7 +350,7 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 
 ```
 .
-├── .env                                       # VERTEX_* o GEMINI_KEY (GITIGNORADO)
+├── .env                                       # VERTEX_* / GEMINI_KEY / UPSTASH_* (GITIGNORADO)
 ├── .gitignore                                 # node_modules, .DS_Store, .env, claves
 ├── .nojekyll                                  # GitHub Pages sin Jekyll
 ├── sitemap.xml                                # Sitemap bilingüe con hreflang
@@ -380,7 +392,7 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 │   └── indie-pastel.json
 ├── src/
 │   ├── i18n.js                                # Diccionarios ES/EN y applyI18n
-│   ├── api.js                                 # /api/scan y backend externo
+│   ├── api.js                                 # /api/scan, /api/top y backend externo
 │   ├── embed.js                               # Semilla base64, token corto y snippet del widget
 │   ├── host-mode.js                           # Detección de host estático
 │   ├── backend/
@@ -390,6 +402,7 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 │   │   ├── share-image.js                     # tarjeta PNG 1200×630 desde la semilla
 │   │   ├── rate-limit.js                      # Cuota de escaneos por IP
 │   │   ├── scan-cache.js                      # Caché en memoria de semillas
+│   │   ├── top-store.js                       # Ranking por dominio y día (Upstash o memoria)
 │   │   ├── scan-budget.js                     # Tope diario de escaneos facturables
 │   │   ├── ai-usage.js                        # Tokens y coste estimado por modelo
 │   │   ├── local-seed.js                      # Compositor determinista sin IA
@@ -433,6 +446,7 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
     ├── seo.test.js
     ├── server.test.js
     ├── theme.test.js
+    ├── top-store.test.js
     ├── translator.test.js
     ├── url-guard.test.js
     ├── vertex.test.js
@@ -461,6 +475,7 @@ npm run dev
 - Respeta la regla de cero dependencias npm en backend y el lazy-loading de Tone.js.
 - **Widget**: `widget.js` debe seguir por debajo de 5 KB y sin dependencias; no importes Tone.js ahí. El motor se carga en `widget-player.js` y el snippet se genera con `src/embed.js`. Los estáticos necesitan `Access-Control-Allow-Origin: *` para que se importen desde webs de terceros.
 - **Enlace compartido**: vive solo en `location.hash` (`#seed=`); no lo mandes al backend ni lo guardes en la caché. Valida siempre con `normalizeSeed()` antes de cargarlo. El token corto (`~` + binario) omite `explanation` a propósito: si tocas el formato, mantén la lectura del base64url antiguo y rellena una explicación localizada cuando falte.
+- **Ranking**: `src/backend/top-store.js` es el único sitio que escribe en Upstash. Nunca guardes rutas, query strings ni IPs: solo `normalizeHost()` y `dayKey()`. Un fallo del almacén no puede romper `/api/scan` (todo va envuelto y con fallback a memoria). Los periodos son UTC y las claves caducan a los 32 días. El ranking no debe anunciar cuántas posiciones tiene.
 - **Al publicar**: el snippet usa `https://vibedom.dev/widget.js`. Tras desplegar, comprueba que `/widget.js` y `/widget-player.js` responden tanto en GitHub Pages como en Render.
 - Si cambias el backend, reinicia `npm start` (el proceso en segundo plano no recarga solo).
 - El motor no debe importar Tone.js: se inyecta desde `main.js` para conservar el lazy-loading.

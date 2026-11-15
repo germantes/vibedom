@@ -1,7 +1,7 @@
 import { attachReactivity } from "../engine/reactivity.js";
 import { configureContext, createSoundscape } from "../engine/soundscape.js";
 import { analysisCopy, applyI18n, getLang, presetCopy, rateLimitCopy, t } from "../i18n.js";
-import { API_URL, CAN_SCAN, STATIC_HOST, warmApi } from "../api.js";
+import { API_URL, CAN_SCAN, STATIC_HOST, TOP_URL, warmApi } from "../api.js";
 import { createAnalysis } from "../demo/analysis.js";
 import { createVisualizer } from "../demo/visualizer.js";
 import {
@@ -394,6 +394,158 @@ scanForm.addEventListener("submit", async (event) => {
     renderToggle();
   }
 });
+
+// ---- Ranking ---------------------------------------------------------------
+
+const TOP_PERIODS = new Set(["today", "week", "month"]);
+const TOP_CACHE_MS = 5 * 60_000;
+const topSection = $("top");
+const topPanel = $("top-panel");
+const topList = $("top-list");
+const topStatus = $("top-status");
+const topTabs = [...document.querySelectorAll(".top-tab")];
+const topCache = new Map();
+let topPeriod = "month";
+let topRequest = 0;
+
+function topEndpoint(period) {
+  const url = new URL(TOP_URL);
+  url.searchParams.set("period", period);
+  return url;
+}
+
+function topCountLabel(count) {
+  const locale = getLang() === "en" ? "en-US" : "es-ES";
+  return t(count === 1 ? "landing.top.scansOne" : "landing.top.scans", {
+    count: new Intl.NumberFormat(locale).format(count),
+  });
+}
+
+function renderTop(items) {
+  const max = items.reduce((value, item) => Math.max(value, item.count), 0) || 1;
+  topList.replaceChildren();
+
+  items.forEach((item, index) => {
+    const row = document.createElement("li");
+    row.className = "top-item";
+    // Barra proporcional al primero; el mínimo deja visible cualquier entrada.
+    row.style.setProperty("--share", String(Math.max(0.08, item.count / max)));
+
+    const bar = document.createElement("span");
+    bar.className = "top-bar";
+    bar.setAttribute("aria-hidden", "true");
+
+    const rank = document.createElement("span");
+    rank.className = "top-rank";
+    rank.textContent = String(index + 1);
+
+    const link = document.createElement("a");
+    link.className = "top-host";
+    link.href = `https://${item.host}`;
+    link.target = "_blank";
+    link.rel = "nofollow noopener noreferrer";
+    link.textContent = item.host;
+    link.setAttribute("aria-label", t("landing.top.openAria", { host: item.host }));
+
+    const count = document.createElement("span");
+    count.className = "top-count";
+    count.textContent = topCountLabel(item.count);
+
+    row.append(bar, rank, link, count);
+    topList.append(row);
+  });
+
+  topList.hidden = items.length === 0;
+  topStatus.textContent = items.length ? "" : t("landing.top.empty");
+}
+
+async function loadTop(period) {
+  const cached = topCache.get(period);
+  if (cached && Date.now() - cached.at < TOP_CACHE_MS) {
+    renderTop(cached.items);
+    return;
+  }
+
+  const request = ++topRequest;
+  topList.setAttribute("aria-busy", "true");
+  topStatus.textContent = t("landing.top.loading");
+
+  try {
+    const res = await fetch(topEndpoint(period), { headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error(`Error ${res.status}`);
+    const data = await res.json();
+    if (request !== topRequest) return;
+
+    const items = Array.isArray(data.items)
+      ? data.items.filter(
+          (item) => item && typeof item.host === "string" && Number.isFinite(item.count),
+        )
+      : [];
+    topCache.set(period, { at: Date.now(), items });
+    renderTop(items);
+  } catch (err) {
+    if (request !== topRequest) return;
+    console.warn("[vibedom] ranking no disponible:", err);
+    topList.replaceChildren();
+    topList.hidden = true;
+    topStatus.textContent = t("landing.top.error");
+  } finally {
+    if (request === topRequest) topList.removeAttribute("aria-busy");
+  }
+}
+
+function selectTopPeriod(period, { focus = false } = {}) {
+  if (!TOP_PERIODS.has(period)) return;
+  topPeriod = period;
+
+  for (const tab of topTabs) {
+    const active = tab.dataset.period === period;
+    tab.setAttribute("aria-selected", String(active));
+    tab.tabIndex = active ? 0 : -1;
+    if (active && focus) tab.focus();
+  }
+
+  topPanel.setAttribute("aria-labelledby", `top-tab-${period}`);
+  loadTop(period);
+}
+
+function initTop() {
+  if (!topSection) return;
+  // Sin backend no hay ranking; la sección no llega a mostrarse.
+  if (!CAN_SCAN) return;
+  topSection.hidden = false;
+
+  for (const tab of topTabs) {
+    tab.addEventListener("click", () => selectTopPeriod(tab.dataset.period));
+    tab.addEventListener("keydown", (event) => {
+      let index;
+      if (event.key === "ArrowLeft") index = (topTabs.indexOf(tab) - 1 + topTabs.length) % topTabs.length;
+      else if (event.key === "ArrowRight") index = (topTabs.indexOf(tab) + 1) % topTabs.length;
+      else if (event.key === "Home") index = 0;
+      else if (event.key === "End") index = topTabs.length - 1;
+      else return;
+      event.preventDefault();
+      selectTopPeriod(topTabs[index].dataset.period, { focus: true });
+    });
+  }
+
+  // El ranking no bloquea la carga: se pide al acercarse a la sección.
+  if (!("IntersectionObserver" in window)) {
+    selectTopPeriod(topPeriod);
+    return;
+  }
+  const observer = new IntersectionObserver(
+    (entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return;
+      observer.disconnect();
+      selectTopPeriod(topPeriod);
+    },
+    { rootMargin: "200px" },
+  );
+  observer.observe(topSection);
+}
+
+initTop();
 
 // ---- Interacción -----------------------------------------------------------
 

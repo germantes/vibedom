@@ -63,3 +63,10 @@ services:
       # Autoriza GET /api/diagnostics. Si falta, esa ruta responde 404.
       - key: DIAGNOSTICS_TOKEN
         sync: false
+      # Ranking público de webs escaneadas. Upstash Redis por REST: gratis y
+      # durable. Sin estas dos variables el ranking vive en memoria y se
+      # reinicia con el proceso. Secreto: se define en el panel de Render.
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false

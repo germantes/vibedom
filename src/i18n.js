@@ -67,6 +67,22 @@ const DICTS = {
     "landing.why.card3.body":
       "El scroll modula el brillo, la reverb o la densidad del arpegio. La página se mueve y la música responde.",
 
+    "landing.top.eyebrow": "Ranking público",
+    "landing.top.title": "Lo más escuchado",
+    "landing.top.lead":
+      "Las webs que más se han escaneado. Guardamos solo el dominio y el día del escaneo: nunca la ruta, la búsqueda ni tu IP.",
+    "landing.top.tabsAria": "Periodo del ranking",
+    "landing.top.today": "Hoy",
+    "landing.top.week": "7 días",
+    "landing.top.month": "30 días",
+    "landing.top.loading": "Cargando el ranking…",
+    "landing.top.empty":
+      "Todavía no hay suficientes escaneos en este periodo. Sé quien estrene la lista: escanea tu web.",
+    "landing.top.error": "No se pudo cargar el ranking ahora mismo. Inténtalo de nuevo en unos segundos.",
+    "landing.top.scans": "{count} escaneos",
+    "landing.top.scansOne": "1 escaneo",
+    "landing.top.openAria": "Abrir {host} en una pestaña nueva",
+
     "landing.privacy.eyebrow": "Privacidad",
     "landing.privacy.title": "Tu web no se queda con nosotros.",
     "landing.privacy.lead":
@@ -75,7 +91,7 @@ const DICTS = {
     "landing.privacy.item2": "Sin cookies de seguimiento ni analytics de terceros.",
     "landing.privacy.item3": "Sin audio pregrabado ni streaming: cero samples.",
     "landing.privacy.item4":
-      "La semilla se cachea en memoria una hora; ni tu URL ni el HTML tocan el disco.",
+      "La semilla se cachea en memoria hasta 6 horas; del ranking solo guardamos el dominio y el día.",
 
     "landing.cta.eyebrow": "Modo laboratorio",
     "landing.cta.title": "¿Quieres abrir la cabina?",
@@ -95,7 +111,7 @@ const DICTS = {
       "Con cualquier URL http(s) pública. Algunas webs bloquean a los bots o dependen de JavaScript para pintar su estilo; en esos casos el análisis puede quedarse corto.",
     "landing.faq.q4": "¿Guardáis mi URL?",
     "landing.faq.a4":
-      "No la guardamos en ninguna base de datos. El resultado del análisis queda en memoria hasta una hora para no repetir la consulta, y después desaparece.",
+      "Solo guardamos el dominio (sin la ruta ni la búsqueda) y el día del escaneo para el ranking público. La IP no se almacena: usamos un hash temporal en memoria para no contar dos veces al mismo visitante el mismo día. El HTML y el contenido nunca se guardan.",
     "landing.faq.q5": "¿Necesito registrarme o pagar?",
     "landing.faq.a5":
       "No. La demo es abierta. El único requisito es que el backend esté disponible para escanear URLs nuevas; los presets funcionan sin él.",
@@ -347,6 +363,22 @@ const DICTS = {
     "landing.why.card3.body":
       "Scrolling modulates brightness, reverb or arpeggio density. The page moves and the music answers.",
 
+    "landing.top.eyebrow": "Public ranking",
+    "landing.top.title": "Most listened",
+    "landing.top.lead":
+      "The most scanned sites. We only store the domain and the day of the scan: never the path, the query string or your IP.",
+    "landing.top.tabsAria": "Ranking period",
+    "landing.top.today": "Today",
+    "landing.top.week": "7 days",
+    "landing.top.month": "30 days",
+    "landing.top.loading": "Loading the ranking…",
+    "landing.top.empty":
+      "Not enough scans in this period yet. Be the first to open the list: scan your site.",
+    "landing.top.error": "The ranking could not be loaded right now. Try again in a few seconds.",
+    "landing.top.scans": "{count} scans",
+    "landing.top.scansOne": "1 scan",
+    "landing.top.openAria": "Open {host} in a new tab",
+
     "landing.privacy.eyebrow": "Privacy",
     "landing.privacy.title": "Your site doesn't stay with us.",
     "landing.privacy.lead":
@@ -355,7 +387,7 @@ const DICTS = {
     "landing.privacy.item2": "No tracking cookies or third-party analytics.",
     "landing.privacy.item3": "No pre-recorded audio or streaming: zero samples.",
     "landing.privacy.item4":
-      "The seed is cached in memory for an hour; neither your URL nor the HTML touches disk.",
+      "The seed is cached in memory for up to 6 hours; from the ranking we only keep the domain and the day.",
 
     "landing.cta.eyebrow": "Lab mode",
     "landing.cta.title": "Want to open the console?",
@@ -375,7 +407,7 @@ const DICTS = {
       "With any public http(s) URL. Some sites block bots or rely on JavaScript to paint their style; in those cases the analysis may fall short.",
     "landing.faq.q4": "Do you store my URL?",
     "landing.faq.a4":
-      "We don't store it in any database. The analysis stays in memory for up to an hour so we don't repeat the request, then it's gone.",
+      "We only store the domain (without the path or query string) and the day of the scan for the public ranking. Your IP is not stored: we use a temporary in-memory hash so the same visitor is not counted twice on the same day. The HTML and content are never stored.",
     "landing.faq.q5": "Do I need an account or payment?",
     "landing.faq.a5":
       "No. The demo is open. The only requirement for scanning new URLs is a running backend; presets work without it.",

@@ -34,6 +34,9 @@ export const CAN_SCAN = !STATIC_HOST || EXTERNAL_API;
 export const API_URL = apiBase
   ? new URL(`${apiBase}/api/scan`)
   : new URL("../api/scan", import.meta.url);
+export const TOP_URL = apiBase
+  ? new URL(`${apiBase}/api/top`)
+  : new URL("../api/top", import.meta.url);
 export const HEALTH_URL = apiBase
   ? new URL(`${apiBase}/api/health`)
   : new URL("../api/health", import.meta.url);
