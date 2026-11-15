@@ -316,7 +316,7 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 
 ### ✅ FASE 4.9: Ranking público de webs escaneadas (COMPLETADA)
 
-- **Qué muestra**: una sección en la landing (ES/EN) con pestañas **Hoy / 7 días / 30 días** y los dominios más escaneados. El título es «Lo más escuchado»: no se anuncia un «Top 10» ni el número de posiciones, porque con poco tráfico la lista estaría casi siempre incompleta. Por defecto abre 30 días para reducir el estado vacío.
+- **Qué muestra**: una sección en la landing (ES/EN) con pestañas **Hoy / 7 días / 30 días** y los dominios más escaneados. Cada fila lleva el puesto, el dominio y una barra proporcional al primero; la cifra de escaneos se queda en el servidor. El título es «Lo más escuchado»: no se anuncia un «Top 10» ni el número de posiciones, porque con poco tráfico la lista estaría casi siempre incompleta. Por defecto abre 30 días para reducir el estado vacío.
 - **Qué se guarda**: solo el dominio normalizado (sin `www.`, ruta ni query) y el día UTC. La IP no se almacena: se hashea en memoria para no contar dos veces al mismo visitante y dominio el mismo día.
 - **Almacén**: Upstash Redis por REST (`src/backend/top-store.js`), sin dependencias npm. Cada día es un sorted set `vibedom:top:v1:YYYY-MM-DD`; se suma con `ZINCRBY`, se lee con `ZUNIONSTORE` + `ZREVRANGE` y las claves caducan a los 32 días. Sin credenciales cae a memoria y `/api/health` lo indica (`top.backend: "memory"`).
 - **API**: `GET /api/top?period=today|week|month` devuelve `{ period, items: [{ host, count }] }`; `period` inválido cae a `month`. `HEAD` también responde.

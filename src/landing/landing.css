@@ -1133,13 +1133,12 @@ h2 {
 }
 
 .top-item {
-  position: relative;
   display: grid;
-  grid-template-columns: 1.6rem minmax(0, 1fr) auto;
+  grid-template-columns: 1.6rem minmax(0, 1fr);
   align-items: center;
-  gap: 0.8rem;
-  overflow: hidden;
-  padding: 0.7rem 0.9rem;
+  column-gap: 0.8rem;
+  row-gap: 0.55rem;
+  padding: 0.65rem 0.9rem 0.75rem;
   border: 1px solid transparent;
   border-radius: 14px;
   transition: border-color 0.2s ease, background 0.2s ease;
@@ -1150,22 +1149,25 @@ h2 {
   background: color-mix(in srgb, var(--text) 3%, transparent);
 }
 
-.top-item > *:not(.top-bar) {
-  position: relative;
-  z-index: 1;
+.top-bar {
+  grid-column: 1 / -1;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 9%, transparent);
 }
 
-.top-bar {
-  position: absolute;
-  inset: 0 auto 0 0;
+.top-bar::after {
+  display: block;
   width: calc(var(--share, 0) * 100%);
+  height: 100%;
+  border-radius: inherit;
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--accent) 16%, transparent),
-    color-mix(in srgb, var(--accent) 3%, transparent) 80%,
-    transparent
+    var(--accent),
+    color-mix(in srgb, var(--accent) 45%, transparent)
   );
-  pointer-events: none;
+  content: "";
 }
 
 .top-rank {
@@ -1189,14 +1191,6 @@ h2 {
 .top-host:hover {
   color: var(--accent-ink);
   text-decoration: underline;
-}
-
-.top-count {
-  color: var(--muted);
-  font-family: var(--mono);
-  font-size: 0.72rem;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
 .top-status {
@@ -1540,9 +1534,9 @@ h2 {
   }
 
   .top-item {
-    grid-template-columns: 1.2rem minmax(0, 1fr) auto;
-    gap: 0.6rem;
-    padding: 0.65rem 0.7rem;
+    grid-template-columns: 1.2rem minmax(0, 1fr);
+    column-gap: 0.6rem;
+    padding: 0.65rem 0.7rem 0.7rem;
   }
 }
 

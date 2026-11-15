@@ -83,7 +83,7 @@ Si Gemini no está disponible (cuota agotada, sin clave o error de red), el paso
 - Demo inmediata con tres presets, botón de play, espectro, osciloscopio y paleta de la semilla.
 - Panel de análisis animado y cancelable durante el escaneo; el resultado se reproduce automáticamente si el navegador lo permite.
 - Secciones de cómo funciona, identidad sonora, privacidad, CTA al playground y FAQ.
-- **Ranking público**: pestañas Hoy / 7 días / 30 días con los dominios más escaneados. Se actualiza al acercarse a la sección y solo guarda el dominio y el día UTC; nunca la ruta, la búsqueda ni la IP. Si no hay backend, la sección no aparece.
+- **Ranking público**: pestañas Hoy / 7 días / 30 días con los dominios más escaneados. Cada fila muestra el puesto, el dominio y una barra proporcional al primero; la cifra de escaneos no se publica. Se actualiza al acercarse a la sección y solo guarda el dominio y el día UTC; nunca la ruta, la búsqueda ni la IP. Si no hay backend, la sección no aparece.
 - Sin JSON ni sliders a la vista: esos viven en el playground.
 - **Tema dinámico**: al escanear un sitio, la landing adopta su fondo, su texto y su acento (también `theme-color` y `color-scheme`). Elegir un preset devuelve la paleta de marca al instante.
 - Si el sitio se sirve en un host estático sin backend propio (GitHub Pages, `file:`, o un dominio con `<meta name="vibedom-api">` externo), se muestra un aviso de espera y `warmApi()` despierta Render antes de escanear.

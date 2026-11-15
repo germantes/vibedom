@@ -79,8 +79,6 @@ const DICTS = {
     "landing.top.empty":
       "Todavía no hay suficientes escaneos en este periodo. Sé quien estrene la lista: escanea tu web.",
     "landing.top.error": "No se pudo cargar el ranking ahora mismo. Inténtalo de nuevo en unos segundos.",
-    "landing.top.scans": "{count} escaneos",
-    "landing.top.scansOne": "1 escaneo",
     "landing.top.openAria": "Abrir {host} en una pestaña nueva",
 
     "landing.privacy.eyebrow": "Privacidad",
@@ -375,8 +373,6 @@ const DICTS = {
     "landing.top.empty":
       "Not enough scans in this period yet. Be the first to open the list: scan your site.",
     "landing.top.error": "The ranking could not be loaded right now. Try again in a few seconds.",
-    "landing.top.scans": "{count} scans",
-    "landing.top.scansOne": "1 scan",
     "landing.top.openAria": "Open {host} in a new tab",
 
     "landing.privacy.eyebrow": "Privacy",

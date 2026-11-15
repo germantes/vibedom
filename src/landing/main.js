@@ -414,13 +414,6 @@ function topEndpoint(period) {
   return url;
 }
 
-function topCountLabel(count) {
-  const locale = getLang() === "en" ? "en-US" : "es-ES";
-  return t(count === 1 ? "landing.top.scansOne" : "landing.top.scans", {
-    count: new Intl.NumberFormat(locale).format(count),
-  });
-}
-
 function renderTop(items) {
   const max = items.reduce((value, item) => Math.max(value, item.count), 0) || 1;
   topList.replaceChildren();
@@ -430,10 +423,6 @@ function renderTop(items) {
     row.className = "top-item";
     // Barra proporcional al primero; el mínimo deja visible cualquier entrada.
     row.style.setProperty("--share", String(Math.max(0.08, item.count / max)));
-
-    const bar = document.createElement("span");
-    bar.className = "top-bar";
-    bar.setAttribute("aria-hidden", "true");
 
     const rank = document.createElement("span");
     rank.className = "top-rank";
@@ -447,11 +436,12 @@ function renderTop(items) {
     link.textContent = item.host;
     link.setAttribute("aria-label", t("landing.top.openAria", { host: item.host }));
 
-    const count = document.createElement("span");
-    count.className = "top-count";
-    count.textContent = topCountLabel(item.count);
+    // La cifra de escaneos se queda en el servidor: la barra comunica el orden.
+    const bar = document.createElement("span");
+    bar.className = "top-bar";
+    bar.setAttribute("aria-hidden", "true");
 
-    row.append(bar, rank, link, count);
+    row.append(rank, link, bar);
     topList.append(row);
   });
 
