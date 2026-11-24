@@ -8,6 +8,7 @@ import { createControls, formatHz } from "./controls.js";
 import { createVisualizer } from "./visualizer.js";
 import { accentFor, normalizeHex, onColorFor, relativeLuminance, textFor } from "../landing/theme.js";
 import { buildShareHash, buildShareLink, buildWidgetSnippet, readShareHash } from "../embed.js";
+import { parseSeedText, seedFileName, serializeSeed } from "../seed-io.js";
 
 applyI18n();
 
@@ -184,8 +185,9 @@ function renderSeed(seed, { showSource = true } = {}) {
   syncShareUrl(seed);
   const share = $("share-seed");
   if (share) share.disabled = false;
+  const exportBtn = $("export-seed");
+  if (exportBtn) exportBtn.disabled = false;
   document.title = `vibedom · ${copy.vibe}`;
-
   const source = $("source-url");
   const sourceLine = source.closest(".source");
   if (showSource && /^https?:\/\//i.test(seed.metadata.url ?? "")) {
@@ -545,6 +547,49 @@ shareBtn?.addEventListener("click", async () => {
     flashLabel(shareBtn, "playground.share.copied", "playground.share.copy");
   } catch {
     flashLabel(shareBtn, "playground.share.error", "playground.share.copy");
+  }
+});
+
+const exportBtn = $("export-seed");
+
+/** Descarga la semilla activa como archivo JSON. */
+exportBtn?.addEventListener("click", () => {
+  if (!activeSeed) return;
+  try {
+    const blob = new Blob([serializeSeed(activeSeed)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = seedFileName(activeSeed);
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    flashLabel(exportBtn, "playground.export.done", "playground.export.button");
+  } catch (err) {
+    console.error(err);
+    flashLabel(exportBtn, "playground.share.error", "playground.export.button");
+  }
+});
+
+const importBtn = $("import-seed");
+const importFile = $("import-file");
+
+importBtn?.addEventListener("click", () => importFile?.click());
+
+/** Carga una semilla exportada antes, validada con el mismo contrato. */
+importFile?.addEventListener("change", async () => {
+  const file = importFile.files?.[0];
+  // Se limpia ya: volver a elegir el mismo archivo debe disparar otro change.
+  importFile.value = "";
+  if (!file) return;
+  try {
+    const seed = parseSeedText(await file.text());
+    await loadSeed(seed);
+    setStatus(t("playground.status.imported"));
+  } catch (err) {
+    console.warn("[vibedom] semilla importada inválida:", err.message);
+    setStatus(t("playground.import.invalid"));
   }
 });
 

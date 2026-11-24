@@ -39,6 +39,9 @@ const DICTS = {
     "landing.demo.loading": "Cargando demos…",
     "landing.demo.source": "Escuchando",
 
+    "landing.history.label": "Tus últimos escaneos · solo en este navegador",
+    "landing.history.replayAria": "Volver a escuchar {host}",
+
     "landing.how.eyebrow": "Cómo funciona",
     "landing.how.title": "De la estética al sonido en tres pasos.",
     "landing.how.lead":
@@ -239,6 +242,11 @@ const DICTS = {
     "playground.share.error": "No se pudo copiar",
     "playground.share.hint":
       "El enlace lleva la parte sonora y visual de la semilla y una vista previa con su paleta. La descripción larga se omite para acortarlo; quien lo abra escucha esta misma variación sin gastar IA.",
+    "playground.export.button": "Descargar JSON",
+    "playground.export.done": "Descargado",
+    "playground.import.button": "Importar JSON",
+    "playground.import.invalid": "El archivo no contiene una Semilla Sonora válida.",
+    "playground.status.imported": "Semilla importada. Pulsa Reproducir.",
     "playground.sharedExplanation":
       "Descripción omitida para acortar el enlace. La música, el tema visual y la identidad detectada son los originales.",
     "playground.status.shared": "Semilla compartida cargada. Pulsa Reproducir.",
@@ -332,6 +340,9 @@ const DICTS = {
     "landing.demo.ready": "Demo ready. Hit play to listen.",
     "landing.demo.loading": "Loading demos…",
     "landing.demo.source": "Listening to",
+
+    "landing.history.label": "Your recent scans · this browser only",
+    "landing.history.replayAria": "Play {host} again",
 
     "landing.how.eyebrow": "How it works",
     "landing.how.title": "From aesthetics to sound in three steps.",
@@ -531,6 +542,11 @@ const DICTS = {
     "playground.share.error": "Couldn't copy",
     "playground.share.hint":
       "The link carries the sonic and visual part of the seed plus a preview with its palette. The long description is omitted to keep it short; whoever opens it hears this same variation without spending AI.",
+    "playground.export.button": "Download JSON",
+    "playground.export.done": "Downloaded",
+    "playground.import.button": "Import JSON",
+    "playground.import.invalid": "That file doesn't hold a valid Sound Seed.",
+    "playground.status.imported": "Seed imported. Press Play.",
     "playground.sharedExplanation":
       "Description omitted to keep the link short. The music, visual theme and detected identity are the originals.",
     "playground.status.shared": "Shared seed loaded. Press Play.",

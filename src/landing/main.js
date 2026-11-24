@@ -2,6 +2,7 @@ import { attachReactivity } from "../engine/reactivity.js";
 import { configureContext, createSoundscape } from "../engine/soundscape.js";
 import { analysisCopy, applyI18n, getLang, presetCopy, rateLimitCopy, t } from "../i18n.js";
 import { API_URL, CAN_SCAN, STATIC_HOST, TOP_URL, warmApi } from "../api.js";
+import { addHistoryEntry, readHistory } from "../history.js";
 import { createAnalysis } from "../demo/analysis.js";
 import { createVisualizer } from "../demo/visualizer.js";
 import {
@@ -42,6 +43,8 @@ const scanForm = $("scan-form");
 const scanBtn = $("scan-btn");
 const urlInput = $("url-input");
 const presetButtons = [...document.querySelectorAll(".preset")];
+const historySection = $("history");
+const historyList = $("history-list");
 const root = document.documentElement;
 
 let Tone = null;
@@ -375,6 +378,9 @@ scanForm.addEventListener("submit", async (event) => {
     analysis.finish();
     // El ranking se refresca ya: el servidor espera el conteo de este escaneo.
     refreshTop();
+    // El historial guarda la semilla para poder re-escuchar sin re-analizar.
+    addHistoryEntry(window.localStorage, { url: target, seed: data });
+    renderHistory();
     await audioReady;
     await loadSeed(data, { autoplay: true, showSource: true });
     analysis.hideSoon();
@@ -396,6 +402,48 @@ scanForm.addEventListener("submit", async (event) => {
     renderToggle();
   }
 });
+
+// ---- Historial local -------------------------------------------------------
+
+/**
+ * Muestra los últimos escaneos de este navegador. Cada chip recarga la
+ * semilla guardada y la reproduce: no se vuelve a gastar un análisis.
+ */
+function renderHistory() {
+  if (!historySection) return;
+  const entries = readHistory(window.localStorage);
+  historySection.hidden = entries.length === 0;
+  historyList.replaceChildren();
+
+  for (const entry of entries) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "history-chip";
+    chip.setAttribute(
+      "aria-label",
+      t("landing.history.replayAria", { host: entry.host || entry.url }),
+    );
+
+    const host = document.createElement("span");
+    host.className = "history-host";
+    host.textContent = entry.host || entry.url;
+
+    chip.append(host);
+    if (entry.vibe) {
+      const vibe = document.createElement("span");
+      vibe.className = "history-vibe";
+      vibe.textContent = entry.vibe;
+      chip.append(vibe);
+    }
+
+    chip.addEventListener("click", () =>
+      withBusy(() => loadSeed(entry.seed, { autoplay: true, showSource: true })),
+    );
+    historyList.append(chip);
+  }
+}
+
+renderHistory();
 
 // ---- Ranking ---------------------------------------------------------------
 
