@@ -84,6 +84,7 @@ Si Gemini no está disponible (cuota agotada, sin clave o error de red), el paso
 - Panel de análisis animado y cancelable durante el escaneo; el resultado se reproduce automáticamente si el navegador lo permite.
 - Secciones de cómo funciona, identidad sonora, privacidad, CTA al playground y FAQ.
 - **Ranking público**: pestañas Hoy / 7 días / 30 días con los dominios más escaneados. Cada fila muestra el puesto, el dominio y una barra proporcional al primero; la cifra de escaneos no se publica. Se actualiza al acercarse a la sección y se refresca al terminar cada escaneo (sin recargar). Solo guarda el dominio y el día UTC; nunca la ruta, la búsqueda ni la IP. Si no hay backend, la sección no aparece.
+- **Historial local**: los últimos escaneos quedan como chips bajo el formulario (`localStorage`, solo en ese navegador, nada viaja al servidor). Pulsar uno recarga su semilla y la reproduce sin gastar otro análisis.
 - Sin JSON ni sliders a la vista: esos viven en el playground.
 - **Tema dinámico**: al escanear un sitio, la landing adopta su fondo, su texto y su acento (también `theme-color` y `color-scheme`). Elegir un preset devuelve la paleta de marca al instante.
 - Si el sitio se sirve en un host estático sin backend propio (GitHub Pages, `file:`, o un dominio con `<meta name="vibedom-api">` externo), se muestra un aviso de espera y `warmApi()` despierta Render antes de escanear.
@@ -119,6 +120,7 @@ El playground reutiliza las mismas funciones en su propio `applyTheme`, pero con
 - **Semilla Sonora visible** y botón para volver a la landing; selector de idioma en la barra superior.
 - **Widget embebible**: bloque con el `<script>` listo para copiar, actualizado en caliente con los sliders.
 - **Enlace compartible**: la semilla activa vive en el fragmento `#seed=...`; «Copiar enlace» guarda la variación sin backend ni IA.
+- **Exportar / importar**: «Descargar JSON» baja la semilla activa como archivo y «Importar JSON» recupera una semilla desde disco, validada con el contrato antes de tocar el motor.
 
 ## Compartir una semilla
 
@@ -463,6 +465,7 @@ El flujo real se validó en navegador con Playwright (fuera del repo): landing E
 
 ## Roadmap
 
+Marketing y difusión: [MARKETING.md](MARKETING.md) (diagnóstico, canales, copys y plan 30/60/90).
+
 * Verificación en Search Console y envío del sitemap (aparcado; la propiedad ES ya está verificada y la etiqueta sigue en el HTML).
-* Historial de escaneos recientes en `localStorage`.
-* Exportar/importar Semilla Sonora y componente nativo para Framer.
+* Componente nativo para Framer (la exportación/importación de la Semilla Sonora ya está en el playground).

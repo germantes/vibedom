@@ -327,6 +327,14 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **Refresco inmediato (2026-11-15)**: probado en producción escaneando `example.org` con la sección del ranking fuera del viewport. Al terminar, el dominio apareció en la lista sin recargar la página y con una sola petición a `/api/top`; el servidor esperó el conteo en vuelo. `example.org` se borró después con `ZREM`.
 - **Pendiente operativo**: la base Upstash ya responde desde Render (`top.backend: "upstash"`, durable); si aún no se ha reclamado la base temporal, hacerlo antes del **2026-11-18** con el enlace de reclamo.
 
+### ✅ FASE 4.10: Historial local y exportar/importar la Semilla Sonora (COMPLETADA, 2026-11-24)
+
+- **Historial de escaneos** (`src/history.js`): tras un escaneo con éxito, la landing guarda en `localStorage` la URL, el dominio (sin `www.`), el `detectedVibe` y la semilla completa de los últimos 6 escaneos (clave `vibedom:history`). Los chips aparecen bajo el formulario; pulsar uno recarga esa semilla y la reproduce sin volver a gastar un análisis ni tocar la API. Re-escanear la misma URL la mueve arriba sin duplicados. Nada viaja al servidor y la UI lo dice («solo en este navegador»). Un `localStorage` bloqueado (modo privado, cuota) no rompe el flujo: el guardado va envuelto y el resto de la demo funciona igual.
+- **Exportar** (`src/seed-io.js`): el playground ofrece «Descargar JSON», que baja la semilla activa como `vibedom-<host|vibe>.json` vía `Blob` + `URL.createObjectURL` (el `revokeObjectURL` va con retardo). El botón queda deshabilitado hasta que hay semilla activa, igual que «Copiar enlace».
+- **Importar**: «Importar JSON» abre un `input[type=file]` oculto (`accept` JSON); el texto se valida con el contrato (`parseSeedText` → `normalizeSeed`) antes de tocar el motor o el DOM. Un archivo corrupto muestra «El archivo no contiene una Semilla Sonora válida» y no cambia el estado. El `input` se limpia tras leer para que reelegir el mismo archivo dispare otro `change`. Tras importar no hay autoplay: se pide pulsar Reproducir, como con los enlaces compartidos.
+- **i18n**: claves nuevas ES/EN (`landing.history.*`, `playground.export.*`, `playground.import.*`, `playground.status.imported`). HTML tocado: `index.html`, `en/index.html`, `playground/index.html`, `playground/en/index.html` y `landing.css` (estilo chip con la paleta dinámica: usa `--line`/`--bg-soft`, sin colores fijos de marca).
+- **Verificación (2026-11-24)**: suite local **201 tests** en verde (15 nuevos: `test/history.test.js` y `test/seed-io.test.js`, con storage mock y casos de JSON corrupto, límite, dedupe y storage bloqueado). E2E con Chromium (playwright-core fuera del repo, en `/tmp/vibedom-e2e`): historial oculto sin entradas, chip visible tras recargar con datos, clic en chip cambia el tema y el vibe sin errores de consola; «Descargar JSON» produce `vibedom-neon-grid.example.json` con la semilla del preset y «Importar JSON» restaura una semilla de editorial con el estado «Semilla importada» visible.
+
 ### 🔎 Strudel frente a Tone.js (evaluado, no adoptado)
 
 Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Tidal Cycles: su fuerte son los **patrones rítmicos y el live coding sobre samples**, no la síntesis procedural sin audio pregrabado. Adoptarlo implicaría reescribir la Semilla Sonora y el motor, añadir muestras (o cargar su banco) y cumplir la **AGPL-3.0** en un producto web. Se mantiene Tone.js; una prueba A/B con Strudel queda como experimento externo, no como dependencia del repo.
@@ -342,9 +350,9 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 - Reactivar el cronjob de cron-job.org con `HEAD https://vibedom.onrender.com/api/ping` **cada 10 minutos** (menos que la ventana de sueño de 15 min). Se desactivó solo tras 26 fallos por «Response data too big»: el job corría con más de 15 min de separación, así que siempre encontraba Render dormido y recibía su página de arranque. El primer intento tras un despliegue puede fallar; los siguientes ya reciben `ok`.
 - Decidir el cold start de Render: plan Starter (7 USD/mes) o mantener el cron de keep-alive con la franja horaria limitada.
 - **Reclamar la base Upstash temporal antes del 2026-11-18** si aún no se ha hecho (enlace en `/tmp/opencode/vibedom-upstash-claim.txt`). Las variables `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` ya están configuradas en Render (`sync: false`) y producción reporta `top.backend: "upstash"` con `durable: true`.
-- Historial de escaneos recientes (localStorage).
-- Exportar/importar Semilla Sonora.
-- Tests de UI automatizados estables (los actuales son verificación manual con Playwright en `/tmp`).
+- Historial de escaneos recientes (localStorage). **HECHO en la FASE 4.10 (2026-11-24):** chips en la landing ES/EN con re-escucha sin gasto de IA.
+- Exportar/importar Semilla Sonora. **HECHO en la FASE 4.10 (2026-11-24):** descargar JSON e importarlo validado con `normalizeSeed` en el playground.
+- Tests de UI automatizados estables (los actuales son verificación manual con Playwright en `/tmp`). Parcial: la FASE 4.10 dejó E2E reproducibles en `/tmp/vibedom-e2e` (historial y export/import), pero siguen fuera del repo y sin CI.
 
 ---
 
@@ -360,6 +368,7 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 ├── render.yaml                                # Blueprint de Render
 ├── LICENSE                                    # Licencia MIT (German)
 ├── README.md                                  # Documentación general y demo
+├── MARKETING.md                               # Guía de marketing: canales, copys y plan 30/60/90
 ├── especificaciones_del_proyecto_web_to_audio.md # Spec funcional y técnico
 ├── ESTADO_DEL_PROYECTO.md                     # Este documento
 ├── index.html                                 # Landing ES
@@ -397,6 +406,8 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 │   ├── api.js                                 # /api/scan, /api/top y backend externo
 │   ├── embed.js                               # Semilla base64, token corto y snippet del widget
 │   ├── host-mode.js                           # Detección de host estático
+│   ├── history.js                             # Historial local de escaneos (localStorage)
+│   ├── seed-io.js                             # Exportar/importar la Semilla Sonora (JSON)
 │   ├── backend/
 │   │   ├── scraper.js                         # Extracción HTML/CSS sin dependencias
 │   │   ├── server.js                          # node:http + API /api/scan + health + /s/
@@ -437,6 +448,7 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
     ├── embed.test.js
     ├── gemini-limiter.test.js
     ├── generative.test.js
+    ├── history.test.js
     ├── host-mode.test.js
     ├── local-seed.test.js
     ├── rate-limit.test.js
@@ -444,6 +456,7 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
     ├── scan-budget.test.js
     ├── scan-cache.test.js
     ├── scraper.test.js
+    ├── seed-io.test.js
     ├── seed.test.js
     ├── seo.test.js
     ├── server.test.js
