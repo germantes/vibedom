@@ -158,7 +158,7 @@ Verificación en producción (2026-10-26, commit `34d7512`):
 - **Host estático en dominio propio** (`src/host-mode.js`): la landing ya no detecta Pages solo por `github.io`. Si el backend declarado vive en otro origen, el host es estático: se muestra el aviso de espera y `warmApi()` despierta Render. Cubre GitHub Pages, `vibedom.dev`, `file:` y cualquier host estático con API externa.
 - **Verificación live** (commit `11c1ab4`): `/`, `/en/`, `/playground/` y `/playground/en/` en `200` con `canonical`, `lang` y `vibedom-api` correctos; `http://` y `www` redirigen a `https://vibedom.dev/`; certificado válido; `sitemap.xml` con 16 URLs del dominio nuevo; escaneo cross-origin en 0,4 s desde caché (`HIT`), autoplay, fuente y panel correctos; sin errores propios.
 
-**Pendiente**: verificar el dominio en GitHub con el TXT `_github-pages-challenge-germantes.vibedom.dev` (protección contra *takeover*), y añadir los cuatro `AAAA` si se quiere soporte IPv6.
+**Pendiente**: verificar el dominio en GitHub con el TXT `_github-pages-challenge-germantes.vibedom.dev` (protección contra *takeover*), y añadir los cuatro `AAAA` si se quiere soporte IPv6. **HECHO (verificado 2026-11-25):** el DNS ya publica el TXT (`"2c166b9b8307903f5bb4a3abab38a9"`) y los `AAAA` de GitHub; queda solo confirmar en el panel del repo que GitHub lo marca como dominio verificado.
 
 ### ✅ FASE 3.7: Tema dinámico de la landing (COMPLETADA)
 
@@ -344,7 +344,7 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 ## 4. Lo que queda por hacer (Roadmap)
 
 ### Mejoras opcionales
-- Verificar `vibedom.dev` en GitHub Pages con el TXT `_github-pages-challenge-germantes` (protección contra *takeover*) y añadir los `AAAA` de GitHub para IPv6.
+- Verificar `vibedom.dev` en GitHub Pages con el TXT `_github-pages-challenge-germantes` (protección contra *takeover*) y añadir los `AAAA` de GitHub para IPv6. **HECHO (verificado 2026-11-25):** TXT y `AAAA` ya publicados en el DNS; queda confirmar el estado «verified» en el panel de GitHub.
 - Alta en Search Console y envío del sitemap (aparcado: la propiedad ES ya está verificada por etiqueta HTML; la página EN queda pendiente).
 - Revisar en Google Cloud Billing si el crédito de 50 USD se agotó y mantener las alertas de 2,50 / 4,50 / 5 USD. Un tope duro de gasto no se puede imponer desde la app: hay que fijarlo como cuota en Google Cloud o apagar la IA.
 - Reactivar el cronjob de cron-job.org con `HEAD https://vibedom.onrender.com/api/ping` **cada 10 minutos** (menos que la ventana de sueño de 15 min). Se desactivó solo tras 26 fallos por «Response data too big»: el job corría con más de 15 min de separación, así que siempre encontraba Render dormido y recibía su página de arranque. El primer intento tras un despliegue puede fallar; los siguientes ya reciben `ok`. **HECHO (verificado 2026-11-25):** con el intervalo reducido, la instancia pasó una ventana de 19 min sin tráfico propio sin dormir (respuesta 200 en 1,3 s con cuerpo `ok` de 2 B tras el silencio; un cold start tarda ~25 s o devolvería la página de arranque de Render).
