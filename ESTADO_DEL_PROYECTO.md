@@ -343,6 +343,13 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **CI**: el workflow `tests` gana un job `e2e` paralelo al de unitarios: `npm ci` en `e2e/`, `npx playwright install --with-deps chromium` y `npm test`; si falla, sube el informe HTML como artefacto (7 días).
 - **Verificación (2026-11-25)**: los 8 E2E en verde en local (6,2 s, Chromium headless) y la suite unitaria sigue en 201 sin contaminación. CI en verde tras el push (ver commit de cierre de esta fase).
 
+### ✅ FASE 4.12: «Copiar enlace» en la landing (COMPLETADA, 2026-11-25)
+
+- **Qué**: la landing muestra «Copiar enlace» en la demo cuando la semilla activa es propia (tras un escaneo con éxito o al reproducir una entrada del historial); con un preset queda oculto — compartir la demo por defecto no aporta. El enlace es el mismo contrato del playground: `buildShareLink()` con el origen del `<meta vibedom-api>` (`https://vibedom.onrender.com/s/<token>`), que redirige al playground ES/EN con la semilla ya cargada.
+- **Dónde**: botón `#demo-share` (clase `ghost`) al pie de la demo en `index.html` y `en/index.html` con `data-i18n="playground.share.copy"` (reutiliza las claves ES/EN existentes); lógica en `src/landing/main.js` (copia con `navigator.clipboard` + fallback `execCommand`, confirmación «Enlace copiado» 2 s) y margen en `landing.css`. Visibilidad en `loadSeed()`: `hidden` si la semilla viene de un preset.
+- **Por qué**: era el ítem 5.2 de MARKETING.md («mayor multiplicador posible de todo el backlog»): cada visitante con un escaneo exitoso sale con un enlace que ya lleva su semilla.
+- **Verificación (2026-11-25)**: 201 unitarios y 8+2 E2E en verde (el spec del historial ahora comprueba que el botón está oculto con la demo por defecto, que aparece tras reproducir una entrada guardada y que al pulsarlo el portapapeles recibe `/s/~<token>` con «Enlace copiado» visible). CI en verde tras el push.
+
 ### 🔎 Strudel frente a Tone.js (evaluado, no adoptado)
 
 Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Tidal Cycles: su fuerte son los **patrones rítmicos y el live coding sobre samples**, no la síntesis procedural sin audio pregrabado. Adoptarlo implicaría reescribir la Semilla Sonora y el motor, añadir muestras (o cargar su banco) y cumplir la **AGPL-3.0** en un producto web. Se mantiene Tone.js; una prueba A/B con Strudel queda como experimento externo, no como dependencia del repo.

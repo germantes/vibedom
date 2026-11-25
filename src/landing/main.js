@@ -3,6 +3,7 @@ import { configureContext, createSoundscape } from "../engine/soundscape.js";
 import { analysisCopy, applyI18n, getLang, presetCopy, rateLimitCopy, t } from "../i18n.js";
 import { API_URL, CAN_SCAN, STATIC_HOST, TOP_URL, warmApi } from "../api.js";
 import { addHistoryEntry, readHistory } from "../history.js";
+import { buildShareLink } from "../embed.js";
 import { createAnalysis } from "../demo/analysis.js";
 import { createVisualizer } from "../demo/visualizer.js";
 import {
@@ -19,6 +20,9 @@ applyI18n();
 
 const TONE_URL = "https://cdn.jsdelivr.net/npm/tone@15.1.22/+esm";
 const PRESET_IDS = ["cyberpunk", "editorial", "indie-pastel"];
+// El enlace compartido apunta al origen con backend (vía /s/<token> llega al
+// playground con la semilla ya puesta); en hosting estático cae a la propia.
+const SHARE_ORIGIN = CAN_SCAN ? API_URL.origin : null;
 const BRAND_ACCENT = "#d8ff4f";
 const BRAND_TEXT = "#f4f1e8";
 const BRAND_BG = "#0a0a0c";
@@ -39,6 +43,7 @@ const toggle = $("demo-toggle");
 const toggleLabel = $("demo-toggle-label");
 const demoStatus = $("demo-status");
 const demoVibe = $("demo-vibe");
+const shareBtn = $("demo-share");
 const scanForm = $("scan-form");
 const scanBtn = $("scan-btn");
 const urlInput = $("url-input");
@@ -61,6 +66,45 @@ let scanController = null;
 function setStatus(text) {
   demoStatus.textContent = text;
 }
+
+/** Copia al portapapeles con fallback a execCommand (navegadores sin permiso). */
+async function copyText(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const area = document.createElement("textarea");
+  area.value = text;
+  area.setAttribute("readonly", "");
+  area.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+  document.body.appendChild(area);
+  area.select();
+  const ok = document.execCommand("copy");
+  area.remove();
+  if (!ok) throw new Error("No se pudo copiar");
+}
+
+/** Cambia la etiqueta de un botón durante 2 s y la restaura. */
+function flashLabel(button, key, restoreKey) {
+  clearTimeout(Number(button.dataset.labelTimer) || 0);
+  button.textContent = t(key);
+  const timer = setTimeout(() => {
+    button.textContent = t(restoreKey);
+    delete button.dataset.labelTimer;
+  }, 2000);
+  button.dataset.labelTimer = String(timer);
+}
+
+shareBtn?.addEventListener("click", async () => {
+  if (!activeSeed) return;
+  const link = buildShareLink(activeSeed, { origin: SHARE_ORIGIN, lang: getLang() });
+  try {
+    await copyText(link || location.href);
+    flashLabel(shareBtn, "playground.share.copied", "playground.share.copy");
+  } catch {
+    flashLabel(shareBtn, "playground.share.error", "playground.share.copy");
+  }
+});
 
 function normalizeUrl(raw) {
   const trimmed = raw.trim();
@@ -287,6 +331,9 @@ async function loadSeed(rawSeed, { presetId = null, autoplay = false, showSource
   activeSeed = structuredClone(rawSeed);
   activePreset = presetId;
   renderSeedMeta(activeSeed, { showSource, themed: presetId === null });
+  // El enlace compartido solo tiene valor con una semilla propia (escaneo o
+  // historial): con un preset cualquiera sería compartir la demo por defecto.
+  if (shareBtn) shareBtn.hidden = presetId !== null;
   renderToggle();
 
   if (wasPlaying || autoplay) {

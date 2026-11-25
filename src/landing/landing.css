@@ -832,6 +832,10 @@ a {
   color: var(--text);
 }
 
+.demo-share {
+  margin: 0.6rem 0 0;
+}
+
 .demo-status {
   min-height: 1.4em;
   margin: 0.75rem 0 0;

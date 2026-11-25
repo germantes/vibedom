@@ -119,9 +119,9 @@ El producto convierte solo (el escaneo es gratis y anónimo), pero conviene acom
 
 1. **Visitante → usuario recurrente:** ranking (ya está), historial local (desde hoy),
    presets instantáneos sin backend. Nada más que tocar hoy.
-2. **Usuario → prescriptor:** botón «Copiar enlace» ya embebe la semilla en la URL — hazlo
-   visible en la landing tras un escaneo exitoso (hoy solo existe en el playground).
-   Coste estimado: una clave i18n y un botón. Mayor multiplicador posible de todo el backlog.
+2. **Usuario → prescriptor:** botón «Copiar enlace» ya embebe la semilla en la URL —
+   **HECHO (FASE 4.12, 2026-11-25):** ahora también visible en la landing tras un escaneo con
+   éxito o al reproducir una entrada del historial.
 3. **Usuario → cliente:** el widget es el producto "pagable". Plantear un plan freemium
    (Widget Pro con estilos propios, CDN dedicado o soporte comercial) cuando exista adopción
    real de embeds; medirlos añadiendo un contador simple de referer al `/api/scan`.
