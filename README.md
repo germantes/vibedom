@@ -480,5 +480,5 @@ El flujo real se validó en navegador con Playwright (fuera del repo): landing E
 
 Marketing y difusión: [MARKETING.md](MARKETING.md) (diagnóstico, canales, copys y plan 30/60/90).
 
-* Verificación en Search Console y envío del sitemap (aparcado; la propiedad ES ya está verificada y la etiqueta sigue en el HTML).
+* ~~Verificación en Search Console y envío del sitemap~~ (hecho: propiedad de dominio verificada por TXT en el DNS, que cubre ES y EN).
 * Componente nativo para Framer (la exportación/importación de la Semilla Sonora ya está en el playground).
