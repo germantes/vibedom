@@ -204,7 +204,7 @@ src/backend/top-store.js     ranking de dominios por día (Upstash REST o memori
 src/backend/server.js        servidor node:http (estáticos + /api/scan + /api/top + health + /s/)
 src/backend/share-preview.js vista previa OG de un enlace compartido
 src/backend/share-image.js   tarjeta PNG 1200×630 generada desde la semilla
-.github/workflows/test.yml   186 tests en cada push y PR
+.github/workflows/test.yml   201 tests unitarios + 8 E2E con Chromium en cada push y PR
 .github/workflows/render-deploy.yml  Deploy Hook de Render tras cada push a main
 src/demo/main.js             orquestación del playground
 src/demo/analysis.js         estados y animación del panel de análisis
@@ -437,7 +437,7 @@ Para añadir uno, crea el JSON en `presets/` y regístralo en `PRESET_IDS` (`src
 npm test
 ```
 
-**186 tests** con `node:test`, sin dependencias:
+**201 tests** unitarios con `node:test`, sin dependencias:
 
 * escalas, acordes y conversión MIDI;
 * validación de la semilla y presets reales;
@@ -460,6 +460,19 @@ npm test
 * documentación del widget y privacidad (rutas ES/EN, hreflang, snippet real, enlaces desde la landing y sitemap);
 * presupuesto de IA (recorte de valores antiguos, límite explícito intacto) y consumo (tokens de entrada, respuesta y razonamiento, coste por modelo y reinicio diario);
 * vista previa compartida (`/s/<token>` con OG, redirección al playground, token corrupto y PNG 1200×630 con los colores de la semilla).
+
+### E2E (Playwright, en `e2e/`)
+
+```bash
+cd e2e && npm install && npx playwright install chromium && npm test
+```
+
+**8 specs** con Chromium headless contra el backend real en `localhost:3000` (lo arranca el propio Playwright; ninguna prueba gasta IA):
+
+* playground: slider a 100 BPM → `#seed` → restaurar en contexto nuevo sin tocar `/api/scan`; «Copiar enlace» al portapapeles (`/s/~<token>` del origen declarado); enlace corrupto → preset con aviso; «Descargar JSON» (`vibedom-<host>.json`); «Importar JSON» sin autoplay; JSON inválido no cambia la semilla activa;
+* landing: historial oculto sin escaneos; chip visible tras recargar con datos y clic reproduce la semilla guardada sin gasto de análisis.
+
+El job `e2e` del workflow `tests` los ejecuta en cada push y PR con Chromium instalado por Actions; si falla, sube el informe HTML como artefacto.
 
 El flujo real se validó en navegador con Playwright (fuera del repo): landing ES/EN, presets, play/pausa, espectro, escaneo mockeado, error de backend, responsive a 390 px, playground ES/EN, sliders, JSON y cambio de idioma. También se validó un escaneo real de `example.com` (~3 s). El ranking se probó con la API interceptada en Chromium (pestañas ES/EN, teclado, estado vacío y 390 px sin overflow) y contra la base Upstash real (`ZINCRBY` + `ZUNIONSTORE`, dominio sin ruta ni query). El tema dinámico se comprobó con escaneos mockeados (sitio claro, oscuro y un caso hostil blanco sobre blanco) y una auditoría de contraste de 26 elementos en ambos esquemas: 26/26 en claro y 26/26 en oscuro. El widget se probó con Chromium headless en una página anfitriona: `widget.js` → `widget-player.js` → Tone.js solo tras el clic, arranque y pausa, snippet de 1.217 bytes generado desde el playground y copiado al portapapeles sin errores 404. El enlace compartido se validó de extremo a extremo: mover un slider cambia el `#seed` a un token corto (~200 caracteres), «Copiar enlace» copia la URL, abrirla en otra pestaña restaura la misma semilla (100 BPM) sin ninguna petición a `/api/scan`, un token corrupto cae en el preset con aviso y la versión inglesa traduce los botones. La vista previa `/s/<token>` se comprobó con `curl` y decodificando el PNG generado: cabecera IHDR 1200×630, muestras de color idénticas a `uiTheme` y Open Graph con el host y el BPM de la semilla. Las páginas SEO se probaron en Chromium: ES/EN cargan sin 404 ni errores JS, los 3 presets y el play/pausa funcionan, el escaneo simulado aplica el tema y el responsive a 320/390 px no genera overflow. La documentación del widget y las páginas de privacidad se auditaron igual en 320/390 px, con enlaces internos sanos; el snippet real se probó en una página anfitriona servida por HTTP (botón → reproductor → `aria-pressed=true`) y el copiado funciona en ambos idiomas.
 

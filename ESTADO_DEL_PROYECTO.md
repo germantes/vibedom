@@ -335,6 +335,14 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **i18n**: claves nuevas ES/EN (`landing.history.*`, `playground.export.*`, `playground.import.*`, `playground.status.imported`). HTML tocado: `index.html`, `en/index.html`, `playground/index.html`, `playground/en/index.html` y `landing.css` (estilo chip con la paleta dinámica: usa `--line`/`--bg-soft`, sin colores fijos de marca).
 - **Verificación (2026-11-24)**: suite local **201 tests** en verde (15 nuevos: `test/history.test.js` y `test/seed-io.test.js`, con storage mock y casos de JSON corrupto, límite, dedupe y storage bloqueado). E2E con Chromium (playwright-core fuera del repo, en `/tmp/vibedom-e2e`): historial oculto sin entradas, chip visible tras recargar con datos, clic en chip cambia el tema y el vibe sin errores de consola; «Descargar JSON» produce `vibedom-neon-grid.example.json` con la semilla del preset y «Importar JSON» restaura una semilla de editorial con el estado «Semilla importada» visible.
 
+### ✅ FASE 4.11: Tests E2E en el repo y CI (COMPLETADA, 2026-11-25)
+
+- **Dónde viven**: `e2e/` es un paquete npm aparte con su propio `package.json` y `package-lock.json`. `@playwright/test` queda aislado ahí: el paquete raíz sigue **sin dependencias npm** y `npm test` (node --test) no los toca (los specs usan sufijo `.spec.mjs`). `e2e/node_modules/`, `test-results/` y `playwright-report/` entran en `.gitignore`.
+- **Cómo corren**: `e2e/playwright.config.mjs` arranca el backend real (`node src/backend/server.js` en la raíz, puerto 3000, espera `/api/ping`) y suelta Chromium headless contra `http://localhost:3000`. Ninguna prueba gasta IA ni necesita claves: los presets son archivos estáticos (`presets/*.json`) y los escaneos se espían, no se ejecutan.
+- **Qué cubren (8 specs)**: `e2e/specs/playground.spec.mjs` — slider a 100 BPM sincroniza `#seed` y un contexto nuevo restaura el valor **sin llamar a `/api/scan`**; «Copiar enlace» deja en el portapapeles `vibedom.onrender.com/s/~<token>` (el origen del `<meta vibedom-api>`, que es el contrato real al servir el HTML local) y el botón confirma «Enlace copiado»; enlace `#seed=` corrupto → preset por defecto con el aviso exacto; «Descargar JSON» baja `vibedom-neon-grid.example.json` con la semilla activa; «Importar JSON» restaura semilla sin autoplay; un JSON sin contrato avisa y **no cambia** la semilla activa. `e2e/specs/history.spec.mjs` — historial oculto sin entradas; con `vibedom:history` sembrado en localStorage aparece el chip con host y vibe, y clicarlo cambia la demo a la semilla guardada sin tocar la API. Cada spec falla si la página lanza `pageerror`.
+- **CI**: el workflow `tests` gana un job `e2e` paralelo al de unitarios: `npm ci` en `e2e/`, `npx playwright install --with-deps chromium` y `npm test`; si falla, sube el informe HTML como artefacto (7 días).
+- **Verificación (2026-11-25)**: los 8 E2E en verde en local (6,2 s, Chromium headless) y la suite unitaria sigue en 201 sin contaminación. CI en verde tras el push (ver commit de cierre de esta fase).
+
 ### 🔎 Strudel frente a Tone.js (evaluado, no adoptado)
 
 Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Tidal Cycles: su fuerte son los **patrones rítmicos y el live coding sobre samples**, no la síntesis procedural sin audio pregrabado. Adoptarlo implicaría reescribir la Semilla Sonora y el motor, añadir muestras (o cargar su banco) y cumplir la **AGPL-3.0** en un producto web. Se mantiene Tone.js; una prueba A/B con Strudel queda como experimento externo, no como dependencia del repo.
@@ -352,7 +360,7 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
 - **Reclamar la base Upstash temporal antes del 2026-11-18** si aún no se ha hecho (enlace en `/tmp/opencode/vibedom-upstash-claim.txt`). Las variables `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` ya están configuradas en Render (`sync: false`) y producción reporta `top.backend: "upstash"` con `durable: true`.
 - Historial de escaneos recientes (localStorage). **HECHO en la FASE 4.10 (2026-11-24):** chips en la landing ES/EN con re-escucha sin gasto de IA.
 - Exportar/importar Semilla Sonora. **HECHO en la FASE 4.10 (2026-11-24):** descargar JSON e importarlo validado con `normalizeSeed` en el playground.
-- Tests de UI automatizados estables (los actuales son verificación manual con Playwright en `/tmp`). Parcial: la FASE 4.10 dejó E2E reproducibles en `/tmp/vibedom-e2e` (historial y export/import), pero siguen fuera del repo y sin CI.
+- Tests de UI automatizados estables (los actuales son verificación manual con Playwright en `/tmp`). **HECHO en la FASE 4.11 (2026-11-25):** los E2E ahora viven en `e2e/` dentro del repo y corren en CI con Chromium en cada push/PR.
 
 ---
 
@@ -466,6 +474,13 @@ Se revisó Strudel como alternativa al motor actual. Es un port JavaScript de Ti
     ├── url-guard.test.js
     ├── vertex.test.js
     └── widget.test.js
+└── e2e/                                        # Tests E2E (FASE 4.11)
+    ├── package.json                            # Solo @playwright/test (raíz sin deps)
+    ├── package-lock.json
+    ├── playwright.config.mjs                   # Arranca el backend en localhost:3000
+    └── specs/
+        ├── playground.spec.mjs                 # Enlace, copiar, exportar/importar
+        └── history.spec.mjs                    # Chips del historial local
 ```
 
 ---
@@ -481,6 +496,10 @@ npm start
 
 # Modo desarrollo con reinicio automático
 npm run dev
+
+# Tests E2E (Playwright/Chromium): la primera vez instala Chromium,
+# luego arranca el backend y lanza los specs contra localhost:3000
+cd e2e && npm install && npx playwright install chromium && npm test
 ```
 
 ### Notas para el siguiente agente
@@ -494,7 +513,7 @@ npm run dev
 - **Al publicar**: el snippet usa `https://vibedom.dev/widget.js`. Tras desplegar, comprueba que `/widget.js` y `/widget-player.js` responden tanto en GitHub Pages como en Render.
 - Si cambias el backend, reinicia `npm start` (el proceso en segundo plano no recarga solo).
 - El motor no debe importar Tone.js: se inyecta desde `main.js` para conservar el lazy-loading.
-- La verificación con Playwright se hizo con `playwright-core` instalado fuera del repo (`/tmp/opencode`) usando el Chromium cacheado; no añadir Playwright al `package.json` sin decisión explícita.
+- Los E2E con Playwright viven en `e2e/` con su propio `package.json` (FASE 4.11): el paquete raíz sigue sin dependencias y `node --test` no recoge los `.spec.mjs`. No metas Playwright en el `package.json` raíz.
 - **Bilingüe**: las rutas son estáticas (`/`, `/en/`, `/que-suena-mi-web/`, `/en/what-does-my-website-sound-like/`, `/playground/`, `/playground/en/`). No convertir la elección de idioma en un toggle JS: rompería SEO, enlaces compartidos y el render sin JavaScript. Para añadir textos, edita `src/i18n.js` y usa `data-i18n` en el HTML; el contenido único de la página SEO va directo en su HTML para que los buscadores lo lean sin ejecutar JS.
 - **Landing vs playground**: la landing no debe mostrar JSON ni sliders. La demo de la landing reutiliza `analysis.js`, `visualizer.js` y el motor; si cambias su API, revisa `src/landing/main.js` y `src/demo/main.js`.
 - **CSS de terceros**: no vuelvas a recorrer bloques con `([^{}]+)\{([^{}]*)\}`. Los atributos `style=` de Blogger son cientos de KB sin llaves y ese patrón es cuadrático (61 s con 349 KB). `findBackgroundColor()` usa `indexOf` y hay un test que falla si vuelve a degradarse.

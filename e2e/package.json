@@ -1,0 +1,12 @@
+{
+  "name": "vibedom-e2e",
+  "private": true,
+  "description": "Tests E2E de vibedom (Playwright/Chromium). Aislados del paquete raíz, que no tiene dependencias npm.",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0"
+  }
+}
