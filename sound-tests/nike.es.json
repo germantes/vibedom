@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "url": "https://www.nike.com/es/",
+    "detectedVibe": "Energía atlética, oscura y premium",
+    "explanation": "La paleta oscura con acentos vibrantes y tipografía sans-serif deportiva inspira un sonido de escala menor muy dinámico, con un pulso rápido y un filtro reactivo al movimiento."
+  },
+  "uiTheme": {
+    "backgroundColor": "#111111",
+    "accentColor": "#ff5000",
+    "textColor": "#ffffff",
+    "fontFamily": "sans-serif"
+  },
+  "musicalParams": {
+    "bpm": 95,
+    "rootNote": "D",
+    "scale": "minor",
+    "octave": 3
+  },
+  "synthConfig": {
+    "pad": {
+      "waveform": "sawtooth",
+      "attack": 1.5,
+      "release": 4,
+      "filterFreq": 650
+    },
+    "arp": {
+      "enabled": true,
+      "waveform": "square",
+      "density": 0.65,
+      "delayWet": 0.3
+    },
+    "effects": {
+      "reverbDecay": 5.5,
+      "reverbWet": 0.35,
+      "chorusDepth": 0.4
+    },
+    "interactivity": {
+      "scrollTarget": "filterFreq",
+      "scrollMultiplier": 3.5,
+      "hoverNoteTrigger": true
+    }
+  }
+}

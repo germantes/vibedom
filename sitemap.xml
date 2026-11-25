@@ -73,6 +73,24 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://vibedom.dev/sound-tests/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <xhtml:link rel="alternate" hreflang="es" href="https://vibedom.dev/sound-tests/" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://vibedom.dev/en/sound-tests/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://vibedom.dev/sound-tests/" />
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://vibedom.dev/en/sound-tests/</loc>
+    <lastmod>2026-11-25</lastmod>
+    <xhtml:link rel="alternate" hreflang="es" href="https://vibedom.dev/sound-tests/" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://vibedom.dev/en/sound-tests/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://vibedom.dev/sound-tests/" />
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://vibedom.dev/privacidad/</loc>
     <lastmod>2026-11-01</lastmod>
     <xhtml:link rel="alternate" hreflang="es" href="https://vibedom.dev/privacidad/" />

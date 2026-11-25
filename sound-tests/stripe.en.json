@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "url": "https://stripe.com/",
+    "detectedVibe": "Sleek, high-tech financial infrastructure",
+    "explanation": "The clean, bright background combined with vibrant violet accents and dynamic animations translates to a fast-paced, highly structured lydian soundscape with crisp arpeggios that open up as you scroll."
+  },
+  "uiTheme": {
+    "backgroundColor": "#ffffff",
+    "accentColor": "#533afd",
+    "textColor": "#161741",
+    "fontFamily": "sans-serif"
+  },
+  "musicalParams": {
+    "bpm": 92,
+    "rootNote": "G",
+    "scale": "lydian",
+    "octave": 4
+  },
+  "synthConfig": {
+    "pad": {
+      "waveform": "triangle",
+      "attack": 1.5,
+      "release": 3,
+      "filterFreq": 2500
+    },
+    "arp": {
+      "enabled": true,
+      "waveform": "sine",
+      "density": 0.65,
+      "delayWet": 0.4
+    },
+    "effects": {
+      "reverbDecay": 4.5,
+      "reverbWet": 0.3,
+      "chorusDepth": 0.25
+    },
+    "interactivity": {
+      "scrollTarget": "filterFreq",
+      "scrollMultiplier": 2.5,
+      "hoverNoteTrigger": true
+    }
+  }
+}

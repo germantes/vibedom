@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "url": "https://open.spotify.com/",
+    "detectedVibe": "Sleek dark digital neon",
+    "explanation": "A deep, moody dorian atmosphere mirroring Spotify's dark interface, contrasted by a pulsing green arpeggiator that opens up as you scroll."
+  },
+  "uiTheme": {
+    "backgroundColor": "#121212",
+    "accentColor": "#1ed760",
+    "textColor": "#ffffff",
+    "fontFamily": "sans-serif"
+  },
+  "musicalParams": {
+    "bpm": 75,
+    "rootNote": "G",
+    "scale": "dorian",
+    "octave": 3
+  },
+  "synthConfig": {
+    "pad": {
+      "waveform": "sawtooth",
+      "attack": 4,
+      "release": 6,
+      "filterFreq": 550
+    },
+    "arp": {
+      "enabled": true,
+      "waveform": "triangle",
+      "density": 0.6,
+      "delayWet": 0.4
+    },
+    "effects": {
+      "reverbDecay": 8,
+      "reverbWet": 0.45,
+      "chorusDepth": 0.5
+    },
+    "interactivity": {
+      "scrollTarget": "filterFreq",
+      "scrollMultiplier": 3.5,
+      "hoverNoteTrigger": true
+    }
+  }
+}

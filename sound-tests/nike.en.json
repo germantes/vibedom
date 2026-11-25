@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "url": "https://www.nike.com/es/",
+    "detectedVibe": "High-energy bold athletic darkness",
+    "explanation": "The dark, high-contrast aesthetic with neon accents and active transitions translates into a fast-paced, minor-key soundscape with sharp waveforms and a highly responsive filter that opens up with user movement."
+  },
+  "uiTheme": {
+    "backgroundColor": "#111111",
+    "accentColor": "#ff5000",
+    "textColor": "#ffffff",
+    "fontFamily": "sans-serif"
+  },
+  "musicalParams": {
+    "bpm": 85,
+    "rootNote": "E",
+    "scale": "phrygian",
+    "octave": 3
+  },
+  "synthConfig": {
+    "pad": {
+      "waveform": "sawtooth",
+      "attack": 1.5,
+      "release": 4,
+      "filterFreq": 600
+    },
+    "arp": {
+      "enabled": true,
+      "waveform": "square",
+      "density": 0.65,
+      "delayWet": 0.4
+    },
+    "effects": {
+      "reverbDecay": 5.5,
+      "reverbWet": 0.35,
+      "chorusDepth": 0.6
+    },
+    "interactivity": {
+      "scrollTarget": "filterFreq",
+      "scrollMultiplier": 3.5,
+      "hoverNoteTrigger": true
+    }
+  }
+}

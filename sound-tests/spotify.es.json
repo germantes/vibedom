@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "url": "https://open.spotify.com/",
+    "detectedVibe": "Minimalismo nocturno, verde eléctrico",
+    "explanation": "La interfaz oscura de Spotify con acentos verde neón y tipografía sans-serif inspira un sonido nocturno en escala menor con un filtro de pad misterioso que se abre dinámicamente con el scroll."
+  },
+  "uiTheme": {
+    "backgroundColor": "#121212",
+    "accentColor": "#1ed760",
+    "textColor": "#ffffff",
+    "fontFamily": "sans-serif"
+  },
+  "musicalParams": {
+    "bpm": 72,
+    "rootNote": "A",
+    "scale": "minor",
+    "octave": 3
+  },
+  "synthConfig": {
+    "pad": {
+      "waveform": "sawtooth",
+      "attack": 3.5,
+      "release": 4,
+      "filterFreq": 650
+    },
+    "arp": {
+      "enabled": true,
+      "waveform": "triangle",
+      "density": 0.45,
+      "delayWet": 0.35
+    },
+    "effects": {
+      "reverbDecay": 6.5,
+      "reverbWet": 0.4,
+      "chorusDepth": 0.6
+    },
+    "interactivity": {
+      "scrollTarget": "filterFreq",
+      "scrollMultiplier": 3.5,
+      "hoverNoteTrigger": true
+    }
+  }
+}

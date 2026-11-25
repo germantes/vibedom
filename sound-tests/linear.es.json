@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "url": "https://linear.app/",
+    "detectedVibe": "Minimalismo tecnológico, oscuro y ultrapreciso",
+    "explanation": "El fondo oscuro profundo y la tipografía mono sugieren un pulso electrónico analógico frío, con un filtro que se abre mediante scroll para revelar dinamismo tecnológico."
+  },
+  "uiTheme": {
+    "backgroundColor": "#08090a",
+    "accentColor": "#ffebc6",
+    "textColor": "#9c9da1",
+    "fontFamily": "monospace"
+  },
+  "musicalParams": {
+    "bpm": 74,
+    "rootNote": "D",
+    "scale": "phrygian",
+    "octave": 3
+  },
+  "synthConfig": {
+    "pad": {
+      "waveform": "sawtooth",
+      "attack": 3.5,
+      "release": 5,
+      "filterFreq": 450
+    },
+    "arp": {
+      "enabled": true,
+      "waveform": "square",
+      "density": 0.6,
+      "delayWet": 0.4
+    },
+    "effects": {
+      "reverbDecay": 6.5,
+      "reverbWet": 0.35,
+      "chorusDepth": 0.5
+    },
+    "interactivity": {
+      "scrollTarget": "filterFreq",
+      "scrollMultiplier": 3.5,
+      "hoverNoteTrigger": true
+    }
+  }
+}

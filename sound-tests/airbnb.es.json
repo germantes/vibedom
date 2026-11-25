@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "url": "https://www.airbnb.com/",
+    "detectedVibe": "Limpio, acogedor, moderno, vibrante",
+    "explanation": "El fondo blanco y la tipografía sans-serif limpia inspiran una escala mayor brillante, mientras que el acento coral se traduce en un arpegio juguetón y dinámico que simula la búsqueda de aventuras."
+  },
+  "uiTheme": {
+    "backgroundColor": "#ffffff",
+    "accentColor": "#ff385c",
+    "textColor": "#222222",
+    "fontFamily": "sans-serif"
+  },
+  "musicalParams": {
+    "bpm": 85,
+    "rootNote": "G",
+    "scale": "major",
+    "octave": 4
+  },
+  "synthConfig": {
+    "pad": {
+      "waveform": "triangle",
+      "attack": 2.5,
+      "release": 4,
+      "filterFreq": 1800
+    },
+    "arp": {
+      "enabled": true,
+      "waveform": "sine",
+      "density": 0.6,
+      "delayWet": 0.45
+    },
+    "effects": {
+      "reverbDecay": 6.5,
+      "reverbWet": 0.35,
+      "chorusDepth": 0.25
+    },
+    "interactivity": {
+      "scrollTarget": "filterFreq",
+      "scrollMultiplier": 2.5,
+      "hoverNoteTrigger": true
+    }
+  }
+}

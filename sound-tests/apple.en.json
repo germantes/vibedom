@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "url": "https://www.apple.com/",
+    "detectedVibe": "Sleek minimalist dark tech",
+    "explanation": "A dark, premium interface with clean sans-serif typography inspires a minimalist, deep dorian soundscape that opens up as you scroll."
+  },
+  "uiTheme": {
+    "backgroundColor": "#000000",
+    "accentColor": "#0071e3",
+    "textColor": "#fafafc",
+    "fontFamily": "sans-serif"
+  },
+  "musicalParams": {
+    "bpm": 72,
+    "rootNote": "A",
+    "scale": "dorian",
+    "octave": 3
+  },
+  "synthConfig": {
+    "pad": {
+      "waveform": "sine",
+      "attack": 4.5,
+      "release": 6,
+      "filterFreq": 800
+    },
+    "arp": {
+      "enabled": true,
+      "waveform": "triangle",
+      "density": 0.4,
+      "delayWet": 0.35
+    },
+    "effects": {
+      "reverbDecay": 8,
+      "reverbWet": 0.45,
+      "chorusDepth": 0.2
+    },
+    "interactivity": {
+      "scrollTarget": "filterFreq",
+      "scrollMultiplier": 3,
+      "hoverNoteTrigger": true
+    }
+  }
+}

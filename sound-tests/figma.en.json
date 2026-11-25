@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "url": "https://www.figma.com/",
+    "detectedVibe": "Sleek Dark Creative Hub",
+    "explanation": "Dark background and vibrant accents drive a low-bpm Dorian vibe with rich delays, where dynamic scrolling gradually opens the synthesis filter."
+  },
+  "uiTheme": {
+    "backgroundColor": "#000000",
+    "accentColor": "#4d49fc",
+    "textColor": "#ffffff",
+    "fontFamily": "sans-serif"
+  },
+  "musicalParams": {
+    "bpm": 72,
+    "rootNote": "D",
+    "scale": "dorian",
+    "octave": 3
+  },
+  "synthConfig": {
+    "pad": {
+      "waveform": "sawtooth",
+      "attack": 2.5,
+      "release": 4,
+      "filterFreq": 600
+    },
+    "arp": {
+      "enabled": true,
+      "waveform": "triangle",
+      "density": 0.55,
+      "delayWet": 0.4
+    },
+    "effects": {
+      "reverbDecay": 6.5,
+      "reverbWet": 0.45,
+      "chorusDepth": 0.6
+    },
+    "interactivity": {
+      "scrollTarget": "filterFreq",
+      "scrollMultiplier": 3.5,
+      "hoverNoteTrigger": true
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "url": "https://en.wikipedia.org/wiki/Main_Page",
+    "detectedVibe": "Dark academic structured minimalism",
+    "explanation": "The dark background and structured, encyclopedic nature of Wikipedia are translated into a slow, contemplative minor scale with a deep, low-pass filtered pad and sparse, academic arpeggios that open up as you scroll."
+  },
+  "uiTheme": {
+    "backgroundColor": "#171a1d",
+    "accentColor": "#082849",
+    "textColor": "#dddddd",
+    "fontFamily": "sans-serif"
+  },
+  "musicalParams": {
+    "bpm": 58,
+    "rootNote": "A",
+    "scale": "minor",
+    "octave": 3
+  },
+  "synthConfig": {
+    "pad": {
+      "waveform": "triangle",
+      "attack": 4.5,
+      "release": 6,
+      "filterFreq": 450
+    },
+    "arp": {
+      "enabled": true,
+      "waveform": "sine",
+      "density": 0.2,
+      "delayWet": 0.3
+    },
+    "effects": {
+      "reverbDecay": 8,
+      "reverbWet": 0.4,
+      "chorusDepth": 0.15
+    },
+    "interactivity": {
+      "scrollTarget": "filterFreq",
+      "scrollMultiplier": 3.5,
+      "hoverNoteTrigger": true
+    }
+  }
+}

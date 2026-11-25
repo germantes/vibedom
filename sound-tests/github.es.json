@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "url": "https://github.com/",
+    "detectedVibe": "Tecnológico minimalista y estructurado",
+    "explanation": "Un entorno de desarrollo limpio y estructurado que inspira una síntesis digital precisa basada en ondas cuadradas y una escala lidia futurista."
+  },
+  "uiTheme": {
+    "backgroundColor": "#ffffff",
+    "accentColor": "#117f32",
+    "textColor": "#010409",
+    "fontFamily": "monospace"
+  },
+  "musicalParams": {
+    "bpm": 72,
+    "rootNote": "C",
+    "scale": "lydian",
+    "octave": 4
+  },
+  "synthConfig": {
+    "pad": {
+      "waveform": "triangle",
+      "attack": 3.5,
+      "release": 4,
+      "filterFreq": 1500
+    },
+    "arp": {
+      "enabled": true,
+      "waveform": "square",
+      "density": 0.25,
+      "delayWet": 0.3
+    },
+    "effects": {
+      "reverbDecay": 4.5,
+      "reverbWet": 0.35,
+      "chorusDepth": 0.2
+    },
+    "interactivity": {
+      "scrollTarget": "filterFreq",
+      "scrollMultiplier": 3,
+      "hoverNoteTrigger": true
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "url": "https://github.com/",
+    "detectedVibe": "Clean minimalist developer platform",
+    "explanation": "The light background and clean interface inspire a bright major scale with a crisp triangle wave and moderate tempo."
+  },
+  "uiTheme": {
+    "backgroundColor": "#ffffff",
+    "accentColor": "#91cbff",
+    "textColor": "#010409",
+    "fontFamily": "sans-serif"
+  },
+  "musicalParams": {
+    "bpm": 80,
+    "rootNote": "C",
+    "scale": "major",
+    "octave": 4
+  },
+  "synthConfig": {
+    "pad": {
+      "waveform": "triangle",
+      "attack": 2,
+      "release": 4,
+      "filterFreq": 2500
+    },
+    "arp": {
+      "enabled": true,
+      "waveform": "sine",
+      "density": 0.3,
+      "delayWet": 0.2
+    },
+    "effects": {
+      "reverbDecay": 5,
+      "reverbWet": 0.4,
+      "chorusDepth": 0.2
+    },
+    "interactivity": {
+      "scrollTarget": "reverbWet",
+      "scrollMultiplier": 2,
+      "hoverNoteTrigger": false
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "url": "https://www.apple.com/",
+    "detectedVibe": "Minimalismo tecnológico, premium y fluido",
+    "explanation": "La estética oscura, limpia y con tipografía sans-serif de Apple se traduce en una escala menor dócil y misteriosa, con un tempo pausado pero dinámico gracias a sus animaciones fluidas."
+  },
+  "uiTheme": {
+    "backgroundColor": "#000000",
+    "accentColor": "#0071e3",
+    "textColor": "#fafafc",
+    "fontFamily": "sans-serif"
+  },
+  "musicalParams": {
+    "bpm": 72,
+    "rootNote": "A",
+    "scale": "dorian",
+    "octave": 3
+  },
+  "synthConfig": {
+    "pad": {
+      "waveform": "triangle",
+      "attack": 3.5,
+      "release": 4,
+      "filterFreq": 600
+    },
+    "arp": {
+      "enabled": true,
+      "waveform": "sine",
+      "density": 0.5,
+      "delayWet": 0.3
+    },
+    "effects": {
+      "reverbDecay": 6.5,
+      "reverbWet": 0.45,
+      "chorusDepth": 0.25
+    },
+    "interactivity": {
+      "scrollTarget": "filterFreq",
+      "scrollMultiplier": 3,
+      "hoverNoteTrigger": true
+    }
+  }
+}

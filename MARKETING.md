@@ -160,6 +160,11 @@ Objetivos honestos para 90 días (desde ~0):
 2. Botón «Copiar enlace» en la landing (multiplicador de prescripción).
 3. Artículo de tutor "cómo hice vibedom" para Dev.to/Hacker Noon (ES+EN): transparencia como SEO.
 4. Página "Sound tests" con los 10 sound tests famosos (SEO long-tail directo y compartible).
+   **HECHO (FASE 4.13, 2026-11-25):** [`vibedom.dev/sound-tests/`](https://vibedom.dev/sound-tests/)
+   y [`/en/sound-tests/`](https://vibedom.dev/en/sound-tests/), con Stripe, Apple, Wikipedia,
+   Nike, Spotify, Airbnb, Figma, Linear, Vercel y GitHub escaneadas de verdad. Cada tarjeta es
+   material para un post: play + screenshot + enlace. Renovarlas son dos comandos
+   (`scan-sound-tests.mjs` + `build-sound-tests.mjs`).
 
 **Días 61–90 — Crecimiento compuesto**
 1. Revisar métricas con el mismo criterio del cuadro anterior; repetir lo que salga.

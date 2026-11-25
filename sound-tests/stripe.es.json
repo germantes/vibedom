@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "url": "https://stripe.com/",
+    "detectedVibe": "Tecnológico limpio y dinámico",
+    "explanation": "La combinación de fondos claros impecables con degradados neón y transiciones fluidas de Stripe se traduce en un pulso electrónico optimista, timbres brillantes y filtros abiertos que reaccionan dinámicamente al scroll."
+  },
+  "uiTheme": {
+    "backgroundColor": "#ffffff",
+    "accentColor": "#665efd",
+    "textColor": "#161741",
+    "fontFamily": "sans-serif"
+  },
+  "musicalParams": {
+    "bpm": 95,
+    "rootNote": "E",
+    "scale": "lydian",
+    "octave": 4
+  },
+  "synthConfig": {
+    "pad": {
+      "waveform": "triangle",
+      "attack": 1.5,
+      "release": 4,
+      "filterFreq": 2500
+    },
+    "arp": {
+      "enabled": true,
+      "waveform": "sine",
+      "density": 0.6,
+      "delayWet": 0.35
+    },
+    "effects": {
+      "reverbDecay": 6.5,
+      "reverbWet": 0.4,
+      "chorusDepth": 0.5
+    },
+    "interactivity": {
+      "scrollTarget": "filterFreq",
+      "scrollMultiplier": 3,
+      "hoverNoteTrigger": true
+    }
+  }
+}

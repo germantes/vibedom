@@ -1,0 +1,97 @@
+/* Tarjetas de los sound tests. Apiladas sobre landing.css. */
+
+.st-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.st-card {
+  padding: 1.2rem 1.3rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--st-accent, var(--accent));
+  border-radius: 14px;
+  background: var(--bg-card);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.st-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.st-head h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.st-vibe {
+  margin: 0;
+  color: var(--st-accent, var(--accent));
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.st-swatches {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.st-swatches i {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  display: inline-block;
+}
+
+.st-explain {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.st-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: auto;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.st-meta a {
+  margin-left: auto;
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.st-meta a:hover {
+  border-color: var(--accent);
+}
+
+.st-play[aria-pressed="true"] {
+  border-color: var(--st-accent, var(--accent));
+  color: var(--st-accent, var(--accent));
+}
+
+.st-play.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}

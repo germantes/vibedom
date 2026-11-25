@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "url": "https://vercel.com/",
+    "detectedVibe": "Minimalismo tecnológico, oscuro y veloz",
+    "explanation": "El fondo negro puro y la tipografía Sans-serif de alta tecnología inspiran un tono menor y misterioso, con arpegios densos y fluidos que reflejan el despliegue rápido de infraestructura."
+  },
+  "uiTheme": {
+    "backgroundColor": "#000000",
+    "accentColor": "#ffffff",
+    "textColor": "#f4f4f5",
+    "fontFamily": "sans-serif"
+  },
+  "musicalParams": {
+    "bpm": 85,
+    "rootNote": "A",
+    "scale": "phrygian",
+    "octave": 3
+  },
+  "synthConfig": {
+    "pad": {
+      "waveform": "sawtooth",
+      "attack": 2.5,
+      "release": 4,
+      "filterFreq": 650
+    },
+    "arp": {
+      "enabled": true,
+      "waveform": "triangle",
+      "density": 0.65,
+      "delayWet": 0.4
+    },
+    "effects": {
+      "reverbDecay": 6.5,
+      "reverbWet": 0.35,
+      "chorusDepth": 0.45
+    },
+    "interactivity": {
+      "scrollTarget": "filterFreq",
+      "scrollMultiplier": 3.5,
+      "hoverNoteTrigger": true
+    }
+  }
+}

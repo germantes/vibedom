@@ -58,6 +58,8 @@ El laboratorio, con la semilla JSON y los sliders, está en el [playground](http
 | `/en/` | Landing en inglés |
 | `/que-suena-mi-web/` | Página SEO en español |
 | `/en/what-does-my-website-sound-like/` | Página SEO en inglés |
+| `/sound-tests/` | Sound tests de 10 webs famosas, en español |
+| `/en/sound-tests/` | Sound tests en inglés |
 | `/playground/` | Playground en español |
 | `/playground/en/` | Playground en inglés |
 | `/widget/` | Guía del widget en español |
@@ -437,7 +439,7 @@ Para añadir uno, crea el JSON en `presets/` y regístralo en `PRESET_IDS` (`src
 npm test
 ```
 
-**201 tests** unitarios con `node:test`, sin dependencias:
+**205 tests** unitarios con `node:test`, sin dependencias:
 
 * escalas, acordes y conversión MIDI;
 * validación de la semilla y presets reales;
@@ -467,10 +469,11 @@ npm test
 cd e2e && npm install && npx playwright install chromium && npm test
 ```
 
-**8 specs** con Chromium headless contra el backend real en `localhost:3000` (lo arranca el propio Playwright; ninguna prueba gasta IA):
+**10 specs** con Chromium headless contra el backend real en `localhost:3000` (lo arranca el propio Playwright; ninguna prueba gasta IA):
 
 * playground: slider a 100 BPM → `#seed` → restaurar en contexto nuevo sin tocar `/api/scan`; «Copiar enlace» al portapapeles (`/s/~<token>` del origen declarado); enlace corrupto → preset con aviso; «Descargar JSON» (`vibedom-<host>.json`); «Importar JSON» sin autoplay; JSON inválido no cambia la semilla activa;
-* landing: historial oculto sin escaneos; chip visible tras recargar con datos y clic reproduce la semilla guardada sin gasto de análisis.
+* landing: historial oculto sin escaneos; chip visible tras recargar con datos y clic reproduce la semilla guardada sin gasto de análisis; «Copiar enlace» de la landing copia el `/s/~<token>`;
+* sound tests: las 10 tarjetas ES/EN con su enlace al playground, y «Escuchar» reproduce la semilla JSON guardada con Tone.js real del CDN sin llamar a ninguna API de IA.
 
 El job `e2e` del workflow `tests` los ejecuta en cada push y PR con Chromium instalado por Actions; si falla, sube el informe HTML como artefacto.
 

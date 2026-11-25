@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "url": "https://www.airbnb.com/",
+    "detectedVibe": "Clean friendly modern minimalist",
+    "explanation": "The bright white canvas paired with vibrant coral-pink accents and clean sans-serif typography inspires a warm, inviting major-scale ambient soundscape with dynamic, responsive arpeggios that mimic the discovery of new destinations."
+  },
+  "uiTheme": {
+    "backgroundColor": "#ffffff",
+    "accentColor": "#ff385c",
+    "textColor": "#222222",
+    "fontFamily": "sans-serif"
+  },
+  "musicalParams": {
+    "bpm": 88,
+    "rootNote": "F",
+    "scale": "major",
+    "octave": 4
+  },
+  "synthConfig": {
+    "pad": {
+      "waveform": "triangle",
+      "attack": 2.5,
+      "release": 4,
+      "filterFreq": 1800
+    },
+    "arp": {
+      "enabled": true,
+      "waveform": "sine",
+      "density": 0.6,
+      "delayWet": 0.35
+    },
+    "effects": {
+      "reverbDecay": 6,
+      "reverbWet": 0.4,
+      "chorusDepth": 0.3
+    },
+    "interactivity": {
+      "scrollTarget": "arpDensity",
+      "scrollMultiplier": 2,
+      "hoverNoteTrigger": true
+    }
+  }
+}

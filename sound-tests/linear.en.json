@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "url": "https://linear.app/",
+    "detectedVibe": "Sleek high-tech minimal dark",
+    "explanation": "A precise, dark electronic soundscape driven by a digital arpeggio and a high-tech Dorian scale, opening up as you scroll to mirror the workflow optimization of the platform."
+  },
+  "uiTheme": {
+    "backgroundColor": "#08090a",
+    "accentColor": "#ffebc6",
+    "textColor": "#9c9da1",
+    "fontFamily": "monospace"
+  },
+  "musicalParams": {
+    "bpm": 72,
+    "rootNote": "D",
+    "scale": "dorian",
+    "octave": 3
+  },
+  "synthConfig": {
+    "pad": {
+      "waveform": "triangle",
+      "attack": 3.5,
+      "release": 5,
+      "filterFreq": 650
+    },
+    "arp": {
+      "enabled": true,
+      "waveform": "square",
+      "density": 0.6,
+      "delayWet": 0.4
+    },
+    "effects": {
+      "reverbDecay": 6.5,
+      "reverbWet": 0.45,
+      "chorusDepth": 0.3
+    },
+    "interactivity": {
+      "scrollTarget": "filterFreq",
+      "scrollMultiplier": 3,
+      "hoverNoteTrigger": true
+    }
+  }
+}

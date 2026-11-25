@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "url": "https://en.wikipedia.org/wiki/Main_Page",
+    "detectedVibe": "Enciclopedia oscura y sobria",
+    "explanation": "La sobriedad enciclopédica del modo oscuro y la tipografía sans-serif inspiran un paisaje sonoro minimalista y académico, donde el scroll abre un filtro cálido revelando el conocimiento."
+  },
+  "uiTheme": {
+    "backgroundColor": "#171a1d",
+    "accentColor": "#7545ab",
+    "textColor": "#dddddd",
+    "fontFamily": "sans-serif"
+  },
+  "musicalParams": {
+    "bpm": 60,
+    "rootNote": "A",
+    "scale": "dorian",
+    "octave": 3
+  },
+  "synthConfig": {
+    "pad": {
+      "waveform": "sine",
+      "attack": 4.5,
+      "release": 6,
+      "filterFreq": 450
+    },
+    "arp": {
+      "enabled": true,
+      "waveform": "triangle",
+      "density": 0.2,
+      "delayWet": 0.3
+    },
+    "effects": {
+      "reverbDecay": 8,
+      "reverbWet": 0.4,
+      "chorusDepth": 0.2
+    },
+    "interactivity": {
+      "scrollTarget": "filterFreq",
+      "scrollMultiplier": 3,
+      "hoverNoteTrigger": true
+    }
+  }
+}

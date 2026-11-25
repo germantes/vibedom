@@ -127,7 +127,8 @@ test("el sitemap incluye las dos páginas SEO con alternates recíprocos", () =>
     /hreflang="en" href="https:\/\/vibedom\.dev\/en\/what-does-my-website-sound-like\/"/,
   );
   assert.match(xml, /hreflang="es" href="https:\/\/vibedom\.dev\/que-suena-mi-web\/"/);
-  assert.equal((xml.match(/<url>/g) ?? []).length, 10);
+  // 12 URLs: ES/EN de landing, playground, página SEO, sound tests, widget y privacidad.
+  assert.equal((xml.match(/<url>/g) ?? []).length, 12);
 });
 
 test("la documentación del widget existe en ES/EN y está enlazada", () => {
