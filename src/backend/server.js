@@ -25,6 +25,7 @@ import { loadDotEnv } from "./dotenv.js";
 import { decodeAnyToken } from "../embed.js";
 import { normalizeSeed } from "../engine/seed.js";
 import { renderShareError, renderSharePage } from "./share-preview.js";
+import { createShareStore, SHORT_ID_SOURCE } from "./share-store.js";
 import { renderShareImage } from "./share-image.js";
 import { readEvents, recordEvent } from "./events.js";
 
@@ -37,6 +38,10 @@ const RATE_LIMIT_FALLBACK_S = 30;
 /** Enlaces compartidos: token corto (`~…`) o base64url antiguo, más su imagen OG. */
 const SHARE_PATH = /^\/s\/([~A-Za-z0-9_-]{1,6000})(\.png)?$/;
 const FALLBACK_ORIGIN = "https://vibedom.onrender.com";
+const parsedShareLimit = Number(process.env.SHARE_RATE_LIMIT);
+const SHARE_LIMIT_PER_MIN = Number.isFinite(parsedShareLimit)
+  ? Math.max(0, parsedShareLimit)
+  : 20;
 
 /**
  * Origen público para construir URLs absolutas (OG y redirección). En Render
@@ -485,6 +490,8 @@ export function createVibedomServer({
   cache = createScanCache(),
   logger = console,
   topStore = createTopStore({ logger }),
+  shareStore = createShareStore({ logger }),
+  shareRateLimit = createRateLimiter({ limit: SHARE_LIMIT_PER_MIN }),
   requestBudgetMs = DEFAULT_REQUEST_BUDGET_MS,
 } = {}) {
   // Conteos del ranking aún en vuelo: `/api/top` los espera antes de leer para
@@ -566,6 +573,7 @@ export function createVibedomServer({
           budget: scanBudget.snapshot(),
           usage: aiUsage.snapshot(),
           top: topStore.snapshot(),
+          share: shareStore.snapshot(),
         },
         {},
         req.method === "HEAD",
@@ -602,6 +610,45 @@ export function createVibedomServer({
         logger.warn(`[top] /api/top falló: ${err?.message ?? err}`);
         return json(res, 200, { period, items: [] }, { "Cache-Control": "no-store" }, req.method === "HEAD");
       }
+    }
+
+    // Enlace corto: el cliente manda el token de la semilla que acaba de
+    // generar y recibe una URL con ID aleatorio. Es una mejora del enlace
+    // largo, no un requisito: si el almacén falla, el cliente usa el token.
+    if (req.method === "POST" && req.url === "/api/share") {
+      let body;
+      try {
+        body = await readJsonBody(req);
+      } catch (err) {
+        return json(res, err.status ?? 400, { error: err.message });
+      }
+
+      const token = typeof body?.token === "string" ? body.token.trim() : "";
+      if (!token || token.length > 6000) return json(res, 400, { error: "Token inválido" });
+
+      // Solo se guarda lo que el propio usuario comparte, y solo si es una
+      // semilla válida: nada de carpetas aleatorias de Upstash.
+      try {
+        normalizeSeed(decodeAnyToken(token));
+      } catch {
+        return json(res, 400, { error: "Token inválido" });
+      }
+
+      const quota = shareRateLimit(req);
+      if (!quota.ok) {
+        return json(
+          res,
+          429,
+          { error: "Demasiados enlaces seguidos" },
+          { "Retry-After": String(quota.retryAfter) },
+        );
+      }
+
+      const id = await shareStore.create(token);
+      if (!id) return json(res, 503, { error: "Almacén de enlaces no disponible" });
+
+      const base = String(process.env.SHARE_BASE?.trim() || publicOrigin(req)).replace(/\/+$/, "");
+      return json(res, 200, { url: `${base}/s/${id}`, id }, { "Cache-Control": "no-store" });
     }
 
     if (req.method === "POST" && req.url === "/api/scan") {
@@ -642,9 +689,20 @@ export function createVibedomServer({
       }
 
       const [, token, png] = match;
+
+      // Enlace corto: el valor es un ID de 7 caracteres que apunta al token
+      // real en el almacén (30 días de caducidad). Un token legacy de la misma
+      // longitud seguiría funcionando: si el almacén no lo conoce, cae al
+      // flujo de siempre.
+      let resolved = token;
+      if (SHORT_ID_SOURCE.test(token)) {
+        const stored = await shareStore.resolve(token);
+        if (stored) resolved = stored;
+      }
+
       let seed;
       try {
-        seed = normalizeSeed(decodeAnyToken(token));
+        seed = normalizeSeed(decodeAnyToken(resolved));
       } catch {
         res.writeHead(400, {
           "Content-Type": "text/html; charset=utf-8",
@@ -665,7 +723,7 @@ export function createVibedomServer({
       }
 
       const origin = publicOrigin(req);
-      const html = renderSharePage(seed, { origin, token, lang, site: publicSite(origin) });
+      const html = renderSharePage(seed, { origin, token: resolved, lang, site: publicSite(origin) });
       res.writeHead(200, {
         "Content-Type": "text/html; charset=utf-8",
         "Cache-Control": "public, max-age=300",

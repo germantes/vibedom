@@ -60,6 +60,15 @@ test("Copiar enlace deja la URL con semilla en el portapapeles y cambia el texto
   browser,
 }) => {
   const context = await browser.newContext({ permissions: ["clipboard-read", "clipboard-write"] });
+  // El acortador llama al origen del <meta vibedom-api> (producción): se
+  // intercepta para que el E2E no dependa de ella ni escriba en su almacén.
+  await context.route("**/api/share", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ url: "http://localhost:3000/s/testido", id: "testido" }),
+    }),
+  );
   const page = await context.newPage();
   await loadPreset(page, "cyberpunk");
 
@@ -67,11 +76,9 @@ test("Copiar enlace deja la URL con semilla en el portapapeles y cambia el texto
   await page.click("#share-seed");
   await expect(page.locator("#share-seed")).toHaveText("Enlace copiado");
 
-  // El enlace copiado apunta al origen declarado en <meta vibedom-api> con el
-  // token corto de vista previa: es el contrato real del botón.
-  const apiOrigin = await page.getAttribute('meta[name="vibedom-api"]', "content");
+  // El enlace copiado es el corto: un ID de 7 caracteres bajo /s/.
   const clipboard = await page.evaluate(() => navigator.clipboard.readText());
-  expect(clipboard.startsWith(`${apiOrigin}/s/~`)).toBe(true);
+  expect(clipboard).toMatch(/\/s\/[A-Za-z0-9]{7}$/);
   await context.close();
 });
 

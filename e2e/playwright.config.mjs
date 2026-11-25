@@ -24,5 +24,13 @@ export default defineConfig({
     url: "http://localhost:3000/api/ping",
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
+    // Vaciar las credenciales de Upstash fuerza el almacén de enlaces cortos
+    // en memoria: los E2E nunca escriben en la base real del proyecto.
+    // (loadDotEnv no pisa una variable ya definida, aunque esté vacía.)
+    env: {
+      ...process.env,
+      UPSTASH_REDIS_REST_URL: "",
+      UPSTASH_REDIS_REST_TOKEN: "",
+    },
   },
 });

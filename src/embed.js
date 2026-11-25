@@ -286,6 +286,27 @@ export function buildShareHash(seed) {
 }
 
 /**
+ * Pide al backend un enlace corto para un token ya generado: la respuesta
+ * trae la URL con el ID aleatorio (`…/s/xK9abQ2`). Lanza si el backend no
+ * responde; quien llama decide si cae al enlace largo.
+ */
+export async function shortenShareLink(token, origin) {
+  const base = String(origin ?? "").replace(/\/+$/, "");
+  if (!base) throw new Error("Sin origen para acortar");
+  const res = await fetch(`${base}/api/share`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+    signal: AbortSignal.timeout(4000),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  const url = typeof data?.url === "string" ? data.url : "";
+  if (!url) throw new Error("Respuesta vacía");
+  return url;
+}
+
+/**
  * Enlace absoluto a la vista previa compartible (`/s/<token>`), pensado para
  * pegar en redes: el servidor devuelve Open Graph propio y redirige al
  * playground con el mismo `#seed`. Devuelve `null` sin origen.

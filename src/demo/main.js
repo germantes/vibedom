@@ -7,7 +7,14 @@ import { createAnalysis } from "./analysis.js";
 import { createControls, formatHz } from "./controls.js";
 import { createVisualizer } from "./visualizer.js";
 import { accentFor, normalizeHex, onColorFor, relativeLuminance, textFor } from "../landing/theme.js";
-import { buildShareHash, buildShareLink, buildWidgetSnippet, readShareHash } from "../embed.js";
+import {
+  buildShareHash,
+  buildShareLink,
+  buildWidgetSnippet,
+  encodeShortToken,
+  readShareHash,
+  shortenShareLink,
+} from "../embed.js";
 import { parseSeedText, seedFileName, serializeSeed } from "../seed-io.js";
 
 applyI18n();
@@ -535,7 +542,17 @@ shareBtn?.addEventListener("click", async () => {
   const url = new URL(location.href);
   url.hash = buildShareHash(activeSeed);
 
-  const link = buildShareLink(activeSeed, { origin: SHARE_ORIGIN, lang: getLang() });
+  // El enlace corto (ID en el servidor) es el bonito de compartir; si el
+  // backend no está, el token largo en la URL sigue funcionando igual.
+  let link = buildShareLink(activeSeed, { origin: SHARE_ORIGIN, lang: getLang() });
+  if (SHARE_ORIGIN) {
+    try {
+      const short = await shortenShareLink(encodeShortToken(activeSeed), SHARE_ORIGIN);
+      link = getLang() === "en" ? `${short}?l=en` : short;
+    } catch {
+      // enlace largo: la copia no puede fallar por el acortador
+    }
+  }
 
   try {
     await copyText(link || url.href);

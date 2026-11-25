@@ -89,7 +89,11 @@
               string or your IP.
             </li>
             <li>Music is generated in your browser; there is no pre-recorded audio or streaming.</li>
-            <li>Shared links carry the seed inside: they need no server or database.</li>
+            <li>
+              Shared links carry the seed inside the URL itself, with no database behind it. If you pick the
+              short link (the one the button copies), the seed is stored for 30 days in an external Redis so
+              the preview card can be served; it expires on its own.
+            </li>
           </ul>
         </section>
 

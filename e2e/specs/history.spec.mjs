@@ -42,6 +42,15 @@ test("con historial guardado aparece el chip y reproducirlo cambia la demo sin g
   };
 
   const context = await browser.newContext({ permissions: ["clipboard-read", "clipboard-write"] });
+  // El acortador llama al origen de producción: se intercepta para que el
+  // E2E no escriba en su almacén real.
+  await context.route("**/api/share", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ url: "http://localhost:3000/s/testida", id: "testida" }),
+    }),
+  );
   await context.addInitScript(
     ({ entryJson }) => window.localStorage.setItem("vibedom:history", entryJson),
     { entryJson: JSON.stringify([entry]) },
@@ -68,14 +77,13 @@ test("con historial guardado aparece el chip y reproducirlo cambia la demo sin g
   await expect(page.locator("#demo-source")).toBeVisible();
 
   // Con una semilla propia cargada, «Copiar enlace» aparece y deja en el
-  // portapapeles el /s/<token> del origen declarado.
+  // portapapeles el enlace corto (ID de 7 caracteres bajo /s/).
   const share = page.locator("#demo-share");
   await expect(share).toBeVisible();
   await share.click();
   await expect(share).toHaveText("Enlace copiado");
-  const apiOrigin = await page.getAttribute('meta[name="vibedom-api"]', "content");
   const clipboard = await page.evaluate(() => navigator.clipboard.readText());
-  expect(clipboard.startsWith(`${apiOrigin}/s/~`)).toBe(true);
+  expect(clipboard).toMatch(/\/s\/[A-Za-z0-9]{7}$/);
 
   expect(scanCalls, "re-escuchar el historial no gasta un análisis").toEqual([]);
   await context.close();

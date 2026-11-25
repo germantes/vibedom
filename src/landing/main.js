@@ -3,7 +3,7 @@ import { configureContext, createSoundscape } from "../engine/soundscape.js";
 import { analysisCopy, applyI18n, getLang, presetCopy, rateLimitCopy, t } from "../i18n.js";
 import { API_URL, CAN_SCAN, STATIC_HOST, TOP_URL, warmApi } from "../api.js";
 import { addHistoryEntry, readHistory } from "../history.js";
-import { buildShareLink } from "../embed.js";
+import { buildShareLink, encodeShortToken, shortenShareLink } from "../embed.js";
 import { createAnalysis } from "../demo/analysis.js";
 import { createVisualizer } from "../demo/visualizer.js";
 import {
@@ -97,7 +97,17 @@ function flashLabel(button, key, restoreKey) {
 
 shareBtn?.addEventListener("click", async () => {
   if (!activeSeed) return;
-  const link = buildShareLink(activeSeed, { origin: SHARE_ORIGIN, lang: getLang() });
+  // El enlace corto (ID en el servidor) es el bonito de compartir; si el
+  // backend no responde, el token largo en la URL sigue funcionando igual.
+  let link = buildShareLink(activeSeed, { origin: SHARE_ORIGIN, lang: getLang() });
+  if (SHARE_ORIGIN) {
+    try {
+      const short = await shortenShareLink(encodeShortToken(activeSeed), SHARE_ORIGIN);
+      link = getLang() === "en" ? `${short}?l=en` : short;
+    } catch {
+      // enlace largo: la copia no puede fallar por el acortador
+    }
+  }
   try {
     await copyText(link || location.href);
     flashLabel(shareBtn, "playground.share.copied", "playground.share.copy");

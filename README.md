@@ -134,13 +134,15 @@ Hay dos formatos, según haya backend o no:
 
 | Formato | Cuándo se usa | Qué hace |
 |---|---|---|
-| `https://vibedom.onrender.com/s/<token>` | Hay API disponible | Vista previa con Open Graph propio (título, descripción y PNG con la paleta) que redirige al playground con `#seed` |
+| `https://…/s/xK9abQ2` | Hay API disponible (el botón copia este) | Enlace **corto**: un ID de 7 caracteres que el backend resuelve en Redis (30 días de caducidad) y sirve con su vista previa OG antes de redirigir al playground |
+| `https://vibedom.onrender.com/s/<token>` | El acortador no responde | El token largo completo; misma vista previa con Open Graph |
 | `https://vibedom.dev/playground/#seed=<token>` | Host estático sin API | El playground lee el fragmento y restaura la semilla en local |
 
-- El enlace no depende de ninguna base de datos: la semilla viaja dentro del propio enlace y el backend no la guarda.
-- `GET /s/<token>` sirve HTML con `og:title`, `og:description` y `og:image` calculados desde la semilla, más `noindex, follow`; `GET /s/<token>.png` genera la tarjeta 1200×630 al vuelo (fondo, acento, tres muestras y una onda con el BPM y la densidad de la semilla). Sin dependencias: PNG a mano con `node:zlib`.
-- Si el enlace está corrupto o la semilla no cumple el contrato, `/s/` responde `400` con un enlace al playground y el fragmento cae en el preset por defecto avisando.
-- El token corto usa `~` + base64url (sin `+`, `/`, `=` ni escapes). El prefijo `~` distingue el formato nuevo del base64url antiguo; ambos conviven.
+- Enlace corto: `POST /api/share` manda el token recién generado y recibe `{ url, id }`; se guarda en Upstash con `SET NX EX` (30 días, caduca solo) y límite por IP y minuto. Un fallo del almacén cae siempre al enlace largo.
+- El enlace largo no depende de ninguna base de datos: la semilla viaja dentro del propio enlace y el backend no la guarda. El corto guarda el token 30 días solo cuando el usuario lo pide pulsando el botón (ver privacidad).
+- `GET /s/<id o token>` sirve HTML con `og:title`, `og:description` y `og:image` calculados desde la semilla, más `noindex, follow`; `GET /s/<id>.png` genera la tarjeta 1200×630 al vuelo (fondo, acento, tres muestras y una onda con el BPM y la densidad de la semilla). Sin dependencias: PNG a mano con `node:zlib`.
+- Si el enlace está corrupto, el ID caducó o la semilla no cumple el contrato, `/s/` responde `400` con un enlace al playground y el fragmento cae en el preset por defecto avisando.
+- El token corto usa `~` + base64url (sin `+`, `/`, `=` ni escapes). El prefijo `~` distingue el formato nuevo del base64url antiguo; ambos conviven. El ID del enlace corto usa solo caracteres sin I/l/1/O/0.
 
 ## Widget embebible
 
@@ -439,7 +441,7 @@ Para añadir uno, crea el JSON en `presets/` y regístralo en `PRESET_IDS` (`src
 npm test
 ```
 
-**205 tests** unitarios con `node:test`, sin dependencias:
+**210 tests** unitarios con `node:test`, sin dependencias:
 
 * escalas, acordes y conversión MIDI;
 * validación de la semilla y presets reales;

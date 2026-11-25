@@ -89,7 +89,11 @@
               ni tu IP.
             </li>
             <li>La música se genera en tu navegador; no hay audio pregrabado ni streaming.</li>
-            <li>Los enlaces compartidos llevan la semilla dentro: no necesitan servidor ni base de datos.</li>
+            <li>
+              Los enlaces compartidos llevan la semilla en la propia URL, sin base de datos. Si eliges el
+              enlace corto (el que copia el botón), la semilla se guarda 30 días en un Redis externo para
+              poder servirla con su tarjeta de vista previa; caduca sola.
+            </li>
           </ul>
         </section>
 
