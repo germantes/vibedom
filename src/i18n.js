@@ -89,7 +89,7 @@ const DICTS = {
     "landing.privacy.lead":
       "No guardamos capturas, HTML ni contenido. Solo leemos lo público, generamos una semilla y la música ocurre en tu navegador.",
     "landing.privacy.item1": "Sin cuentas ni registro.",
-    "landing.privacy.item2": "Sin cookies de seguimiento ni analytics de terceros.",
+    "landing.privacy.item2": "Sin cookies, sin identificadores y sin analytics de terceros.",
     "landing.privacy.item3": "Sin audio pregrabado ni streaming: cero samples.",
     "landing.privacy.item4":
       "La semilla se cachea en memoria hasta 6 horas; del ranking solo guardamos el dominio y el día.",
@@ -398,7 +398,7 @@ const DICTS = {
     "landing.privacy.lead":
       "We don't store screenshots, HTML or content. We only read what's public, generate a seed, and the music happens in your browser.",
     "landing.privacy.item1": "No accounts or sign-up.",
-    "landing.privacy.item2": "No tracking cookies or third-party analytics.",
+    "landing.privacy.item2": "No cookies, no identifiers and no third-party analytics.",
     "landing.privacy.item3": "No pre-recorded audio or streaming: zero samples.",
     "landing.privacy.item4":
       "The seed is cached in memory for up to 6 hours; from the ranking we only keep the domain and the day.",

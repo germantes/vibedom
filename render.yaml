@@ -73,6 +73,14 @@ services:
       # Autoriza GET /api/diagnostics. Si falta, esa ruta responde 404.
       - key: DIAGNOSTICS_TOKEN
         sync: false
+      # Contador de visitas (POST /api/hit). La IP solo vive en memoria durante
+      # la ventana del límite; no se guarda. `0` lo desactiva.
+      - key: HIT_RATE_LIMIT
+        value: "60"
+      # Autoriza GET /api/stats. Si falta, esa ruta responde 404.
+      # Secreto: se define en el panel de Render, nunca en el repo.
+      - key: STATS_TOKEN
+        sync: false
       # Ranking público de webs escaneadas. Upstash Redis por REST: gratis y
       # durable. Sin estas dos variables el ranking vive en memoria y se
       # reinicia con el proceso. Secreto: se define en el panel de Render.

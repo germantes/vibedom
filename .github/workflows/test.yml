@@ -1,6 +1,6 @@
 name: tests
 
-# Los 201 tests unitarios son la primera red de seguridad del motor, la API y
+# Los tests unitarios son la primera red de seguridad del motor, la API y
 # las páginas estáticas (aquí no hay bundler ni tipos). El job `e2e` añade
 # navegador real (Chromium) contra el backend propio en localhost.
 

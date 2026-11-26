@@ -16,14 +16,13 @@ escanearon 5 dominios. El problema no es el producto: es que nadie lo conoce tod
 - Widget embebible (crecimiento propio: cada web que lo incrusta es un cartel gratuito).
 - Ranking público Hoy / 7 días / 30 días (razón para volver).
 - Historial local de escaneos y exportar/importar la semilla (retención y portabilidad desde 2026-11-24).
-- Privacidad real (sin cuentas, sin cookies, sin analytics de terceros): un mensaje diferenciador, no un parche.
+- Privacidad real (sin cuentas, sin cookies, sin analytics de terceros, contador propio agregado): un mensaje diferenciador, no un parche.
 
 **Frenos reales a la difusión:**
 
 - Un concepto que hay que oír para entender ("¿a qué suena tu web?" suena raro hasta que suena).
 - Render free duerme: el primer visitante tras un rato espera ~25 s (grava cada demo compartida).
 - La cuota gratuita de Gemini limita escaneos simultáneos (hay fallback local, pero el efecto wow es menor).
-- Sin analítica: hoy no puedes saber de dónde llega nadie (solo el proxy del ranking).
 - Marca en cero: nadie repite un dominio que no recuerda.
 
 ---
@@ -130,12 +129,39 @@ El producto convierte solo (el escaneo es gratis y anónimo), pero conviene acom
 
 ## 6. Medir sin traicionar la promesa de privacidad
 
-Nada de cookies ni Google Analytics: contradice la promesa en el hero. Alternativas
+Nada de cookies, ni Google Analytics, ni identificadores, ni banner de consentimiento. El contador propio (`POST /api/hit`, `src/beacon.js`) suma visitas por día, ruta, canal y dominio de procedencia. Respeta Do Not Track y Global Privacy Control: en ese caso no envía nada. El widget embebido no llama a este endpoint: estas cifras son visitas a vibedom.dev, no reproducciones del botón en webs ajenas.
+
+Cómo leerlo, con el servicio despierto:
+
+```bash
+curl -sS \
+  -H "Authorization: Bearer $STATS_TOKEN" \
+  "https://vibedom.onrender.com/api/stats?days=30"
+```
+
+`STATS_TOKEN` se define en Render → Environment (secreto, nunca en el repo). Sin las variables de Upstash que ya usa el ranking, los totales se pierden cada vez que el free tier duerme: el disco de Render no se usa a propósito.
+
+### Enlaces por canal
+
+Pon el `ref` en cada publicación. Si el canal se come ese parámetro, `utm_source` cuenta igual; si vienen los dos, gana `ref`. Sin ninguno, la visita queda como `direct`. El dominio del referrer se guarda aparte (solo el host), así que un enlace sin parámetro sigue diciendo si vino de `news.ycombinator.com` o de `google.com`.
+
+| Canal | `ref` | Castellano | English |
+| --- | --- | --- | --- |
+| X | `x` | https://vibedom.dev/?ref=x | https://vibedom.dev/en/?ref=x |
+| Hacker News | `hn` | https://vibedom.dev/?ref=hn | https://vibedom.dev/en/?ref=hn |
+| Reddit | `reddit` | https://vibedom.dev/?ref=reddit | https://vibedom.dev/en/?ref=reddit |
+| Dev.to | `devto` | https://vibedom.dev/?ref=devto | https://vibedom.dev/en/?ref=devto |
+| Product Hunt | `ph` | https://vibedom.dev/?ref=ph | https://vibedom.dev/en/?ref=ph |
+| LinkedIn | `linkedin` | https://vibedom.dev/?ref=linkedin | https://vibedom.dev/en/?ref=linkedin |
+
+Cualquier otra ruta acepta el mismo query. Para un sound test: `https://vibedom.dev/sound-tests/?ref=hn` y `https://vibedom.dev/en/sound-tests/?ref=hn`. Un slug distinto (`?ref=bsky`, letras, números, `_` y `-`, hasta 32) también cuenta, sin desplegar nada. Reserva `direct`: es el nombre de las visitas sin canal.
+
+Ejemplo de respaldo si hace falta UTM: `https://vibedom.dev/?utm_source=hn`.
 
 | Señal | Cómo | Ya existe |
 | --- | --- | --- |
 | Escaneos/día y ráfagas | `/api/top` interno | Sí |
-| Visitas sin cookies | Plausible self-hosted o Umami (sin cookies, propias) | No (aconsejado) |
+| Visitas por canal, ruta y referrer | `GET /api/stats` con `STATS_TOKEN` | Sí |
 | Embeds del widget | referer de peticiones a `widget-player.js` | Logged (mirar logs Render) |
 | Supervivencia del ranking | el histórico de escaneos ya es un proxy decente | Proxy |
 
@@ -150,7 +176,7 @@ Objetivos honestos para 90 días (desde ~0):
 **Días 1–30 — Preparación y lanzamiento**
 1. Corregir los avisos de infra (Upstash ya reclamada o migrar; decidir Starter de Render:
    el cold start de 25 s mata el pico del lanzamiento — recomendado gastar los 7 USD/mes).
-2. Analítica sin cookies (Umami/Plausible) instalada antes del lanzamiento.
+2. Contador de visitas sin cookies: hecho (`POST /api/hit` + `GET /api/stats`). Falta definir `STATS_TOKEN` en Render y usar los enlaces `?ref=` de la sección 6.
 3. Grabar 5 sound tests (Stripe, Apple, Wikipedia, tu web, una sorpresa).
 4. Product Hunt + Show HN + Reddit en la misma semana.
 5. Semana siguiente: 10 correos a newsletters, 5 partnerships.
@@ -182,7 +208,7 @@ Objetivos honestos para 90 días (desde ~0):
 >
 > I built a tool that reads a site's palette, typography and motion and turns them into a
 > generative soundtrack. Everything is synthesised in the visitor's browser with Tone.js:
-> no audio files, no accounts, no tracking. There's an embeddable widget (<5 KB, Shadow DOM),
+> no audio files, no accounts, no cookies. There's an embeddable widget (<5 KB, Shadow DOM),
 > a playground with the raw "sound seed" JSON, and a public ranking of the most-listened sites.
 > Try it with your own site: https://vibedom.dev
 

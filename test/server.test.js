@@ -300,16 +300,28 @@ test("GET /api/health responde sin caché y con CORS", async () => {
   assert.equal(res.headers.get("cache-control"), "no-store");
   assert.equal(res.headers.get("access-control-allow-origin"), "*");
   const body = await res.json();
-  assert.deepEqual({ ...body, engine: undefined, budget: undefined, usage: undefined, top: undefined, share: undefined }, {
-    ok: true,
-    service: "vibedom",
-    commit: null,
-    engine: undefined,
-    budget: undefined,
-    usage: undefined,
-    top: undefined,
-    share: undefined,
-  });
+  assert.deepEqual(
+    {
+      ...body,
+      engine: undefined,
+      budget: undefined,
+      usage: undefined,
+      top: undefined,
+      share: undefined,
+      hits: undefined,
+    },
+    {
+      ok: true,
+      service: "vibedom",
+      commit: null,
+      engine: undefined,
+      budget: undefined,
+      usage: undefined,
+      top: undefined,
+      share: undefined,
+      hits: undefined,
+    },
+  );
   assert.ok(["local", "gemini", "vertex"].includes(body.engine));
   assert.equal(body.budget.dailyLimit, 0);
   assert.equal(body.budget.perIpDailyLimit, 0);
@@ -318,6 +330,8 @@ test("GET /api/health responde sin caché y con CORS", async () => {
   assert.equal(body.usage.estimatedUsd, 0);
   assert.deepEqual(body.top, { backend: "memory", durable: false });
   assert.deepEqual(body.share, { backend: "memory", durable: false, ttlS: 30 * 24 * 60 * 60 });
+  assert.ok(body.hits.backend === "memory" || body.hits.backend === "upstash");
+  assert.equal(typeof body.hits.durable, "boolean");
 
   const head = await fetch(`${base}/api/health`, { method: "HEAD" });
   assert.equal(head.status, 200);

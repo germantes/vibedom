@@ -205,6 +205,7 @@ ${seeds.map((entry) => stCard(entry, lang)).join("\n")}
       </div>
     </footer>
 
+    <script type="module" src="${es ? ".." : "../.."}/src/beacon.js"></script>
     <script type="module" src="${es ? ".." : "../.."}/sound-tests/page.js"></script>
   </body>
 </html>

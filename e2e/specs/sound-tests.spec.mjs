@@ -47,5 +47,8 @@ test("Escuchar reproduce la semilla guardada sin tocar ninguna API de IA", async
   await expect(stripe).toHaveAttribute("aria-pressed", "false");
   await expect(stripe.locator(".st-play-label")).toHaveText("Escuchar");
 
-  expect(apiCalls.filter((url) => !url.includes("/api/ping")), "no se gasta IA").toEqual([]);
+  expect(
+    apiCalls.filter((url) => !url.includes("/api/ping") && !url.includes("/api/hit")),
+    "no se gasta IA",
+  ).toEqual([]);
 });

@@ -19,6 +19,7 @@ import { createGeminiLimiter } from "./gemini-limiter.js";
 import { createScanBudget } from "./scan-budget.js";
 import { createAiUsage } from "./ai-usage.js";
 import { createTopStore, PERIODS } from "./top-store.js";
+import { clampDays, createHitStore, normalizeHit } from "./hit-store.js";
 import { composeLocalSeed } from "./local-seed.js";
 import { resolveEngine } from "./providers.js";
 import { loadDotEnv } from "./dotenv.js";
@@ -42,6 +43,9 @@ const parsedShareLimit = Number(process.env.SHARE_RATE_LIMIT);
 const SHARE_LIMIT_PER_MIN = Number.isFinite(parsedShareLimit)
   ? Math.max(0, parsedShareLimit)
   : 20;
+// Visitas por minuto e IP. `0` lo desactiva. La IP no sale de este limitador.
+const parsedHitLimit = Number(process.env.HIT_RATE_LIMIT);
+const HIT_LIMIT_PER_MIN = Number.isFinite(parsedHitLimit) ? Math.max(0, parsedHitLimit) : 60;
 
 /**
  * Origen público para construir URLs absolutas (OG y redirección). En Render
@@ -139,6 +143,33 @@ const MIME = {
 };
 
 // ---- Helpers ---------------------------------------------------------------
+
+/**
+ * CORS de la baliza. `sendBeacon` viaja con credenciales: hay que reflejar el
+ * origen (nunca `*` junto a Allow-Credentials) para que el navegador no
+ * registre un fallo. La respuesta no lleva datos ni cookies.
+ */
+function hitCors(req) {
+  const origin = String(req.headers?.origin ?? "").trim();
+  if (/^https?:\/\/[a-z0-9._:-]+$/i.test(origin) && origin.length <= 200) {
+    return {
+      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Credentials": "true",
+      Vary: "Origin",
+    };
+  }
+  return { "Access-Control-Allow-Origin": "*" };
+}
+
+function noContent(res, status, headers = {}) {
+  res.writeHead(status, {
+    "Cache-Control": "no-store",
+    "Content-Length": "0",
+    "Access-Control-Allow-Origin": "*",
+    ...headers,
+  });
+  res.end();
+}
 
 function json(res, status, body, headers = {}, head = false) {
   const payload = JSON.stringify(body);
@@ -470,6 +501,31 @@ function authorizeDiagnostics(req) {
   return sameSecret(presentedDiagnosticsToken(req), expected) ? 200 : 401;
 }
 
+function statsSecret() {
+  const token = String(process.env.STATS_TOKEN ?? "").trim();
+  return token || null;
+}
+
+function presentedStatsToken(req) {
+  const header = req.headers?.["x-stats-token"];
+  const raw = Array.isArray(header) ? header[0] : header;
+  const fromHeader = String(raw ?? "").trim();
+  if (fromHeader) return fromHeader;
+  const match = /^Bearer\s+(\S+)\s*$/i.exec(String(req.headers?.authorization ?? ""));
+  return match?.[1] ?? "";
+}
+
+/**
+ * Igual que el diagnóstico: 404 si falta `STATS_TOKEN` (la ruta no se anuncia)
+ * y 401 si el secreto no coincide. El token va en `Authorization: Bearer` o en
+ * `X-Stats-Token`, nunca en la query.
+ */
+function authorizeStats(req) {
+  const expected = statsSecret();
+  if (!expected) return 404;
+  return sameSecret(presentedStatsToken(req), expected) ? 200 : 401;
+}
+
 // ---- Router ----------------------------------------------------------------
 
 /**
@@ -492,6 +548,8 @@ export function createVibedomServer({
   topStore = createTopStore({ logger }),
   shareStore = createShareStore({ logger }),
   shareRateLimit = createRateLimiter({ limit: SHARE_LIMIT_PER_MIN }),
+  hitStore = createHitStore({ logger }),
+  hitRateLimit = createRateLimiter({ limit: HIT_LIMIT_PER_MIN }),
   requestBudgetMs = DEFAULT_REQUEST_BUDGET_MS,
 } = {}) {
   // Conteos del ranking aún en vuelo: `/api/top` los espera antes de leer para
@@ -561,6 +619,28 @@ export function createVibedomServer({
       });
     }
 
+    if ((req.method === "GET" || req.method === "HEAD") && requestPath === "/api/stats") {
+      const status = authorizeStats(req);
+      if (status !== 200) {
+        return json(res, status, { error: status === 401 ? "No autorizado" : "Not found" });
+      }
+      let parsed;
+      try {
+        parsed = new URL(req.url, "http://localhost");
+      } catch {
+        return json(res, 400, { error: "Bad request" });
+      }
+      const days = clampDays(parsed.searchParams.get("days"));
+      if (!days) return json(res, 400, { error: "days debe ser un entero entre 1 y 32" });
+      try {
+        const stats = await hitStore.stats({ days });
+        return json(res, 200, { ok: true, ...hitStore.snapshot(), ...stats }, {}, req.method === "HEAD");
+      } catch (err) {
+        logger.warn(`[hits] /api/stats falló: ${err?.message ?? err}`);
+        return json(res, 500, { error: "No se pudieron leer las visitas" });
+      }
+    }
+
     if ((req.method === "GET" || req.method === "HEAD") && req.url === "/api/health") {
       return json(
         res,
@@ -574,6 +654,7 @@ export function createVibedomServer({
           usage: aiUsage.snapshot(),
           top: topStore.snapshot(),
           share: shareStore.snapshot(),
+          hits: hitStore.snapshot(),
         },
         {},
         req.method === "HEAD",
@@ -649,6 +730,39 @@ export function createVibedomServer({
 
       const base = String(process.env.SHARE_BASE?.trim() || publicOrigin(req)).replace(/\/+$/, "");
       return json(res, 200, { url: `${base}/s/${id}`, id }, { "Cache-Control": "no-store" });
+    }
+
+    // Baliza anónima. El cuerpo ya está acotado (16 KB) y solo se conservan
+    // ruta, canal y dominio de procedencia. Un fallo del almacén responde
+    // igual: la página no tiene que reintentar.
+    if (req.method === "POST" && requestPath === "/api/hit") {
+      const cors = hitCors(req);
+      let body;
+      try {
+        body = await readJsonBody(req);
+      } catch (err) {
+        return json(res, err.status ?? 400, { error: err.message }, cors);
+      }
+
+      const quota = hitRateLimit(req);
+      if (!quota.ok) {
+        return json(
+          res,
+          429,
+          { error: "Demasiadas peticiones" },
+          { "Retry-After": String(quota.retryAfter), ...cors },
+        );
+      }
+
+      const hit = normalizeHit(body);
+      if (!hit) return json(res, 400, { error: "Visita inválida" }, cors);
+
+      try {
+        await hitStore.record(hit);
+      } catch (err) {
+        logger.warn(`[hits] no se pudo registrar la visita: ${err?.message ?? err}`);
+      }
+      return noContent(res, 204, cors);
     }
 
     if (req.method === "POST" && req.url === "/api/scan") {

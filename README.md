@@ -194,6 +194,7 @@ widget-player.js             motor + Tone.js bajo demanda (primer clic)
 src/i18n.js                  diccionarios ES/EN y utilidades
 src/embed.js                 semilla base64, enlace compartido y snippet del widget
 src/api.js                   resolución de /api/scan, /api/top y backend externo
+src/beacon.js                baliza anónima de visitas (ruta, idioma, canal, referrer)
 src/host-mode.js             detección de host estático (Pages, dominio propio, file:)
 src/landing/main.js          demo, escaneo y audio de la landing
 src/landing/theme.js         contraste WCAG y tema dinámico desde la semilla
@@ -205,10 +206,11 @@ src/backend/url-guard.js     validación anti-SSRF (DNS, IPs privadas, redirects
 src/backend/rate-limit.js    cuota de escaneos por IP
 src/backend/scan-cache.js    caché en memoria de semillas por URL
 src/backend/top-store.js     ranking de dominios por día (Upstash REST o memoria)
-src/backend/server.js        servidor node:http (estáticos + /api/scan + /api/top + health + /s/)
+src/backend/hit-store.js     visitas agregadas por día (Upstash REST o memoria)
+src/backend/server.js        servidor node:http (estáticos + /api/scan + /api/top + /api/hit + health + /s/)
 src/backend/share-preview.js vista previa OG de un enlace compartido
 src/backend/share-image.js   tarjeta PNG 1200×630 generada desde la semilla
-.github/workflows/test.yml   201 tests unitarios + 8 E2E con Chromium en cada push y PR
+.github/workflows/test.yml   tests unitarios + E2E con Chromium en cada push y PR
 .github/workflows/render-deploy.yml  Deploy Hook de Render tras cada push a main
 src/demo/main.js             orquestación del playground
 src/demo/analysis.js         estados y animación del panel de análisis
@@ -258,14 +260,16 @@ El esquema es el de la spec (sección 4). `normalizeSeed()` aplica dos política
 
 - `POST /api/scan` con `{ "url": "https://...", "lang": "es" }` → `200` con la Semilla Sonora. `lang` (`es` o `en`) controla el idioma de `detectedVibe` y `explanation`; la caché guarda una entrada por idioma y la cabecera `X-Vibedom-Cache` indica `HIT` o `MISS`.
 - **Resiliencia del escaneo**: si la IA devuelve `429` o falla después de descargar las señales, se responde `200` con una semilla local (`metadata.source: "local"`, cabecera `X-Vibedom-Source: local`). Durante un enfriamiento conocido (`429` previo) ni siquiera se espera la cola. La semilla local no se cachea: cuando la cuota vuelve, el siguiente escaneo usa la IA. Si el scraper no puede cargar la web, siguen aplicando `400` (URL), `429` (límite por IP) o `502` (`{ code: "ANALYSIS_FAILED" }`) con un mensaje localizado en `error`.
-- `GET /api/health` → `200` con `{ ok: true, service: "vibedom", commit, engine, budget, usage, top }`; sirve de health check, despierta el servicio en Render y permite comprobar qué commit y qué motor (`vertex`, `gemini` o `local`) están activos. `usage` estima tokens y coste del día desde el último arranque; `top` indica si el ranking es durable (`upstash`) o vive en memoria.
+- `GET /api/health` → `200` con `{ ok: true, service: "vibedom", commit, engine, budget, usage, top, hits }`; sirve de health check, despierta el servicio en Render y permite comprobar qué commit y qué motor (`vertex`, `gemini` o `local`) están activos. `usage` estima tokens y coste del día desde el último arranque; `top` y `hits` indican si el ranking y el contador de visitas son durables (`upstash`) o viven en memoria.
 - `GET /api/top?period=today|week|month` → `200` con `{ period, items: [{ host, count }] }`, ordenado por escaneos. Sin `period`, o con un valor desconocido, responde `month`. Solo devuelve dominios normalizados (sin `www.`) y contadores; nunca rutas ni IPs.
 - `GET /api/ping` → `200` con `ok` en texto plano y menos de 100 bytes, pensado para monitores externos con límite de respuesta. No evita el cold start por sí solo: el ping debe llegar con el servicio despierto, es decir, con una frecuencia menor que los 15 min de sueño.
 - `GET /api/diagnostics` → traza técnica (hosts, estados, tiempos), `uptimeS` y RSS. Exige `Authorization: Bearer <DIAGNOSTICS_TOKEN>` o la cabecera `X-Diagnostics-Token`. Sin la variable responde `404`; con el token ausente o incorrecto, `401`. No es un endpoint público y el token no va en la query.
+- `POST /api/hit` → `204` si la visita es válida. El cuerpo es `{ path, lang, ref, referrer }`: ruta sin búsqueda, `es` o `en`, canal (`ref` o `utm_source`; vacío cuenta como `direct`) y solo el dominio de procedencia. No guarda IP, ni hash, ni identificadores. `400` si el cuerpo no cumple los límites; `429` si una IP pasa de `HIT_RATE_LIMIT` por minuto (por defecto 60; la IP solo vive en memoria esa ventana). Un fallo del almacén responde igual `204`: la página no reintenta.
+- `GET /api/stats?days=7` → totales del periodo (`days` de 1 a 32, por defecto 7): `{ total, byRef, byPath, byReferrer, rows }`. Exige `Authorization: Bearer <STATS_TOKEN>` o la cabecera `X-Stats-Token`. Sin la variable responde `404`; token ausente, incorrecto o metido en la query, `401`.
 - **Cabecera `X-Vibedom-Source`**: `vertex`, `gemini` o `local` indican qué produjo la semilla. Útil para verificar un despliegue sin mirar logs.
 - Archivos estáticos del repositorio en el resto de rutas, con `Access-Control-Allow-Origin: *` para que `widget.js`, sus módulos y los presets se puedan importar desde webs de terceros.
 - **Sin dependencias npm**: `node:http`, `fetch` nativo y regex. Node ≥ 20.
-- Variables: `VERTEX_PROJECT_ID` (activa Vertex AI; recomendado), `VERTEX_LOCATION` (por defecto `global`; las regiones europeas pueden no tener los modelos más nuevos), `VERTEX_SA_KEY_B64` (JSON de la service account en base64), `VERTEX_SA_KEY_JSON` (la misma clave en crudo, para local), `VERTEX_ACCESS_TOKEN` (token de corta duración, solo para pruebas), `VERTEX_MODELS` (lista separada por comas), `GEMINI_KEY` (alternativa con API key; si no hay Vertex ni key se usa siempre la semilla local), `PORT` (3000 por defecto), `SCAN_RATE_LIMIT` (5 escaneos/min por IP; `0` lo desactiva), `SCAN_DAILY_LIMIT` (25 escaneos facturables al día en total; `0` lo desactiva), `SCAN_IP_DAILY_LIMIT` (8 al día por IP), `GEMINI_MIN_INTERVAL_MS` (8 s entre llamadas reales a la IA), `GEMINI_MAX_WAIT_MS` (25 s de espera máxima en cola), `GEMINI_QUEUE_LIMIT` (10 peticiones en cola), `SCAN_CACHE_TTL` (segundos que se recuerda una semilla; 21600 por defecto, `0` desactiva la caché), `SCAN_FALLBACK` (`0` desactiva la semilla local de emergencia), `SCAN_FALLBACK_COOLDOWN_S` (enfriamiento mínimo, en segundos, para saltarse la IA; `0` = cualquiera), `DIAGNOSTICS_TOKEN` (autoriza `GET /api/diagnostics`; si falta, esa ruta responde 404) y `VIBEDOM_ALLOW_PRIVATE=1` (solo desarrollo, permite escanear hosts privados).
+- Variables: `VERTEX_PROJECT_ID` (activa Vertex AI; recomendado), `VERTEX_LOCATION` (por defecto `global`; las regiones europeas pueden no tener los modelos más nuevos), `VERTEX_SA_KEY_B64` (JSON de la service account en base64), `VERTEX_SA_KEY_JSON` (la misma clave en crudo, para local), `VERTEX_ACCESS_TOKEN` (token de corta duración, solo para pruebas), `VERTEX_MODELS` (lista separada por comas), `GEMINI_KEY` (alternativa con API key; si no hay Vertex ni key se usa siempre la semilla local), `PORT` (3000 por defecto), `SCAN_RATE_LIMIT` (5 escaneos/min por IP; `0` lo desactiva), `SCAN_DAILY_LIMIT` (25 escaneos facturables al día en total; `0` lo desactiva), `SCAN_IP_DAILY_LIMIT` (8 al día por IP), `GEMINI_MIN_INTERVAL_MS` (8 s entre llamadas reales a la IA), `GEMINI_MAX_WAIT_MS` (25 s de espera máxima en cola), `GEMINI_QUEUE_LIMIT` (10 peticiones en cola), `SCAN_CACHE_TTL` (segundos que se recuerda una semilla; 21600 por defecto, `0` desactiva la caché), `SCAN_FALLBACK` (`0` desactiva la semilla local de emergencia), `SCAN_FALLBACK_COOLDOWN_S` (enfriamiento mínimo, en segundos, para saltarse la IA; `0` = cualquiera), `DIAGNOSTICS_TOKEN` (autoriza `GET /api/diagnostics`; si falta, esa ruta responde 404), `STATS_TOKEN` (autoriza `GET /api/stats`; si falta, esa ruta responde 404), `HIT_RATE_LIMIT` (visitas por minuto e IP; 60 por defecto) y `VIBEDOM_ALLOW_PRIVATE=1` (solo desarrollo, permite escanear hosts privados).
 - El servidor valida cada salto de redirección y cada hoja de estilos para evitar SSRF, bloquea dotfiles y *path traversal*, limita el cuerpo de las peticiones a 16 KB y el de cada respuesta descargada (HTML o CSS, con o sin `Content-Length`) a 2 MB, y aplica la cuota antes de llamar a Gemini. La IP de la cuota es `CF-Connecting-IP` (o `True-Client-IP`); sin esas cabeceras, la última de `X-Forwarded-For`.
 - La cuota gratuita de Gemini es **por proyecto, no por IP**: el limitador por IP no basta. Por eso las llamadas se serializan y se espacian (`GEMINI_MIN_INTERVAL_MS`); si Gemini devuelve `429`, no se reintenta ni se prueba otro modelo, se enfría la cola global y se compone la semilla local al instante. La cabecera `X-Vibedom-Source: local` y `metadata.source` lo hacen visible sin romper la experiencia. Si se desactiva `SCAN_FALLBACK`, el servidor vuelve al `429` con `Retry-After` y un mensaje que, a partir de 10 minutos, habla de límite de uso y horas.
 - La semilla de cada URL se guarda en memoria 6 h (`SCAN_CACHE_TTL`): repetir un escaneo no vuelve a llamar a Gemini.
@@ -281,6 +285,26 @@ La landing muestra los dominios más escaneados en Hoy / 7 días / 30 días. No 
 - **Configuración**: crea una base gratuita en Upstash, copia el endpoint y el token REST y define `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` en Render (`sync: false`) o en `.env`. Sin ellas el ranking funciona en memoria y `/api/health` lo indica con `top.backend: "memory"`.
 - **Resiliencia**: si Upstash falla, el escaneo responde igual y el ranking usa los contadores del proceso. La sección se oculta cuando la página no tiene backend (`CAN_SCAN` es falso).
 - **Refresco inmediato**: al terminar un escaneo, la landing invalida su caché de 5 min y vuelve a pedir el ranking sin recargar. `GET /api/top` espera los conteos en vuelo antes de leer, así el dominio recién escaneado aparece en esa misma consulta; el cliente pide con `cache: "no-store"` para saltarse el `max-age` del navegador.
+
+### Contador de visitas (sin cookies)
+
+La landing, el playground, los sound tests, el widget (la página de documentación, no el script embebido) y las páginas de privacidad cargan `src/beacon.js`. Al abrir la página envía una sola petición a `POST /api/hit` con `navigator.sendBeacon` o, si no puede, `fetch` con `keepalive`. Si el backend duerme o falla, la página sigue igual.
+
+Qué viaja: la ruta (`/`, `/en/`, `/sound-tests/`…), el idioma, el canal y el dominio del referrer. `?ref=hn` gana a `?utm_source=`. No se envían la búsqueda completa, la URL del referrer, cookies ni identificadores. Con Do Not Track o Global Privacy Control la baliza no sale. El widget embebido (`widget.js`, < 5 KB) no llama a este endpoint.
+
+No hace falta banner de consentimiento. El contador no trata datos personales: no hay cookies, no hay identificador, no se guarda la IP (ni un hash) y se respeta DNT/GPC. Lo que se almacena es un total por día UTC, ruta, canal y dominio de procedencia.
+
+El almacén es el mismo Upstash Redis que el ranking (`UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN`), clave `vibedom:hits:v1:YYYY-MM-DD`, con `HINCRBY` y caducidad a los 40 días. El disco del plan gratuito de Render es efímero —se pierde cuando el servicio duerme o reinicia—, así que no escribimos ningún fichero. Sin las credenciales de Upstash los totales viven en memoria y `/api/health` lo indica con `hits.backend: "memory"`.
+
+**Leer las cifras.** En Render → servicio **vibedom** → **Environment**, crea `STATS_TOKEN` con un secreto largo (`openssl rand -hex 32`). No lo pongas en el repo, ni en la query, ni en un enlace. Guarda los cambios (Render redespliega) y consulta:
+
+```bash
+curl -sS \
+  -H "Authorization: Bearer $STATS_TOKEN" \
+  "https://vibedom.onrender.com/api/stats?days=30"
+```
+
+La cabecera `X-Stats-Token` vale igual. `days` va de 1 a 32. La respuesta trae `total`, `byRef` (canales; `direct` es una visita sin `ref` ni `utm_source`), `byPath`, `byReferrer` (`none` si no hubo referrer) y `rows` con el desglose diario. `HIT_RATE_LIMIT` (por defecto 60) es el tope de balizas por minuto e IP; `0` lo desactiva.
 
 ### Vertex AI (recomendado si hay facturación de Google Cloud)
 
@@ -416,6 +440,8 @@ Comprobación: `curl -s https://TU-SERVICIO.onrender.com/api/health` devuelve el
 | `SCAN_FALLBACK_COOLDOWN_S` | No | Si la IA ya está en enfriamiento, se salta la cola y se compone en local. Por defecto `0` (cualquier enfriamiento). |
 | `VIBEDOM_ALLOW_PRIVATE` | No | Solo desarrollo: permite escanear hosts privados. No usar en producción. |
 | `DIAGNOSTICS_TOKEN` | No | Autoriza `GET /api/diagnostics` (`Authorization: Bearer` o `X-Diagnostics-Token`). Si falta, la ruta responde 404. |
+| `STATS_TOKEN` | No | Autoriza `GET /api/stats` (`Authorization: Bearer` o `X-Stats-Token`). Si falta, la ruta responde 404. Secreto: solo en el panel de Render. |
+| `HIT_RATE_LIMIT` | No | Visitas (`POST /api/hit`) por minuto e IP. Por defecto 60; `0` desactiva el límite. La IP no se guarda. |
 
 #### Dominio propio
 
@@ -441,7 +467,7 @@ Para añadir uno, crea el JSON en `presets/` y regístralo en `PRESET_IDS` (`src
 npm test
 ```
 
-**210 tests** unitarios con `node:test`, sin dependencias:
+**232 tests** unitarios con `node:test`, sin dependencias:
 
 * escalas, acordes y conversión MIDI;
 * validación de la semilla y presets reales;
@@ -452,6 +478,7 @@ npm test
 * guard anti-SSRF (IPs privadas, redirects, DNS);
 * servidor (rutas estáticas ES/EN y playground, `/api/scan`, `/api/top`, health, `/api/ping`, 405/413/404/429, semilla local ante 429, path traversal y cancelación);
 * ranking público (normalización de dominios, día UTC, deduplicación por IP+dominio+día, periodos, fallback a memoria y comandos `ZINCRBY`/`ZUNIONSTORE` de Upstash);
+* contador de visitas (agregación por día/ruta/canal/referrer, `HINCRBY`/`HGETALL`, tope de combinaciones, `POST /api/hit` y `GET /api/stats` con `STATS_TOKEN`, baliza con DNT/GPC y sin identificadores);
 * limitador de peticiones por IP (`X-Forwarded-For`, ventana deslizante y cuota);
 * caché de semillas por URL (normalización, TTL, desalojo y acierto sin volver a llamar a Gemini);
 * tema dinámico (normalización de hex, luminancia, contraste WCAG, texto y acento corregidos, mezclas y `rgba()`);
