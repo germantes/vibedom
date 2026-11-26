@@ -1,3 +1,5 @@
+import "../src/analytics.js";
+
 // Reproductor de los sound tests. Cada tarjeta llama a su semilla JSON bajo
 // demanda (mismo origen, estático) y solo entonces importa Tone.js a través de
 // widget-player.js. Sonando una tarjeta cada vez; cambiarla libera la previa.

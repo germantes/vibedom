@@ -23,7 +23,7 @@ escanearon 5 dominios. El problema no es el producto: es que nadie lo conoce tod
 - Un concepto que hay que oír para entender ("¿a qué suena tu web?" suena raro hasta que suena).
 - Render free duerme: el primer visitante tras un rato espera ~25 s (grava cada demo compartida).
 - La cuota gratuita de Gemini limita escaneos simultáneos (hay fallback local, pero el efecto wow es menor).
-- Sin analítica: hoy no puedes saber de dónde llega nadie (solo el proxy del ranking).
+- La analítica propia ya cuenta visitas sin cookies (`?ref=` + `/api/stats`), pero solo después de definir `STATS_TOKEN` en Render y redesplegar.
 - Marca en cero: nadie repite un dominio que no recuerda.
 
 ---
@@ -124,20 +124,35 @@ El producto convierte solo (el escaneo es gratis y anónimo), pero conviene acom
    éxito o al reproducir una entrada del historial.
 3. **Usuario → cliente:** el widget es el producto "pagable". Plantear un plan freemium
    (Widget Pro con estilos propios, CDN dedicado o soporte comercial) cuando exista adopción
-   real de embeds; medirlos añadiendo un contador simple de referer al `/api/scan`.
+   real de embeds. El widget ya envía un aviso agregado al cargarse (evento `widget`, solo el dominio anfitrión); se lee en `/api/stats`.
 
 ---
 
 ## 6. Medir sin traicionar la promesa de privacidad
 
-Nada de cookies ni Google Analytics: contradice la promesa en el hero. Alternativas
+Nada de cookies, ni Google Analytics, ni Plausible, ni Umami. La medición es propia: un aviso mínimo al backend, sin identificadores, documentada en el README ([Analítica sin cookies](README.md#analítica-sin-cookies)).
 
 | Señal | Cómo | Ya existe |
 | --- | --- | --- |
-| Escaneos/día y ráfagas | `/api/top` interno | Sí |
-| Visitas sin cookies | Plausible self-hosted o Umami (sin cookies, propias) | No (aconsejado) |
-| Embeds del widget | referer de peticiones a `widget-player.js` | Logged (mirar logs Render) |
-| Supervivencia del ranking | el histórico de escaneos ya es un proxy decente | Proxy |
+| Escaneos publicados | `/api/top` | Sí |
+| Visitas, escaneos empezados y widgets | `POST /api/collect` → `GET /api/stats` (7 y 30 días, por `ref` y por referrer) | Sí |
+| De qué canal llegó | el `ref` de la URL que compartes | Sí, con la lista de abajo |
+| Embeds del widget | evento `widget` con el dominio anfitrión | Sí |
+
+Antes del lanzamiento, en Render: variable `STATS_TOKEN` (secreto largo, nunca en el repo) y redeploy. Sin ella `/api/stats` responde 404. Ábrela en el navegador (la contraseña del cuadro es el token) o con `Authorization: Bearer`. Hace falta también Upstash, el mismo Redis del ranking: sin él los contadores viven en memoria y Render los tira al dormir.
+
+Usa estas URLs al publicar. Un código que no esté en la lista se guarda como `direct`.
+
+| Canal | Español | English |
+| --- | --- | --- |
+| X | https://vibedom.dev/?ref=x | https://vibedom.dev/en/?ref=x |
+| Hacker News | https://vibedom.dev/?ref=hn | https://vibedom.dev/en/?ref=hn |
+| Reddit | https://vibedom.dev/?ref=reddit | https://vibedom.dev/en/?ref=reddit |
+| Dev.to | https://vibedom.dev/?ref=devto | https://vibedom.dev/en/?ref=devto |
+| LinkedIn | https://vibedom.dev/?ref=linkedin | https://vibedom.dev/en/?ref=linkedin |
+| Product Hunt | https://vibedom.dev/?ref=ph | https://vibedom.dev/en/?ref=ph |
+
+El `ref` solo cuenta en la página que lo lleva. Pega la URL completa: si el canal quita la query, esa visita sale como `direct`. Do Not Track y Global Privacy Control no se cuentan.
 
 Objetivos honestos para 90 días (desde ~0):
 - 3.000 visitas totales, 1.200 escaneos, >200 semillas compartidas, 5 embeds reales.
@@ -150,7 +165,7 @@ Objetivos honestos para 90 días (desde ~0):
 **Días 1–30 — Preparación y lanzamiento**
 1. Corregir los avisos de infra (Upstash ya reclamada o migrar; decidir Starter de Render:
    el cold start de 25 s mata el pico del lanzamiento — recomendado gastar los 7 USD/mes).
-2. Analítica sin cookies (Umami/Plausible) instalada antes del lanzamiento.
+2. Analítica sin cookies: definir `STATS_TOKEN` en Render y redesplegar antes del lanzamiento (el código ya está; sin la variable no hay página de visitas).
 3. Grabar 5 sound tests (Stripe, Apple, Wikipedia, tu web, una sorpresa).
 4. Product Hunt + Show HN + Reddit en la misma semana.
 5. Semana siguiente: 10 correos a newsletters, 5 partnerships.

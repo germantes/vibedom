@@ -19,6 +19,9 @@ import { createGeminiLimiter } from "./gemini-limiter.js";
 import { createScanBudget } from "./scan-budget.js";
 import { createAiUsage } from "./ai-usage.js";
 import { createTopStore, PERIODS } from "./top-store.js";
+import { createAnalyticsStore } from "./analytics-store.js";
+import { renderStatsPage } from "./stats-page.js";
+import { parseCollect } from "../analytics-core.js";
 import { composeLocalSeed } from "./local-seed.js";
 import { resolveEngine } from "./providers.js";
 import { loadDotEnv } from "./dotenv.js";
@@ -42,6 +45,11 @@ const parsedShareLimit = Number(process.env.SHARE_RATE_LIMIT);
 const SHARE_LIMIT_PER_MIN = Number.isFinite(parsedShareLimit)
   ? Math.max(0, parsedShareLimit)
   : 20;
+const parsedAnalyticsLimit = Number(process.env.ANALYTICS_RATE_LIMIT);
+const ANALYTICS_LIMIT_PER_MIN = Number.isFinite(parsedAnalyticsLimit)
+  ? Math.max(0, parsedAnalyticsLimit)
+  : 60;
+const COLLECT_MAX_BYTES = 1024;
 
 /**
  * Origen público para construir URLs absolutas (OG y redirección). En Render
@@ -140,6 +148,16 @@ const MIME = {
 
 // ---- Helpers ---------------------------------------------------------------
 
+function noContent(res, headers = {}) {
+  res.writeHead(204, {
+    "Access-Control-Allow-Origin": "*",
+    "Cache-Control": "no-store",
+    "Content-Length": "0",
+    ...headers,
+  });
+  res.end();
+}
+
 function json(res, status, body, headers = {}, head = false) {
   const payload = JSON.stringify(body);
   res.writeHead(status, {
@@ -158,22 +176,33 @@ function httpError(status, message) {
   return err;
 }
 
-async function readJsonBody(req) {
+async function readRawBody(req, maxBytes) {
   const chunks = [];
   let size = 0;
 
   for await (const chunk of req) {
     size += chunk.length;
-    if (size > MAX_BODY_BYTES) throw httpError(413, "Cuerpo de la petición demasiado grande");
+    if (size > maxBytes) throw httpError(413, "Cuerpo de la petición demasiado grande");
     chunks.push(chunk);
   }
 
   if (!size) throw httpError(400, "Cuerpo vacío");
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+async function readJsonBody(req) {
+  const raw = await readRawBody(req, MAX_BODY_BYTES);
   try {
-    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    return JSON.parse(raw);
   } catch {
     throw httpError(400, "JSON inválido en el cuerpo de la petición");
   }
+}
+
+/** DNT o Global Privacy Control: la medición no se guarda. */
+function privacyOptOut(req) {
+  if (String(req.headers?.dnt ?? "").trim() === "1") return true;
+  return String(req.headers?.["sec-gpc"] ?? "").trim() === "1";
 }
 
 // ---- POST /api/scan --------------------------------------------------------
@@ -470,6 +499,46 @@ function authorizeDiagnostics(req) {
   return sameSecret(presentedDiagnosticsToken(req), expected) ? 200 : 401;
 }
 
+function statsSecret() {
+  const token = String(process.env.STATS_TOKEN ?? "").trim();
+  return token || null;
+}
+
+/** Bearer, X-Stats-Token o contraseña Basic. Nunca la query: acabaría en logs. */
+function presentedStatsToken(req) {
+  const header = req.headers?.["x-stats-token"];
+  const raw = Array.isArray(header) ? header[0] : header;
+  const fromHeader = String(raw ?? "").trim();
+  if (fromHeader) return fromHeader;
+
+  const authorization = String(req.headers?.authorization ?? "");
+  const bearer = /^Bearer\s+(\S+)\s*$/i.exec(authorization);
+  if (bearer) return bearer[1];
+
+  const basic = /^Basic\s+([A-Za-z0-9+/=]+)\s*$/i.exec(authorization);
+  if (!basic) return "";
+  const decoded = Buffer.from(basic[1], "base64").toString("utf8");
+  const split = decoded.indexOf(":");
+  if (split < 0) return "";
+  return decoded.slice(split + 1).trim();
+}
+
+/**
+ * 404 si falta STATS_TOKEN: no anuncia que la ruta existe.
+ * 401 si el secreto está puesto y la petición no lo trae.
+ */
+function authorizeStats(req) {
+  const expected = statsSecret();
+  if (!expected) return 404;
+  return sameSecret(presentedStatsToken(req), expected) ? 200 : 401;
+}
+
+function wantsHtml(req) {
+  const accept = String(req.headers?.accept ?? "");
+  if (accept.includes("application/json")) return false;
+  return accept.includes("text/html");
+}
+
 // ---- Router ----------------------------------------------------------------
 
 /**
@@ -492,6 +561,8 @@ export function createVibedomServer({
   topStore = createTopStore({ logger }),
   shareStore = createShareStore({ logger }),
   shareRateLimit = createRateLimiter({ limit: SHARE_LIMIT_PER_MIN }),
+  analyticsStore = createAnalyticsStore({ logger }),
+  analyticsRateLimit = createRateLimiter({ limit: ANALYTICS_LIMIT_PER_MIN }),
   requestBudgetMs = DEFAULT_REQUEST_BUDGET_MS,
 } = {}) {
   // Conteos del ranking aún en vuelo: `/api/top` los espera antes de leer para
@@ -546,6 +617,81 @@ export function createVibedomServer({
     }
 
     const requestPath = (req.url ?? "").split("?")[0];
+    if (req.method === "GET" && requestPath === "/api/stats") {
+      const status = authorizeStats(req);
+      if (status !== 200) {
+        const headers = status === 401 ? { "WWW-Authenticate": 'Basic realm="vibedom-stats"' } : {};
+        return json(res, status, { error: status === 401 ? "No autorizado" : "Not found" }, headers);
+      }
+
+      let week;
+      let month;
+      try {
+        [week, month] = await Promise.all([analyticsStore.summary(7), analyticsStore.summary(30)]);
+      } catch (err) {
+        logger?.warn?.(`[stats] no se pudo leer: ${err?.message ?? err}`);
+        return json(res, 500, { error: "No se pudieron leer las estadísticas" });
+      }
+
+      const report = {
+        ok: true,
+        storage: analyticsStore.snapshot(),
+        days: { 7: week, 30: month },
+      };
+      if (wantsHtml(req)) {
+        const html = renderStatsPage(report);
+        res.writeHead(200, {
+          "Content-Type": "text/html; charset=utf-8",
+          "Content-Length": Buffer.byteLength(html),
+          "Cache-Control": "no-store",
+          "X-Robots-Tag": "noindex, nofollow",
+        });
+        return res.end(html);
+      }
+      return json(res, 200, report);
+    }
+
+    if (req.method === "POST" && requestPath === "/api/collect") {
+      const quota = analyticsRateLimit(req);
+      if (!quota.ok) {
+        return json(
+          res,
+          429,
+          { error: "Demasiadas mediciones" },
+          { "Retry-After": String(quota.retryAfter) },
+        );
+      }
+      // Quien pide que no le midan no entra, aunque el cuerpo sea válido.
+      if (privacyOptOut(req)) {
+        noContent(res);
+        req.resume();
+        return;
+      }
+
+      let raw;
+      try {
+        raw = await readRawBody(req, COLLECT_MAX_BYTES);
+      } catch (err) {
+        return json(res, err.status ?? 400, { error: err.message });
+      }
+
+      let body;
+      try {
+        body = JSON.parse(raw);
+      } catch {
+        return json(res, 400, { error: "Medición inválida" });
+      }
+      const hit = parseCollect(body);
+      if (!hit) return json(res, 400, { error: "Medición inválida" });
+
+      try {
+        await analyticsStore.record(hit, { ip: clientIp(req) });
+      } catch (err) {
+        logger?.warn?.(`[stats] no se pudo guardar: ${err?.message ?? err}`);
+      }
+      return noContent(res);
+    }
+
     if (req.method === "GET" && requestPath === "/api/diagnostics") {
       // Traza mínima para depurar caídas: solo hosts, estados y tiempos.
       // No es pública: lista webs recién escaneadas y mensajes de error.
@@ -574,6 +720,7 @@ export function createVibedomServer({
           usage: aiUsage.snapshot(),
           top: topStore.snapshot(),
           share: shareStore.snapshot(),
+          analytics: analyticsStore.snapshot(),
         },
         {},
         req.method === "HEAD",

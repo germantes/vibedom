@@ -9,7 +9,7 @@
     <title>Widget embebible · vibedom para diseñadores</title>
     <meta
       name="description"
-      content="Añade la identidad sonora de una web con una etiqueta script. Widget ligero, sin backend, sin cookies y con el audio activado solo al pulsar. Guía de instalación, atributos, CSP y SRI."
+      content="Añade la identidad sonora de una web con una etiqueta script. Widget ligero, sin cookies y con el audio activado solo al pulsar. Guía de instalación, atributos, CSP y SRI."
     />
 
     <link rel="canonical" href="https://vibedom.dev/widget/" />
@@ -101,7 +101,7 @@
         <ul class="doc-badges">
           <li>Menos de 5 KB iniciales</li>
           <li>Shadow DOM aislado</li>
-          <li>Sin cookies ni analítica</li>
+          <li>Sin cookies ni rastreo de terceros</li>
           <li>Tone.js solo al pulsar</li>
         </ul>
         <div class="doc-actions">
@@ -235,7 +235,7 @@
               </li>
               <li>
                 <strong>Mientras suena</strong>, el motor interpreta la semilla en el navegador: pad, drone y
-                arpegio. No hay audio pregrabado ni peticiones a la API.
+                arpegio. No hay audio pregrabado ni llamadas a la IA.
               </li>
             </ol>
             <p>
@@ -250,7 +250,8 @@
             <p>
               Si la web anfitriona usa una <code>Content-Security-Policy</code> estricta, añade estos orígenes.
               El widget necesita jsDelivr para Tone.js, <code>blob:</code> para el reloj y los worklets internos
-              de Tone, y estilos inline para el Shadow DOM:
+              de Tone, estilos inline para el Shadow DOM y <code>connect-src</code> hacia el backend para el
+              aviso agregado de carga. Si esa conexión se bloquea, el botón sigue funcionando:
             </p>
 
             <div class="code-card">
@@ -259,6 +260,7 @@
                 <button type="button" data-copy="csp" data-copied="Copiado" data-error="No se pudo copiar">Copiar</button>
               </div>
               <pre><code id="csp">script-src 'self' https://vibedom.dev https://cdn.jsdelivr.net blob:;
+connect-src https://vibedom.onrender.com;
 worker-src blob:;
 style-src 'self' 'unsafe-inline';</code></pre>
             </div>
@@ -294,8 +296,12 @@ style-src 'self' 'unsafe-inline';</code></pre>
           <section id="privacidad">
             <h2>5. Privacidad y coste</h2>
             <ul>
-              <li>No hay cookies, <code>localStorage</code> ni analítica de vibedom.</li>
-              <li>La URL de la página anfitriona no se envía a ningún servidor.</li>
+              <li>No hay cookies ni <code>localStorage</code>.</li>
+              <li>
+                Al cargar, y solo si el navegador no pide Do Not Track ni Global Privacy Control, se envía un
+                aviso agregado a vibedom: el idioma y el dominio de la página anfitriona. No se envía la ruta,
+                la URL completa, la IP ni un identificador.
+              </li>
               <li>El audio se sintetiza en el navegador; no se descarga música ni se sube nada.</li>
               <li>
                 El primer clic pide Tone.js a jsDelivr, que ve la IP del visitante como cualquier CDN. Si

@@ -17,6 +17,8 @@ const PAGES = [
   "en/what-does-my-website-sound-like/index.html",
   "playground/index.html",
   "playground/en/index.html",
+  "privacidad/index.html",
+  "en/privacy/index.html",
 ];
 const META = /(<meta name="vibedom-api" content=")([^"]*)(")/;
 

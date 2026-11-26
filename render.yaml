@@ -73,6 +73,10 @@ services:
       # Autoriza GET /api/diagnostics. Si falta, esa ruta responde 404.
       - key: DIAGNOSTICS_TOKEN
         sync: false
+      # Autoriza GET /api/stats (visitas agregadas). Si falta, la ruta responde 404.
+      # También sala el hash diario de visitantes únicos. Nunca commitear el valor.
+      - key: STATS_TOKEN
+        sync: false
       # Ranking público de webs escaneadas. Upstash Redis por REST: gratis y
       # durable. Sin estas dos variables el ranking vive en memoria y se
       # reinicia con el proceso. Secreto: se define en el panel de Render.

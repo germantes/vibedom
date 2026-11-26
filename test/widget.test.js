@@ -31,3 +31,15 @@ test("el widget acepta un texto propio y detecta el idioma de la página", () =>
   assert.match(widget, /data-label/);
   assert.match(widget, /document\.documentElement\.lang/);
 });
+
+test("el widget avisa la carga sin cookies y respeta Do Not Track", () => {
+  assert.match(widget, /var n=navigator/);
+  assert.match(widget, /n\.sendBeacon\(u,\s*b\)/);
+  assert.match(widget, /keepalive:\s*true/);
+  assert.match(widget, /\/api\/collect/);
+  assert.match(widget, /doNotTrack/);
+  assert.match(widget, /globalPrivacyControl/);
+  assert.match(widget, /"event":"widget"/);
+  assert.doesNotMatch(widget, /localStorage/);
+  assert.doesNotMatch(widget, /document\.cookie/);
+});
