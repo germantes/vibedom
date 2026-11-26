@@ -100,6 +100,13 @@ const DICTS = {
       "En el playground puedes ver la semilla, mover tempo, brillo, espacialidad y densidad, y mirar el espectro mientras suena.",
     "landing.cta.button": "Abrir el playground",
 
+    "landing.soundtests.eyebrow": "Sound tests",
+    "landing.soundtests.title": "¿A qué suena Stripe? ¿Y Wikipedia?",
+    "landing.soundtests.lead":
+      "Diez webs que usas a diario ya tienen su banda sonora aquí: escúchalas con un clic y abre cualquiera en el playground para mover sus controles.",
+    "landing.soundtests.button": "Escuchar los 10 sound tests",
+    "landing.soundtests.quick": "Prueba rápida:",
+
     "landing.faq.title": "Preguntas frecuentes",
     "landing.faq.q1": "¿Qué analiza exactamente?",
     "landing.faq.a1":
@@ -401,6 +408,13 @@ const DICTS = {
     "landing.cta.lead":
       "In the playground you can inspect the seed, move tempo, brightness, spaciousness and density, and watch the spectrum while it plays.",
     "landing.cta.button": "Open the playground",
+
+    "landing.soundtests.eyebrow": "Sound tests",
+    "landing.soundtests.title": "What does Stripe sound like? And Wikipedia?",
+    "landing.soundtests.lead":
+      "Ten websites you use every day already have their soundtrack here: listen with one click and open any of them in the playground to move its controls.",
+    "landing.soundtests.button": "Play the 10 sound tests",
+    "landing.soundtests.quick": "Quick try:",
 
     "landing.faq.title": "Frequently asked questions",
     "landing.faq.q1": "What exactly does it analyse?",

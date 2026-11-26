@@ -832,6 +832,22 @@ a {
   color: var(--text);
 }
 
+.st-quick {
+  margin: 0.75rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.st-quick a {
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.st-quick a:hover {
+  border-color: var(--accent);
+}
+
 .demo-share {
   margin: 0.6rem 0 0;
 }
