@@ -48,11 +48,11 @@ services:
       # estática: quien abre la tarjeta acaba en vibedom.dev, no en onrender.com.
       - key: PUBLIC_SITE
         value: https://vibedom.dev
-      # Origen base de los enlaces cortos. Mientras no exista el CNAME
-      # s.vibedom.dev → vibedom.onrender.com, NO definirlo: /api/share usa
-      # el propio origen del servicio y los enlaces funcionan igual.
-      # Pasos: CNAME s en Name.com → dominio personalizado en Render →
-      # definir esta variable con https://s.vibedom.dev y desplegar.
+      # Origen base de los enlaces cortos. ACTIVO desde el 2026-11-25:
+      # CNAME s.vibedom.dev → vibedom.onrender.com en Name.com y dominio
+      # personalizado en Render; la variable vale https://s.vibedom.dev.
+      # Se define en el panel (sync: false) para que un deploy accidental
+      # no la active sin el DNS.
       - key: SHARE_BASE
         sync: false
       # Creaciones de enlace corto por IP y minuto. `0` lo desactiva.

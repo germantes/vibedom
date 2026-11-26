@@ -365,6 +365,7 @@ La landing deja de ser solo oscura: al escanear, la página entera adopta la pal
 - **API**: `POST /api/share` `{ token }` → `{ url, id }` (valida el contrato con `normalizeSeed(decodeAnyToken())` antes de guardar nada; rate limit propio por IP y minuto, `SHARE_RATE_LIMIT` = 20). `/api/health` añade `share` con backend y TTL. `SHARE_BASE` (solo panel, sin sync) permitirá servir los enlaces desde `s.vibedom.dev` en cuanto exista el CNAME.
 - **Privacidad**: las páginas ES/EN explican el matiz: la semilla sigue viajando en la URL sin base de datos, y el enlace corto la guarda 30 días en Redis externo para la vista previa.
 - **Verificación (2026-11-25)**: 210 unitarios (5 nuevos en `test/share.test.js`: memoria, SET NX EX con reintentos, roundtrip POST/`/s/<id>`/PNG, 400/429, página de error para ID inexistente) y 10 E2E en verde; el webServer de Playwright vacía las credenciales Upstash para que los E2E nunca escriban en la base real, y los specs interceptan `**/api/share` porque el `<meta vibedom-api>` apunta a producción. Producción: `/api/share` operativo y enlace corto resuelto end-to-end contra Upstash real.
+- **Dominio bonito (mismo día)**: CNAME `s.vibedom.dev → vibedom.onrender.com` en Name.com + Custom Domain en Render + `SHARE_BASE=https://s.vibedom.dev` en el panel. Verificado: `https://s.vibedom.dev/s/i735j5K` — **31 caracteres** con vista previa OG, certificado propio y Upstash detrás.
 
 ### 🔎 Strudel frente a Tone.js (evaluado, no adoptado)
 
