@@ -416,6 +416,8 @@ Comprobación: `curl -s https://TU-SERVICIO.onrender.com/api/health` devuelve el
 | `SCAN_FALLBACK_COOLDOWN_S` | No | Si la IA ya está en enfriamiento, se salta la cola y se compone en local. Por defecto `0` (cualquier enfriamiento). |
 | `VIBEDOM_ALLOW_PRIVATE` | No | Solo desarrollo: permite escanear hosts privados. No usar en producción. |
 | `DIAGNOSTICS_TOKEN` | No | Autoriza `GET /api/diagnostics` (`Authorization: Bearer` o `X-Diagnostics-Token`). Si falta, la ruta responde 404. |
+| `STATS_TOKEN` | No | Autoriza `GET /api/stats`. Si falta, la ruta responde 404. También sala el hash diario de visitantes únicos. Se define en el panel de Render (Environment), nunca en el repo. Ver [Analítica sin cookies](#analítica-sin-cookies). |
+| `ANALYTICS_RATE_LIMIT` | No | Avisos de visita por minuto y por IP. Por defecto 60; `0` desactiva el límite. |
 
 #### Dominio propio
 
@@ -426,6 +428,34 @@ npm run set-domain -- https://tu-dominio.dev
 ```
 
 Reescribe `canonical`, `og:url`, `hreflang`, JSON-LD, `sitemap.xml`, `robots.txt` y la documentación, y genera el `CNAME` que lee GitHub Pages. Hazlo solo cuando el DNS ya apunte a GitHub: en cuanto entra el `CNAME`, `germantes.github.io/vibedom/` redirige al dominio nuevo.
+
+## Analítica sin cookies
+
+Mide de dónde llegan las visitas sin cookies, sin `localStorage`, sin scripts de terceros y sin guardar la IP ni el user-agent. El navegador envía un aviso mínimo (`navigator.sendBeacon`, o `fetch` con `keepalive`) a `POST /api/collect` en el backend de Render.
+
+Cada aviso lleva la ruta publicada, el idioma (`es` o `en`), el parámetro `ref` si está en la lista de abajo y solo el dominio de `document.referrer` (nunca la URL completa). También se cuenta un escaneo empezado desde la landing o el playground, y la carga del widget (solo el dominio que lo incrusta; `widget.js` sigue por debajo de 5 KB).
+
+Si el navegador envía Do Not Track o Global Privacy Control, el aviso no sale y el servidor lo descarta si llega igual. El visitante único de un día es un hash HMAC con sal que rota a medianoche UTC: no se persiste la IP y el hash de hoy no sirve para reconocer a la misma persona mañana. Los contadores (día × ruta × ref × dominio de procedencia × evento) viven en Upstash Redis, el mismo almacén que el ranking, y caducan a los 40 días. Sin esas credenciales quedan en memoria y se pierden cuando Render duerme: el disco del plan free es efímero.
+
+`GET /api/stats` muestra los totales de 7 y 30 días por ref y por referrer. Hace falta `STATS_TOKEN`:
+
+1. Render → servicio **vibedom** → **Environment** → **Add Environment Variable**.
+2. Clave `STATS_TOKEN`, valor un secreto largo (por ejemplo `openssl rand -hex 24`). No lo subas al repositorio ni lo pongas en la URL.
+3. Guarda y espera al redeploy (o lánzalo a mano). Sin la variable, `/api/stats` responde 404.
+4. Ábrelo en el navegador: `https://vibedom.onrender.com/api/stats`. El cuadro de acceso pide una contraseña: pega el token (el usuario puede ser cualquiera). Con curl: `curl -s -H "Authorization: Bearer $STATS_TOKEN" https://vibedom.onrender.com/api/stats`.
+
+Un `ref` que no esté en la lista se cuenta como `direct`. Para añadir un canal hay que incluir el código en `REF_CODES` (`src/analytics-core.js`) y volver a desplegar.
+
+| Canal | Código | Español | English |
+| --- | --- | --- | --- |
+| X | `x` | https://vibedom.dev/?ref=x | https://vibedom.dev/en/?ref=x |
+| Hacker News | `hn` | https://vibedom.dev/?ref=hn | https://vibedom.dev/en/?ref=hn |
+| Reddit | `reddit` | https://vibedom.dev/?ref=reddit | https://vibedom.dev/en/?ref=reddit |
+| Dev.to | `devto` | https://vibedom.dev/?ref=devto | https://vibedom.dev/en/?ref=devto |
+| LinkedIn | `linkedin` | https://vibedom.dev/?ref=linkedin | https://vibedom.dev/en/?ref=linkedin |
+| Product Hunt | `ph` | https://vibedom.dev/?ref=ph | https://vibedom.dev/en/?ref=ph |
+
+El `ref` se lee en la página que lo lleva. Comparte esa URL tal cual: si quien publica la acorta o quita la query, la visita entra como `direct`.
 
 ## Presets
 
@@ -441,7 +471,7 @@ Para añadir uno, crea el JSON en `presets/` y regístralo en `PRESET_IDS` (`src
 npm test
 ```
 
-**210 tests** unitarios con `node:test`, sin dependencias:
+**226 tests** unitarios con `node:test`, sin dependencias:
 
 * escalas, acordes y conversión MIDI;
 * validación de la semilla y presets reales;
@@ -452,6 +482,7 @@ npm test
 * guard anti-SSRF (IPs privadas, redirects, DNS);
 * servidor (rutas estáticas ES/EN y playground, `/api/scan`, `/api/top`, health, `/api/ping`, 405/413/404/429, semilla local ante 429, path traversal y cancelación);
 * ranking público (normalización de dominios, día UTC, deduplicación por IP+dominio+día, periodos, fallback a memoria y comandos `ZINCRBY`/`ZUNIONSTORE` de Upstash);
+* analítica sin cookies (ruta y ref en lista blanca, referrer solo con el dominio, DNT/GPC, hash diario sin IP, ventanas de 7 y 30 días, `/api/collect`, `/api/stats` con `STATS_TOKEN` y tope por IP);
 * limitador de peticiones por IP (`X-Forwarded-For`, ventana deslizante y cuota);
 * caché de semillas por URL (normalización, TTL, desalojo y acierto sin volver a llamar a Gemini);
 * tema dinámico (normalización de hex, luminancia, contraste WCAG, texto y acento corregidos, mezclas y `rgba()`);

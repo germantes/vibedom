@@ -1,6 +1,7 @@
-// Copiar fragmentos de la documentación. Sin dependencias y sin red: si el
+// Copiar fragmentos de la documentación. Sin dependencias: si el
 // portapapeles no está disponible, el botón queda desactivado y el código se
 // puede seleccionar a mano.
+import "../analytics.js";
 const buttons = document.querySelectorAll("[data-copy]");
 
 for (const button of buttons) {

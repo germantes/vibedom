@@ -1,6 +1,7 @@
 import { attachReactivity } from "../engine/reactivity.js";
 import { configureContext, createSoundscape } from "../engine/soundscape.js";
 import { analysisCopy, applyI18n, getLang, presetCopy, rateLimitCopy, t } from "../i18n.js";
+import { track } from "../analytics.js";
 import { API_URL, CAN_SCAN, STATIC_HOST, TOP_URL, warmApi } from "../api.js";
 import { addHistoryEntry, readHistory } from "../history.js";
 import { buildShareLink, encodeShortToken, shortenShareLink } from "../embed.js";
@@ -410,6 +411,8 @@ scanForm.addEventListener("submit", async (event) => {
   const audioReady = loadTone()
     .then(() => Tone.start())
     .catch(() => {});
+
+  track("scan");
 
   try {
     const res = await fetch(API_URL, {

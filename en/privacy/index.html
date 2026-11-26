@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#0a0a0c" />
     <meta name="color-scheme" content="dark" />
     <meta name="google-site-verification" content="google7f928a8ec81cb8b1" />
+    <meta name="vibedom-api" content="https://vibedom.onrender.com" />
     <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
     <title>Privacy · vibedom</title>
     <meta
@@ -75,14 +76,14 @@
           vibedom has no accounts, no tracking cookies and no third-party analytics. Music is synthesised in
           your browser. This page explains the little that does travel over the network.
         </p>
-        <p class="hint">Last updated: 15 November 2026.</p>
+        <p class="hint">Last updated: 26 November 2026.</p>
       </section>
 
       <div class="wrap doc-content legal">
         <section>
           <h2>The essentials</h2>
           <ul>
-            <li>No sign-up, no first-party cookies, no pixels and no vibedom analytics.</li>
+            <li>No sign-up, no cookies, no pixels and no third-party analytics.</li>
             <li>We do not store the HTML, screenshots or content of analysed websites.</li>
             <li>
               The public ranking only stores the domain and the day of each scan: never the path, the query
@@ -144,8 +145,42 @@
           </p>
           <ul>
             <li>It uses no cookies or <code>localStorage</code>.</li>
+            <li>
+              On load it sends one aggregate notice (a “widget” event, the language and only the embedding
+              site's domain). It does not send the path or the full URL. If the browser asks for Do Not Track
+              or Global Privacy Control, nothing is sent.
+            </li>
             <li>The first click downloads Tone.js from <strong>jsDelivr</strong>, which sees the visitor's IP like any CDN.</li>
             <li>Audio is synthesised in the browser; no music is downloaded and nothing is uploaded.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Aggregate visits</h2>
+          <p>
+            To see which channel people arrive from, the browser tells our backend on
+            <strong>Render</strong> when a page opens. The notice carries the path (for example <code>/en/</code>),
+            the language (<code>es</code> or <code>en</code>), the <code>ref</code> parameter when it is one of
+            ours (<code>x</code>, <code>hn</code>, <code>reddit</code>, <code>devto</code>, <code>linkedin</code>,
+            <code>ph</code>) and only the domain of the page you came from. We also count when a scan starts
+            on the site.
+          </p>
+          <ul>
+            <li>We do not use cookies, <code>localStorage</code> or an identifier that follows you across days.</li>
+            <li>We do not store your IP or your user-agent. Those values never enter the store.</li>
+            <li>
+              To estimate how many different people arrive on a given day we compute a hash with a salt that
+              rotates at UTC midnight. The IP cannot be reconstructed, and the hash cannot be matched to the
+              next day's.
+            </li>
+            <li>
+              If the browser sends Do Not Track or Global Privacy Control, we do not send the notice, and the
+              server drops it if it arrives anyway.
+            </li>
+            <li>
+              The counters (day, path, ref, referring domain and event) live in <strong>Upstash</strong> and
+              expire after 40 days. There are no profiles and no advertising.
+            </li>
           </ul>
         </section>
 
@@ -155,7 +190,7 @@
             <li><strong>Render</strong>: hosts the backend that analyses URLs and serves shared-link previews.</li>
             <li><strong>GitHub Pages</strong>: serves the static site at <code>vibedom.dev</code>.</li>
             <li><strong>Google</strong>: Gemini or Vertex AI generate the seed; Google Cloud bills the project's usage.</li>
-            <li><strong>Upstash</strong>: stores the aggregated ranking counters (domain and day) in Redis.</li>
+            <li><strong>Upstash</strong>: stores the aggregated ranking counters (domain and day) and the visit counters (path, ref, referring domain and event) in Redis.</li>
             <li><strong>jsDelivr</strong>: delivers Tone.js when you press play in the demo or the widget.</li>
           </ul>
           <p>
@@ -167,8 +202,8 @@
         <section>
           <h2>Your rights and contact</h2>
           <p>
-            Since there are no accounts or profiles, there is no profile to delete. The ranking only contains
-            domains and aggregated daily counters, with no IPs or personal data. If you have questions about
+            Since there are no accounts or profiles, there is no profile to delete. The ranking and the visit
+            counters only contain daily aggregates, with no IPs or personal data. If you have questions about
             this processing or want to exercise your access, rectification or erasure rights, email
             <a href="mailto:gtorrestendero@gmail.com">gtorrestendero@gmail.com</a>.
           </p>
@@ -195,5 +230,6 @@
         </div>
       </div>
     </footer>
+    <script type="module" src="../../src/analytics.js"></script>
   </body>
 </html>
